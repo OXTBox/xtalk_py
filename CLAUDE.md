@@ -42,3 +42,4 @@ not useful to him.
 - A one-line `if c then x` directly before an `else` line takes that else.
 - `does not begin with` is not xTalk: `not (x begins with y)`.
 - An array element is either a value or an array; putting into `a[i]["k"]` replaces `a[i]`.
+- Chunks nest small-inside-big only: `word 1 to -1 of char 1 to 5 of x` is a compile error, "bad chunk order".
