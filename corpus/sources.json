@@ -188,12 +188,13 @@
    "source": "LIB_XTJSON/livecode/xtReemder_Rebuild_stack.livecodescript",
    "project": "LIB_XTJSON",
    "kind": "script-only stack (launcher)",
-   "title": "xtRedeemer: launcher for the XTJSON rebuild",
-   "description": "Open with File > Open Stack: makes its button and library cards when needed and runs LIB_XTJSON on a harvest folder.",
+   "title": "xtRedeemer: rebuild a stack from its XTJSON harvest, to test the harvest",
+   "description": "A testing tool for XTJSON: rebuilds a stack from an LCHarvest2 harvest with LIB_XTJSON so the result can be compared with the original stack, to find what the harvest lost or changed and needs clarification (\"redemption\"). A script-only stack: File > Open Stack; it makes its button and library cards when needed.",
    "tags": [
     "json",
     "rebuild",
-    "launcher",
+    "testing",
+    "round-trip",
     "tool"
    ]
   },

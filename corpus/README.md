@@ -19,7 +19,7 @@ programs and local models): every script's title, description, size and handler 
 | `games/vibecode3d/` | Game card scripts (from LIB_GAMES) |
 | `xt3d/` | The xt3d benches, demos and launchers |
 | `reference/` | Test cases and captured scripts |
-| `inbox/` | Drop new scripts here; Claude files and describes them |
+| `notes/` | Reviewed catalogues (`<file>.md`) beside Spark's drafts (`<file>.spark.md`) |
 
 ## Copies and originals
 
@@ -35,13 +35,13 @@ programs and local models): every script's title, description, size and handler 
 
 ## Adding scripts
 
-1. Drop the file into `inbox/` (any name; `.livecodescript` or `.txt`).
-2. Ask Claude to catalogue it. Claude reads it, moves it to the right folder, writes its
-   entry in `sources.json` (title, description, kind, tags, where it came from) and runs
-   `tools/corpus_sync.py`, which rebuilds `INDEX.md` and `index.json`.
+Drop scripts into `xtalk_py/toCorpus/` (see its README): Spark writes a first-look
+catalogue, Claude reviews it, files the script here with its `sources.json` entry, and
+removes it from `toCorpus`. Whole stacks to take apart go to `xtalk_py/fromXJSON/` as
+XTJSON harvests.
 
 `python3 tools/corpus_sync.py --check` lists copies whose project file has changed,
-anything missing, and files waiting in `inbox/`.
+anything missing, and scripts waiting in `toCorpus/`.
 
 ## Used by
 

@@ -14,7 +14,7 @@ written:
   corpus/INDEX.md     a table to read
   corpus/index.json   the same for programs and local models: per script its title,
                       description, kind, tags, origin, size and handler names
-Files dropped into corpus/inbox/ are listed so they can be catalogued.
+Scripts waiting in xtalk_py/toCorpus/ are listed so they can be catalogued.
 """
 import hashlib, json, os, re, shutil, sys
 
@@ -80,13 +80,12 @@ def main():
         item['sha1'] = hashlib.sha1(read(dest)).hexdigest()[:12]
         index.append(item)
     listed = {e['file'] for e in cat['entries']}
-    inbox = sorted(os.path.relpath(os.path.join(r, n), CORPUS)
-                   for r, _, ns in os.walk(os.path.join(CORPUS, 'inbox')) for n in ns
-                   if n != 'README.md' and 'Zone.Identifier' not in n)
+    waiting = os.path.join(ROOT, 'toCorpus')
+    inbox = sorted(n for n in (os.listdir(waiting) if os.path.isdir(waiting) else [])
+                   if n.lower().endswith(('.livecodescript', '.txt')) and 'Zone.Identifier' not in n)
     unlisted = sorted(os.path.relpath(os.path.join(r, n), CORPUS)
                       for r, _, ns in os.walk(CORPUS) for n in ns
                       if n.endswith(('.livecodescript', '.txt'))
-                      and not os.path.relpath(r, CORPUS).startswith('inbox')
                       and os.path.relpath(os.path.join(r, n), CORPUS) not in listed)
 
     print(('would refresh' if check else 'refreshed'), len(changed), 'copies' + (':' if changed else ''))
@@ -97,7 +96,7 @@ def main():
     for x in unlisted:
         print('NOT IN sources.json', x)
     for x in inbox:
-        print('INBOX (to catalogue)', x)
+        print('WAITING in toCorpus/', x)
     if check:
         return
 

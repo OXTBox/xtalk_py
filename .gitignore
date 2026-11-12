@@ -1,2 +1,8 @@
 __pycache__/
 *.pyc
+# passing through: scripts waiting for review, harvests being taken apart
+toCorpus/*
+!toCorpus/README.md
+fromXJSON/*
+!fromXJSON/README.md
+*:Zone.Identifier
