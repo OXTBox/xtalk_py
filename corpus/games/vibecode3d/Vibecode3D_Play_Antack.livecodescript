@@ -8,10 +8,13 @@
 ## SCREENS   Title (Easy / Medium / Hard / Trainer / Quit), the fight levels, You Win,
 ##           You Lost. Easy: Fight 1, 2, 4, 3. Medium starts at Fight 2, Hard at Fight 3.
 ## CONTROLS  1-6       launch an ant army at enemy hill 1-6 (from a free hill of yours)
-##           click     anti-ant missile at the red army nearest the pointer (3 at a time)
+##           click     anti-ant missile at the red army nearest the pointer (3 at a time);
+##                     each one takes out one ant of the five in an army
 ##           W A S D   move    R F  up / down    arrow keys  look around
 ## RULES     A hill has 5 lives and shrinks as it loses them. Every 10 seconds a hill
-##           that is still standing wins a life back. An army flies for 4 seconds.
+##           that is still standing wins a life back. An army flies for 4 seconds,
+##           tilting from nose-up to nose-down (the T3D poses "starting" to "falling");
+##           while one ant is left it still costs the hill it lands on a life.
 ## DATA      Antack/antack_data.txt beside this file: the T3D terrains and the hill
 ##           positions of each level (tools/t3d_to_antack.py). Hills, ants and shots
 ##           are procedural placeholders.
@@ -216,7 +219,10 @@ on Antack.MakeMeshes
             tR * 0.7 & "," & -tH * 0.35 & "|" & tR & ",0", 8)
    end repeat
    Mesh.Define "Antack.HillDead", MeshLathe("30,0|18,-3", 8)
-   Mesh.Define "Antack.Army", Antack.ArmyMesh(1.4)
+   -- an army of 1 to 5 ants: each anti-ant missile takes out one ant
+   repeat with n = 1 to 5
+      Mesh.Define "Antack.Army" & n, Antack.ArmyMesh(1.4, n)
+   end repeat
    Mesh.Define "Antack.Ant", Antack.AntMesh(0, 0, 9)
    Mesh.Define "Antack.Shot", MeshPyramid(3, 4, 14)
    Mesh.Define "Antack.Ring", Antack.RingMesh(210, 32)
@@ -275,10 +281,10 @@ on Antack.AddDiamond @pM, pX, pZ, pScale, pZ1, pZ2, pHalf, pRise
    Mesh.AddLine pM, tA + 4, tA + 2
 end Antack.AddDiamond
 
--- an army: five ants in the loose group of the T3D texture
-function Antack.ArmyMesh pScale
+-- an army: up to five ants in the loose group of the T3D texture
+function Antack.ArmyMesh pScale, pCount
    local tArmy, tSpot
-   repeat for each line tSpot in "-22 -4" & cr & "-11 -16" & cr & "0 2" & cr & "12 -8" & cr & "24 8"
+   repeat for each line tSpot in line 1 to pCount of ("0 2" & cr & "-11 -16" & cr & "12 -8" & cr & "-22 -4" & cr & "24 8")
       if tArmy is empty then
          put Antack.AntMesh(word 1 of tSpot * pScale, word 2 of tSpot * pScale, pScale) into tArmy
       else
@@ -608,7 +614,8 @@ on Antack.Launch pTeam, pN
    else
       put kEnemyColor into tColor
    end if
-   put Entity.Spawn("Antack.Army", sBase[tFrom]["x"], sBase[tFrom]["y"] - 30, sBase[tFrom]["z"], tColor) into tArmy
+   put Entity.Spawn("Antack.Army5", sBase[tFrom]["x"], sBase[tFrom]["y"] - 30, sBase[tFrom]["z"], tColor) into tArmy
+   put 5 into sArmy[tArmy]["ants"]
    put tArmy into sBase[tFrom]["busy"]
    put tFrom into sArmy[tArmy]["from"]
    put tTarget into sArmy[tArmy]["target"]
@@ -741,8 +748,14 @@ on Antack.MoveShots pNow
       put GetObjectPosition(tArmy, "z") - sShot[tShot]["z"] into dz
       put sqrt(dx * dx + dy * dy + dz * dz) into d
       if d <= kShotSpeed + 20 then
-         FX.Sparks GetObjectPosition(tArmy, "x"), GetObjectPosition(tArmy, "y"), GetObjectPosition(tArmy, "z"), 24, "yellow"
-         Antack.EndArmy tArmy
+         -- one ant down; the army flies on with the rest
+         subtract 1 from sArmy[tArmy]["ants"]
+         FX.Sparks GetObjectPosition(tArmy, "x"), GetObjectPosition(tArmy, "y"), GetObjectPosition(tArmy, "z"), 10, "yellow"
+         if sArmy[tArmy]["ants"] <= 0 then
+            Antack.EndArmy tArmy
+         else
+            Antack.SetMesh tArmy, "Antack.Army" & sArmy[tArmy]["ants"]
+         end if
          delete variable sShot[tShot]
          Entity.Kill tShot
          next repeat

@@ -1976,8 +1976,8 @@
     "picking"
    ],
    "origin": "copy of ~/projects/LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Antack.livecodescript",
-   "lines": 757,
-   "bytes": 29863,
+   "lines": 770,
+   "bytes": 30547,
    "handlers": [
     "Game.OnStart",
     "Game.OnUpdate",
@@ -2029,7 +2029,7 @@
     "the level; lose all six of yours and the game is lost."
    ],
    "script_only_stack": false,
-   "sha1": "52da06e7f19c"
+   "sha1": "421757489d8b"
   }
  ]
 }
