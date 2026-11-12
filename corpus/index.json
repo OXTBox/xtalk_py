@@ -1965,7 +1965,7 @@
    "project": "LIB_GAMES",
    "kind": "game card script (Vibecode3D)",
    "title": "Antack: ant-army artillery game (uDevGame 2002, remade as vectors)",
-   "description": "The owner's T3D game remade: six hills a side, keys 1-6 send ballistic ant armies, click fires homing anti-ant missiles, hills shrink with lives and regrow, computer attacks on a timer. Shows a whole game as screens in one card (title menu with hover, levels, win/lose), loading level data from a text file, building meshes from data and procedurally, Euler angles from heading and pitch, screen projection for picking and labels.",
+   "description": "The owner's T3D game remade: six hills a side, keys 1-6 send ballistic ant missiles (one ant each), click fires homing anti-ant missiles, hills shrink with lives and regrow, computer attacks on a timer. Shows a whole game as screens in one card (title menu with hover, levels, win/lose), loading level data from a text file, building meshes from data and procedurally, Euler angles from heading and pitch, screen projection for picking and labels.",
    "tags": [
     "game",
     "artillery",
@@ -1976,8 +1976,8 @@
     "picking"
    ],
    "origin": "copy of ~/projects/LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Antack.livecodescript",
-   "lines": 770,
-   "bytes": 30547,
+   "lines": 746,
+   "bytes": 29444,
    "handlers": [
     "Game.OnStart",
     "Game.OnUpdate",
@@ -1998,7 +1998,6 @@
     "Antack.MakeMeshes",
     "Antack.AntMesh",
     "Antack.AddDiamond",
-    "Antack.ArmyMesh",
     "Antack.RingMesh",
     "Antack.Title",
     "Antack.Emblem",
@@ -2029,7 +2028,7 @@
     "the level; lose all six of yours and the game is lost."
    ],
    "script_only_stack": false,
-   "sha1": "421757489d8b"
+   "sha1": "0e4c1544687b"
   }
  ]
 }
