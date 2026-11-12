@@ -1,0 +1,3845 @@
+## START OF GridDraw_Animation_Stack_10272026 Bitfontmaker compatible font edit/animator STACK SCRIPT
+## VERSION 10 27 2026
+## inspired by https://www.pentacom.jp/pentacom/bitfontmaker2/
+## but the goal is 1-bit video game sprites with animaion 16x16 or 32x32 minimalist 
+## handles arbitrary grid size
+## no longer dependant on graphics objects (although we nay need for transparent png export)
+## old graphics code may be hanging around, most has been extracted to external documents 
+## PBM image instead of graphics objects
+-- I use globals mostly so i can check values in the Message Box 
+
+-- delay from keyboard input for animation playback
+global gKeyboardInputPlayBackDelay
+
+-- the generanl stage concept to go with
+global gStage,gScene,gCast,gActor,gFrame 
+
+-- line numbers of UI field selection
+global gActorN, gAnimN, gFrameN
+
+-- when looping, what frame did you start at, when to end?
+global gLoopStart,gLoopEnd
+
+-- which direction is the animation going
+global gAnimDir
+
+-- should the loop ping pong or skip to start?
+global bAnimPingPong
+
+-- actor animation frame
+global gActorFrame
+
+-- directory of the executable
+global gStackDirectory 
+
+-- defaults to specialFolderPath("Documents") &"/BitMapFontEditor"
+global gCurrentDirectory
+
+-- file & folder path globals
+global tLastSavedImage, tImagePath
+global gCurrentFontFolder -- where multiple files are being saved to
+
+-- tArray is used generically, this should be renamed for the purpose
+global tArray
+
+-- track if the mouse is being held down, which blocks other i/o, use this for draw vs clicks
+global bMouseDown
+
+-- if we are dragging/drawing dnn't save undos
+global bDragging 
+
+-- width of the grid, assume that height is the same , idealy would be dynamic
+global gGridWidth 
+
+-- size of each grid unit, idealy would be dynamic
+global gGridSize 
+
+-- 11-09-2023 fix the character preview system, toggles visible of text from default font
+global bPreviewVis 
+
+-- sometimes reading image data fails on first import,try twice
+global tImportAttempted
+
+-- track the mouse button used across different handlers
+global pMouseDownBtn 
+
+-- toggle editing
+global bEditFont
+
+-- the character/array variable being edited
+global gCurrentAsciiVal
+
+-- current character = numtochar(gCurrentAsciiVal)
+global gCurrentCharacter 
+
+-- image to draw character preview in stack "Fontviewer" gCurrentCharacterImage = gCurrentCharacterImage+1
+global gCurrentCharacterImage
+
+-- full object path of clicked object or (script message source?)
+global gTargetPath
+
+--currentFont is realy current Graphic set, maybe rename?
+global gCurrentFont
+
+-- current ascii character represented by 0s and 1s 16 chars by 16 lines
+global gBinaryString
+
+-- entire current ascii character/graphic set represented by 0s and 1s 16 chars by 16 lines
+global gBinaryStrings
+
+-- run Animations Forever
+global bAnimationLoop
+
+-- animation frame list like 1,2,3,4
+global tAnimationFrames
+
+-- wait in milliseconds before next frame
+global tFrameDelay 
+
+-- alt key blocks the arrow key repeat for some reason
+global bAltArrowKeyRepeat
+
+-- for the copy paste operation
+global gBinaryStringCopy
+
+global boxLeft,boxTop,boxRight,boxBottom
+global bDrawBox
+
+--passing around the 1s and 0s
+global gGridBit
+
+--track the drawing position
+global gGridX,gGridY
+
+-- number of pixels wide & high of each character
+global gGridSize
+
+-- maze making globals
+global maze,gDirectionsTried,gRecursions
+
+-- list of the steacks globals
+global gStackGlobalist
+
+-- state of selected actor and properties
+global gEditorState
+
+
+
+on init.globals
+   put stackDirectory() into gCurrentDirectory
+   put false into bAnimationLoop
+   put false into bDrawBox
+   put 512 into gGridWidth -- ideally this would be dynamic
+   put clear.binary.string() into gBinaryString
+   put "untitled_0001" into gCurrentFont
+   put 16 into gGridSize
+   put list.stack.globals() into gStackGlobalist
+   put true into bEditFont
+   put 0 into gCurrentAsciiVal
+   put 0 into gActorFrame
+   put 1 into gLoopStart
+   put 1 into gLoopEnd
+   put 1 into gAnimDir
+   put true into bAnimPingPong
+   put empty into gEditorState
+   put 300 into gKeyboardInputPlayBackDelay
+end init.globals
+
+function getGlobalValue pGlobal
+   do "put"&& pGlobal &&"into tVar"
+   if the number of lines of the keys of tVar >0 then return the keys of tVar 
+   do "return" && pGlobal
+end getGlobalValue
+
+function stackDirectory
+   set itemDel to "/"
+   put char 2 to -2 of word 2 of the long name of stack (the mainStack of this stack) into tFullStackPath
+   put item 1 to -2 of tFullStackPath into gStackDirectory
+   return gStackDirectory
+end stackDirectory
+
+
+
+on init.card.image
+   lock screen
+   put true into bPreviewVis
+   if there is not an image "Image_1" then create image "Image_1"
+   set the fileName of image "Image_1" to empty
+   set the rect of image "Image_1" to 0,0,512,512
+   set the layer of image "Image_1" to top
+end init.card.image
+
+on app.init
+   init.globals
+   init.animation.globals
+   init.card.image
+   -- reset the grid
+   --cleanGraphics
+   --updateGridImagePreview
+   if there is an Image "image_1" then set the text of image "image_1" to empty
+   resetUndoSystem
+   saveForUndo
+   saveForRedo
+   ImportAllBitFontEditorData
+   --go to stack "FontViewer"
+   --go to stack "FontList"
+   go stack (the mainStack of this stack)
+   set the defaultStack to (short name of  stack (the mainStack of this stack))
+   unlock screen
+end app.init
+
+on resetUndoSystem
+   set the customPropertySet of stack (the mainStack of this stack) to UndoSystem
+   set the UndoList of stack (the mainStack of this stack) to empty
+   set the RedoList of stack (the mainStack of this stack) to empty
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end resetUndoSystem
+
+
+
+
+function binaryStringToPBM pBinaryString
+   put the number of chars of line 1 of pBinaryString into tWidth
+   put the number of lines of pBinaryString into tHeight
+   
+   put "P1" & cr into tPBM
+   put tWidth && tHeight & cr after tPBM
+   
+   repeat with y = 1 to tHeight
+      put line y of pBinaryString & cr after tPBM
+   end repeat
+   
+   return tPBM
+end binaryStringToPBM
+
+function createBlankPBM pGridSize
+   put "P1" & cr into tPBM
+   put pGridSize && pGridSize & cr after tPBM
+   repeat pGridSize
+      put repeatChar("0",pGridSize) & cr after tPBM
+   end repeat
+   return tPBM
+end createBlankPBM
+
+function repeatChar pChar,pCount
+   put empty into tResult
+   repeat pCount
+      put pChar after tResult
+   end repeat
+   return tResult
+end repeatChar
+
+
+--on arrowKey tKey
+--   put the Target
+--   --if word 1 of the target is not "image" then pass arrowKey
+--   if the controlKey is down then 
+--      copyFrame tKey
+--      exit arrowKey
+--   end if
+--   if the shiftKey is down then 
+--      flipPixels tkey
+--   else
+--      shiftPixels tKey
+--   end if
+--   if the capsLockKey is down then
+--      --put "eventaltkey"
+--      if tKey is "left" then 
+--         flipPixels "rot90"
+--      else
+--         flipPixels "rot-90"
+--      end if
+--   end if
+--   if bEditFont is true then SaveEditedCharacter 
+--   pass arrowKEy
+--end arrowKey
+
+on copyFrame tkey
+   saveForUndo
+   if bEditFont is true then SaveEditedCharacter 
+   switch tkey
+      case "left"
+         put gCurrentCharacterImage-1 into gCurrentCharacterImage
+         break
+      case "right"
+         put gCurrentCharacterImage+1 into gCurrentCharacterImage
+         break
+   end switch
+   --put "copyframe"
+   --if "FontViewer" is among the lines of the windows then updateFontViewerPreview gCurrentCharacterImage
+   set the customPropertySet of stack (the mainStack of this stack) to FontData
+   do "put the" && gCurrentFont && "of stack (the mainStack of this stack) into tFontArray"
+   put gCurrentCharacterImage-1 into gCurrentAsciiVal
+   put numtochar(gCurrentAsciiVal) into gCurrentCharacter 
+   put buildbitwise(gBinaryString) into tFontArray[gCurrentAsciiVal]
+   do "set the" && gCurrentFont && "of stack (the mainStack of this stack) to tFontArray"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   DrawFromBitFontdata gCurrentAsciiVal,gCurrentFont 
+   if bEditFont is true then SaveEditedCharacter 
+   if "FontViewer" is among the lines of the windows then updateFontViewerPreview gCurrentCharacterImage
+end copyFrame
+
+function reverseString pString
+   --local tReversedString
+   repeat with i = the number of lines of pString down to 1
+      put char i of pString after tReversedString
+   end repeat
+   return tReversedString
+end reverseString
+
+-- Diagonal step
+on twostepshift tDirection
+   lock screen
+   put abs(tDirection)-gGridSize into tremainder
+   if tDirection <0 then 
+      shiftPixels -gGridSize
+      shiftPixels tRemainder*-1
+   else
+      shiftPixels gGridSize
+      shiftPixels tRemainder
+   end if
+   unlock screen
+end twostepshift
+-- move filled pixels right, left, up and down
+on shiftPixels tDirection
+   if tDirection is an integer then
+      if abs(tDirection) > gGridSize then
+         twostepshift tDirection
+         exit shiftPixels
+      end if
+   end if
+   --put GridToBinaryBox() INTO gBinaryString
+   saveForUndo
+   put "" into tNewBinaryString
+   put number of lines in gBinaryString  into NLines
+   switch tDirection
+      case "left"
+      case -1
+         repeat with i = 1 to Nlines
+            put char 2 to -1 of line i of  gBinaryString  &char 1 of line i of  gBinaryString & cr after tNewBinaryString
+         end repeat
+         break
+      case "right"
+      case 1
+         repeat with i = 1 to Nlines
+            put char -1 of line i of  gBinaryString  &char 1 to -2   of line i of  gBinaryString & cr after tNewBinaryString
+         end repeat
+         
+         break
+      case "up"
+      case -gGridSize
+         put line 2 to -1 of gBinaryString & cr & line 1 of gBinaryString into tNewBinaryString
+         
+         break
+      case "down"
+      case gGridSize
+         put  line -1 of gBinaryString & cr & line 1 to -2 of gBinaryString into tNewBinaryString
+         break
+   end switch
+   put char  1 to -2 of tNewBinaryString into gBinaryString 
+   saveForUndo
+   UpDateGridFromBinaryString
+   --return tNewBinaryString
+end shiftPixels
+
+function clear.binary.string
+   put empty into gBinaryString
+   repeat with i = 1 to gGridSize
+      repeat with j = 1 to gGridSize
+         put 0 after gBinaryString
+      end repeat
+      put cr after gBinaryString
+   end repeat
+   return gBinaryString
+end clear.binary.string
+
+function getBinaryString
+   --put gridToBinaryBox() into gBinaryString
+   return gBinaryString
+end getBinaryString
+
+on setBinaryString tString
+   put tString into gBinaryString
+end setBinaryString
+
+function getCurrentAscii
+   return gCurrentAsciiVal
+end getCurrentAscii
+
+on setCurrentAscii tVal
+   put tVal into gCurrentAsciiVal
+end setCurrentAscii
+
+on setCurrentFont tVal
+   put tVal into gCurrentFont
+end setCurrentFont
+
+function setCurrentCharacterImage tVal
+   if tVal is empty then put gCurrentAsciiVal+1 into tVal
+   if tVal is empty then put 1 into tVal
+   put tVal into gCurrentCharacterImage
+   return gCurrentCharacterImage
+end setCurrentCharacterImage
+
+on flipPixels tDirection
+   -- refresh the binary string from graphics backgrounds
+   --put GridToBinaryBox() INTO gBinaryString
+   saveForUndo
+   put "" into tNewBinaryString
+   put number of lines in gBinaryString  into NLines
+   lock screen
+   switch tDirection
+      case "up" -- flip horizontal
+      case "down"
+         repeat with i = gGridSize down to 1
+            put line i of gBinaryString & cr after  tNewBinaryString
+         end repeat
+         break
+      case "left"
+         lock screen
+         flipPixels "rot-90"
+         flipPixels "rot-90"
+         flipPixels "up"
+         unlock screen
+         break
+      case "right"
+      case "horizontal"
+         flipPixels "rot-90"
+         flipPixels "rot-90"
+         flipPixels "down"
+         break
+      case "rot-90" -- rotate -90
+         repeat with i = gGridSize down to 1
+            put "" into tLine
+            repeat with j = 1 to gGridSize
+               put char i of line j of gBinaryString after tLine
+            end repeat
+            put tLine & cr after  tNewBinaryString
+         end repeat
+         
+         break
+      case "rot90" -- rotate 90
+         repeat with i = 1  to gGridSize
+            put "" into tLine
+            repeat with j = gGridSize down to 1
+               put char i of line j of gBinaryString after tLine
+            end repeat
+            put tLine & cr after  tNewBinaryString
+         end repeat
+         break
+   end switch
+   put char  1 to -2 of tNewBinaryString into gBinaryString 
+   UpDateGridFromBinaryString
+   unlock screen
+end flipPixels
+
+on FontViewer.clean.Images
+   if number of images of stack "FontViewer" = 0 then exit FontViewer.clean.Images
+   put 0 into tX
+   put 0 into tY
+   --put 16 into gGridSize
+   put 512 into gImageWidth
+   put 512 into tImageHeight
+   put 0 into N
+   repeat with i = 1 to gGridSize
+      repeat with j = 1 to gGridSize
+         put tX, tY, tX + gImageWidth / gGridSize, tY + tImageHeight / gGridSize into tRect
+         put (gGridSize/2) into tBoxcenter
+         put padNumber(i-1,2)&"_"&padNumber(j-1,2) into tName
+         add 1 N
+         put "set the rect of image" && N && "of stack" && quote & "FontViewer" & Quote && "to tRect" into tCom
+         do tCom
+         put  "set the fileName of image" &&  N  && "of stack" && quote & "FontViewer" & Quote && "to empty" into tcom2
+         do tcom2
+         add gImageWidth / gGridSize to tX
+      end repeat
+      put 0 into  tX
+      add tImageHeight / gGridSize to tY
+   end repeat
+end FontViewer.clean.Images
+
+
+function addallchars tString
+   replace cr with empty in tString
+   put 0 into tTotal
+   repeat for each char  I in tString
+      if I is a number then add I to tTotal
+   end repeat
+   return tTotal
+end addallchars
+
+function addAllItems tItemList,tDelimiter
+   set itemdelimiter to tDelimiter
+   put 0 into tTotal
+   repeat for each item I in tItemList
+      if I is a number then add I to tTotal
+   end repeat
+   return tTotal
+end addAllItems
+
+
+-- IMPORT power of 2 x power of 2 black and white bitmap
+-- image is reduced to 16x16 
+-- Image data is then read the for black and white pixels
+
+
+
+
+-- IMPORT power of 2 x power of 2 black and white bitmap
+-- image is reduced to 16x16 
+-- Image data is then read the for black and white pixels
+on ImportImage tFileName
+   if tFileName is empty then
+      answer file "Import Image PNG"
+      if it is empty then exit ImportImage
+      put it into tFileName
+   end if
+   lock screen
+   put gGridSize & "x" & gGridSize into tSizeFolder
+   if not exists(image "16x16") then  create image "16x16"
+   set the dontDither of image "16x16" to true
+   set the fileName of image "16x16" to empty
+   --wait 30 milliseconds
+   set the fileName of image "16x16" to tFileName
+   --wait 200 milliseconds
+   flip image "16x16" vertical  -- the data is flipped when read back in?
+   set the width of  image "16x16" to 16
+   set the height of  image "16x16" to 16
+   set the BOTTOMLEFT of image "16x16" to -1,-1
+   put the imageData of image "16x16" into tData
+   init.template.import.image "import",16,tData
+   set the layer of image "16x16" to BOTTOM
+   hide image "16x16"
+   
+   --get the binary string of image data
+   put getImageBinaryColor(16,16,"16x16",-1,-1)  into gBinaryString
+   -- sometimes the data is all black for some reason, retry import.
+   if addAllItems(gBinaryString) =0 and tImportAttempted <1 then
+      put getImageBinaryColor(16,16,"16x16",0,0)  into gBinaryString
+      if addAllItems(gBinaryString) <1  then
+         add 1 to tImportAttempted
+         send ImportImage && tFileName to this stack in 100 milliseconds
+         exit ImportImage
+      end if
+   end if
+   -- reset the binary grid and set all the graphics to white
+   --draw from  binary string
+   put 0 into tImportAttempted
+   UpdateGridFromBinaryString
+   unlock screen
+   set the lastcontrolKey of stack (the mainStack of this stack) to empty 
+end ImportImage
+
+on ImportMapImage tFileName
+   if tFileName is empty then
+      answer file "Import Image PNG"
+      if it is empty then exit ImportMapImage
+      put it into tFileName
+   end if
+   lock screen
+   if not exists(image "MapImage") then  create image "MapImage"
+   set the dontDither of image "MapImage" to true
+   set the fileName of image "MapImage" to empty
+   set the fileName of image "MapImage" to tFileName
+   wait 100 milliseconds
+   flip image "MapImage" vertical  -- the data is flipped when read back in?
+   set the width of  image "MapImage" to 512
+   set the height of  image "MapImage" to 512
+   set the BOTTOMLEFT of image "MapImage" to -1,-1
+   put the imageData of image "MapImage" into tData
+   set the layer of image "MapImage" to BOTTOM
+   hide image "MapImage"
+   unlock screen
+   --get the binary string of image data
+   repeat with i = 1 to 512 step gGridSize
+      repeat with j = 1 to 512 step gGridSize
+         put getOffsetImageBinaryColor(i,j,gGridSize,gGridSize,tData)  into gBinaryString
+         
+      end repeat
+   end repeat
+   
+   -- sometimes the data is all black for some reason, retry import.
+   if addAllItems(gBinaryString) <3 and tImportAttempted =0 then
+      add 1 to tImportAttempted
+      
+      --send ImportMapImage && tFileName to this stack in 100 milliseconds
+      exit ImportMapImage
+   end if
+   -- reset the binary grid and set all the graphics to white
+   --draw from  binary string
+   UpdateGridFromBinaryString
+   set the lastcontrolKey of stack (the mainStack of this stack) to empty 
+end ImportMapImage
+
+
+on importFolder
+   put the defaultFolder into toldFolder
+   answer folder "Image source folder"
+   if it is empty then exit importFolder
+   put it into tFolder
+   set the defaultFolder to tFolder
+   put Files() into tFiles
+   --put 0 into gCurrentAsciiVal
+   --put 1 into gCurrentCharacterImage
+   --put numtochar(gCurrentAsciiVal) into gCurrentCharacter 
+   repeat for each line F in tFiles
+      put tFolder &"/"&F into tFile
+      put empty into gBinaryString
+      ImportImage tFile
+      if addallchars(gBinaryString) = 0 then next Repeat
+      saveEditedCharacter
+      add 1 to gCurrentAsciiVal
+      put numtochar(gCurrentAsciiVal) into gCurrentCharacter 
+      if gCurrentAsciiVal > 255 then exit repeat
+   end repeat
+   set the defaultFolder to toldFolder
+end importFolder
+
+
+on saveEditedCharacter tAscii,tBinString,tFontName
+   set the customPropertySet of stack (the mainstack of this stack) to FontData
+   put the customkeys of stack (the mainstack of this stack) into tStackFonts
+   sort tStackFonts numeric ascending
+   if tFontName is not empty then
+      if tFontname is not among the lines of tStackFonts then put line 1 of tStackFonts into tFontName
+      put tFontName into gCurrentFont
+   else
+      put gCurrentFont into tFontName
+   end if
+   do "put the" && tFontName && "of stack (the mainstack of this stack)  into tFontArray"
+   --put GridToBinaryBox() into gBinaryString
+   if tAscii is not empty then 
+      put tAscii into tIndex
+      put tAscii into gCurrentAsciiVal
+   else
+      put gCurrentAsciiVal into tIndex
+   end if
+   if tBinString is not empty then put tBinString into gBinaryString
+   put BuildBitWise(gBinaryString) into tFontArray[tIndex]
+   do "set the" &&  gCurrentFont && "of stack (the mainstack of this stack) to tFontArray"
+   set the customPropertySet of stack (the mainstack of this stack) to empty
+   
+end saveEditedCharacter
+
+
+
+Function emptyBinaryMatrix tDepth,tWidth
+   put 0 into n
+   repeat with i = 1 to (tDepth*tWidth)
+      add 1 to n
+      put 0 after tOUt
+      if n= tWidth then
+         put 0 into n
+         put cr after tOut
+      end if
+   end repeat
+   return char 1 to -1 of tOut
+end emptyBinaryMatrix
+
+
+-- pImg is the name of the img,
+-- x is the col of the pixel, y the row of the pixel
+function getPixelRGB pImg,x,y
+   put the width of img pImg into w
+   put 4*((y-1)*w+x) into k
+   put byte k-2 to k of the imageData of img pImg into b
+   return (byteToNum(byte 1 of b),byteToNum(byte 2 of b), byteToNum(byte 3 of b))
+end getPixelRGB
+
+function getPixelRGBA pImg,x,y -- return R,G,B,A
+   
+   put the width of img pImg into w
+   put 4*((y-1)*w+x) into k
+   put byte k-2 to k of the imageData of img pImg into b
+   put byteToNum(byte (y-1)*w+x of the alphaData of img pImg) into c
+   return (byteToNum(byte 1 of b),byteToNum(byte 2 of b), byteToNum(byte 3 of b), c) 
+end getPixelRGBA
+
+-- sum a column of items of a list
+function addAllLines titemNum,tText
+   repeat for each line L in ttext
+      add item tItemNum of L to tTotal
+   end repeat
+   return tTotal
+end addAllLines
+
+---chatgpt version
+--function getImageBinaryColor pWidth, pHeight, pImage, pStartX, pStartY
+--   set itemDel to comma
+--   put empty into tBitmap
+
+--   repeat with y = pStartY to pStartY + pHeight - 1
+--      put "" into tBitmapLine -- Initialize the line string
+--      repeat with x = pStartX to pStartX + pWidth - 1
+--         put getPixelRGBA(pImage, x, y) into tRGBA
+--         put addAllLines(4, tRGBA) into allrgba
+--         if addAllLines(4, tRGBA) < (the number of lines of tRGBA) * 255 then
+--            -- imports transparency
+--            if tRGBA is "0,0,0,0" then
+--               put "0" after tBitmapLine -- White pixel
+--            else
+--               put "1" after tBitmapLine -- Non-white pixel
+--            end if
+--         else
+--            -- imports flat image
+--            if tRGBA is "255,255,255,255" then
+--               put "0" after tBitmapLine -- White pixel
+--            else
+--               put "1" after tBitmapLine -- Non-white pixel
+--            end if
+--         end if
+--      end repeat
+--      put tBitmapLine & cr after tBitmap
+--   end repeat
+
+--   return tBitmap
+--end getImageBinaryColor
+
+-----original version
+function getImageBinaryColor pWidth,pHeight,pImage
+   set itemDel to comma
+   repeat with y = 1 to pHeight
+      put "" into tBitmapLine -- Initialize the line string
+      repeat with x =  1 to pWidth
+         put getPixelRGBA("16x16",x,y) into tRGBA
+         -- if there is no alpha then item 4 would be 255 on every line
+         put addallLines(4,tRGBA) into allrgba
+         if addallLines(4,tRGBA) < (the number of lines of tRGBA)*255 then
+            -- imports transparency
+            if tRGBA is "0,0,0,0" then
+               put "0"  after tBitmapLine -- White pixel
+            else
+               put "1" after tBitmapLine -- Non-white pixel
+            end if
+         else
+            -- imports flat image
+            if tRGBA is "255,255,255,255" then
+               put "0"  after tBitmapLine -- White pixel
+            else
+               put "1" after tBitmapLine -- Non-white pixel
+            end if
+         end if
+      end repeat
+      put tBitmapLine & cr after tBitmap
+   end repeat
+   --put allRGBA
+   return tBitmap
+end getImageBinaryColor
+
+function getOffsetImageBinaryColor tx,ty,pWidth,pHeight,pImage
+   --tx,ty are starting pixels in an image
+   set itemDel to comma
+   repeat with y = ty to ty+pHeight
+      put "" into tBitmapLine -- Initialize the line string
+      repeat with x =  tx to tx+pWidth
+         put getPixelRGBA("MapImage",x,y) into tRGBA
+         -- if there is no alpha then item 4 would be 255 on every line
+         put addallLines(4,tRGBA) into allrgba
+         if addallLines(4,tRGBA) < (the number of lines of tRGBA)*255 then
+            -- imports transparency
+            if tRGBA is "0,0,0,0" then
+               put "0"  after tBitmapLine -- White pixel
+            else
+               put "1" after tBitmapLine -- Non-white pixel
+            end if
+         else
+            -- imports flat image
+            if tRGBA is "255,255,255,255" then
+               put "0"  after tBitmapLine -- White pixel
+            else
+               put "1" after tBitmapLine -- Non-white pixel
+            end if
+         end if
+      end repeat
+      put tBitmapLine & cr after tBitmap
+   end repeat
+   --put allRGBA
+   return tBitmap
+end getOffsetImageBinaryColor
+
+
+
+
+on deleteImages
+   repeat with i = number of images of stack (the mainStack of this stack) down to 1
+      put short name of image i of stack (the mainStack of this stack) into tName
+      if tName is not "Image_1" and tName is not "gridframe" then delete image i of stack (the mainStack of this stack)
+   end repeat
+end deleteImages
+
+
+
+
+
+
+on updateTargetPath
+   put the long name of the target into gTargetPath
+end updateTargetPath
+
+-- left / right mouse buttons toggle pixels on/off 
+
+on MouseDown tBtn
+   put tBtn into pMouseDownBtn
+   updateTargetPath
+   replace quote with empty in gTargetPath
+   --put gTargetPath
+   if  "ScriptWindow" is among the words of gTargetPath then pass mouseDown
+   if  "FontList" is among the words of gTargetPath then pass mouseDown
+   -- if mouse is in FontViewer grid then show the selected character in the grid
+   if  "Scrollbar" is among the words of gTargetPath then pass mouseDown
+   --put gTargetPath
+   if  "FontViewer"  is among the words of gTargetPath and "image" is among the words of gTargetPath then 
+      if the mouseControl is not empty  then
+         if bEditFont is true then SaveEditedCharacter 
+         put the AsciiValue of the mouseControl into gCurrentAsciiVal
+         put the ImageIndex of the mouseControl into gCurrentCharacterImage
+         if gCurrentAsciiVal is empty then put 0 into gCurrentAsciiVal
+         if gCurrentCharacterImage is empty then put 1 into gCurrentCharacterImage
+         put gCurrentFont && ":" &quote & numtoChar(gCurrentAsciiVal)&quote && gCurrentAsciiVal &&"@"&&gCurrentCharacterImage into tLabel
+         set the title of stack "FontViewer" to  tLabel
+         FontViewerClick  gCurrentCharacterImage,gCurrentAsciiVal 
+      end if
+   end if
+   if "Image_1" is among the words of gTargetPath  then
+      put false into bDragging
+      put true into bMouseDown
+      if bDragging is false then saveForUndo
+      new.mouseDown.record
+      GridDraw.updateGrid 
+      send checkDrag to stack (the mainStack of this stack) in 3 milliseconds
+   end if
+   pass mouseDown
+end MouseDown
+
+
+on mouseUp
+   if "ScriptWindow" is among the words of  gTargetPath then pass MouseUP
+   if "FontViewer" is among the lines of the windows  then updateFontViewerPreview gCurrentCharacterImage
+   put false into bDragging
+   put false into bMouseDown
+   if bEditFont is true then SaveEditedCharacter 
+   
+end mouseUp
+
+function InRectOf tObjectType, tStackName
+   -- add plural to the object type 
+   do "put the number of" && tObjectType & "s of stack" && quote & tStackName & quote && "into tNum"
+   repeat with i = tNum down to 1 
+      do "put the rect of" && tObjectType && i && "of stack" && quote & tStackName & quote && "into tRect"
+      if the mouseLoc is within tRect then 
+         --do "put the short name of" && tObjectType && i &&"of stack" && quote & tStackName & quote && "into tName"
+         return i     --,tName,tRect
+      end if
+   end repeat
+   return empty
+end InRectOf
+
+
+on packBinaries
+   set the customPropertySet of stack (the mainStack of this stack) to Binaries
+   put the customKeys of  stack (the mainStack of this stack) into tBinariesKeys
+   put the number of lines of tBinariesKeys into tMaxLines
+   put 0 into n
+   put "" into tNewArray
+   filter lines of tBinariesKeys without empty
+   repeat with i = 1 to number of lines of tBinariesKeys 
+      put line i of tBinariesKeys into tFontName
+      set the customPropertySet of stack (the mainStack of this stack) to TestIt
+      do "put the" && tFontName &&"of  stack (the mainStack of this stack) into tBinaryArray" 
+      put the keys of tBinaryArray into tKeyList
+      repeat  for each line K in tKeyList
+         put tBinaryArray[K] into tNewArray[n]
+         add 1 to n
+         set the customPropertySet of stack (the mainStack of this stack) to Binaries
+         set the SavedBinary of  stack (the mainStack of this stack) to tNewArray
+      end repeat
+   end repeat
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end packBinaries
+
+on noEmptyInBinaries
+   set the customPropertySet of stack (the mainStack of this stack) to Binaries
+   put the customKeys of  stack (the mainStack of this stack) into tBinariesKeys
+   filter tBinariesKeys with "*_*"
+   sort tBinariesKeys numeric ascending
+   set the cursor to busy
+   repeat for each line B in tBinariesKeys
+      do "put the" && B &&"of  stack (the mainStack of this stack) into tBinaryArray"
+      do "set the" && B &&"of  stack (the mainStack of this stack) to empty"
+      put the keys of tBinaryArray into tList
+      put "" into tNewArray
+      put 0 into n
+      repeat for each line L in tList
+         if addallchars(tBinaryArray[L]) <> 0 and tBinaryArray[L] is not empty then
+            put tBinaryArray[L] into tNewArray[n]
+            add 1 to n
+            --set the customPropertySet of stack (the mainStack of this stack) to TestIt
+            do "set the" && B  &&"of  stack (the mainStack of this stack) to tNewArray"
+            --set the customPropertySet of stack (the mainStack of this stack) to Binaries
+         end if
+      end repeat
+      
+   end repeat
+   set the cursor to arrow
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end noEmptyInBinaries
+
+
+on BinaryToFont tTableN
+   set the customPropertySet of stack (the mainStack of this stack) to Binaries
+   put the customKeys of  stack (the mainStack of this stack) into tBinariesKeys
+   filter tBinariesKeys with "*_*"
+   sort tBinariesKeys numeric ascending
+   put line tTableN of tBinariesKeys into tBinaryTable
+   do "put the" && tBinaryTable &&"of  stack (the mainStack of this stack) into tBinFontArray"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   
+   set the customPropertySet of stack (the mainStack of this stack) to FontData
+   put tBinaryTable into gCurrentFont
+   do "put the" && tBinaryTable &&"of  stack (the mainStack of this stack) into tFontArray"
+   
+   put the keys of tBinFontArray into tBinKeys
+   sort tBinKeys numeric ascending
+   repeat with i = 0 to number of lines of tBinKeys  
+      put tBinFontArray[i] into gBinaryString
+      put BuildBitWise(gBinaryString) into tBitwiseString
+      put tBitWiseString into tFontArray[i]
+      do "set the" && tBinaryTable && "of  stack (the mainStack of this stack) to tFontArray"
+   end repeat
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   showCurrentFont
+   --EmptySavedBinary
+end BinaryToFont
+
+on UnpackBinaries
+   set the customPropertySet of stack (the mainStack of this stack) to Binaries
+   put the customKeys of  stack (the mainStack of this stack) into tBinariesKeys
+   put the number of lines of tBinariesKeys into tMaxLines
+   put the SavedBinary of  stack (the mainStack of this stack)into tBigArray
+   put the keys  of tBigarray into tBigArrayKeys
+   filter  tBigArrayKeys  without empty
+   sort tBigArrayKeys Numeric Ascending
+   put the number of lines of tBigArrayKeys into tEndValue
+   if tEndValue < 255 then exit UnpackBinaries
+   put tMaxLines into tCount
+   repeat with i = 1 to number of lines of tBigArrayKeys  step 255
+      put 0 into n
+      put "" into tNewArray
+      put "SavedBinary_"&tCount into tBinaryTable
+      if number of lines of tBigArrayKeys >i+255 then
+         put line i to (i+255)  of  tBigArrayKeys into tKeyList
+      else
+         put line i to -1 of tBigArrayKeys into tKeyList
+      end if
+      --put tKeyList
+      --exit repeat
+      if tKeyList is empty then exit repeat
+      repeat  for each line K in tKeyList
+         put tBigArray[K] into tNewArray[n]
+         add 1 to n
+         do "set the" && tBinaryTable && "of  stack (the mainStack of this stack) to tNewArray"
+      end repeat
+      add 1 to tCount
+   end repeat
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   EmptySavedBinary
+end UnpackBinaries
+
+on EmptySavedBinary
+   set the customPropertySet of stack (the mainStack of this stack) to Binaries
+   set the SavedBinary of stack (the mainStack of this stack) to empty
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end EmptySavedBinary
+
+on ClearSavedBinaries
+   set the customPropertySet of stack (the mainStack of this stack) to Binaries
+   --put the customKeys of stack (the mainStack of this stack)
+   put the SavedBinary of stack (the mainStack of this stack) into tArrayToHold
+   set the customKeys of stack (the mainStack of this stack) to empty
+   set the SavedBinary of stack (the mainStack of this stack) to tArrayToHold
+end ClearSavedBinaries
+
+
+on saveForUndo
+   set the customPropertySet of stack (the mainStack of this stack) to UndoSystem
+   put the UndoList of  stack (the mainStack of this stack) into tUndoArray
+   put the Keys of tUndoArray into tKeys
+   put the number of lines of tKeys into n
+   add 1 to n
+   put gBinaryString into tUndoArray[n]
+   set the UndoList of stack (the mainStack of this stack) to tUndoArray
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end saveForUndo
+
+-- this is overkill...maybe for some sequences?
+on saveBinaryToStack
+   set the customPropertySet of stack (the mainStack of this stack) to Binaries
+   put the SavedBinary of stack (the mainStack of this stack) into tBinariesArray
+   put the Keys of tBinariesArray into tKeys
+   put the number of lines of tKeys into n
+   add 1 to n
+   put gBinaryString into tBinariesArray[n]
+   set the SavedBinary of stack (the mainStack of this stack) to tBinariesArray
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end saveBinaryToStack
+
+on saveForRedo
+   set the customPropertySet of stack (the mainStack of this stack) to UndoSystem
+   put the RedoList of stack (the mainStack of this stack) into tRedoArray
+   put the Keys of tRedoArray into tKeys
+   put the number of lines of tKeys into n
+   add 1 to n
+   put gBinaryString into tRedoArray[n]
+   set the RedoList of stack (the mainStack of this stack) to tRedoArray
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end saveForRedo
+
+on UndoCommand
+   saveForRedo
+   set the customPropertySet of  stack (the mainStack of this stack) to UndoSystem
+   put the UndoList of  stack (the mainStack of this stack) into tUndoArray
+   put the Keys of tUndoArray into tKeys
+   put the number of lines of tKeys into n
+   put tUndoArray[n] into gBinaryString
+   --put n && gBinaryString
+   focus nothing
+   UpdateGridFromBinaryString
+   if n>0 and n <> 1 then delete variable tUndoArray[n] 
+   set the UndoList of  stack (the mainStack of this stack) to tUndoArray
+   set the customPropertySet of  stack (the mainStack of this stack) to empty
+end UndoCommand
+
+on delete.Font tFontName
+   set the customPropertySet of  stack (the mainStack of this stack) to Fontdata
+   put the customkeys of stack  (the mainStack of this stack) into tFontListArray
+   sort tFontListArray
+   if tFontName is empty then put gCurrentFont into tFontName
+   if tFontName is empty then put line -1 of tFontListArray into tFontName
+   filter tFontListArray without tFontName
+   set the customkeys of  stack (the mainStack of this stack) to tFontListArray
+   set the customPropertySet of  stack (the mainStack of this stack) to empty
+   put 0 into gCurrentAsciiVal
+   put 1 into gCurrentCharacterImage
+   put numtochar(0) into gCurrentCharacter 
+   
+   put line -1 of tFontListArray into gCurrentFont
+   chooseFont gCurrentFont
+   if "FontList" is among the lines of the windows then updateFontListField
+   showCurrentFont
+end delete.Font
+
+on RedoCommand
+   if N >= 1 then 
+      set the lastcontrolKey of stack (the mainStack of this stack) to empty
+   end if
+   saveForUndo
+   set the customPropertySet of stack (the mainStack of this stack)to UndoSystem
+   put the RedoList of stack (the mainStack of this stack) into tRedoArray
+   put the Keys of tRedoArray into tKeys
+   put the number of lines of tKeys into n
+   if n>1  then
+      put tRedoArray[n] into gBinaryString
+      --put n && gBinaryString
+      focus nothing
+      UpdateGridFromBinaryString
+      delete variable tRedoArray[n] 
+      set the RedoList of stack (the mainStack of this stack) to tRedoArray
+   end if
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end RedoCommand
+
+on updateCurrentFont tFont
+   set the customPropertySet of stack (the mainstack of this stack)  to FontData
+   put the customKeys of  stack (the mainstack of this stack)  into tCustomKeys
+   if tFont is empty then
+      put line 1 of  tCustomKeys into gCurrentFont
+   else
+      put tFont into gCurrentFont
+   end if
+   set the customPropertySet of stack (the mainstack of this stack)  to empty
+   --put gCurrentCharacter ,gCurrentCharacterImage
+end updateCurrentFont
+
+
+
+on scrollThroughCharacters tDirection
+   if bEditFont is true then saveEditedCharacter
+   add tDirection to gCurrentASciiVal
+   if  gCurrentASciiVal< 0 then put 0 into gCurrentASciiVal
+   if  gCurrentASciiVal>255 then put 255 into gCurrentASciiVal
+   DrawFromBitFontData gCurrentASciiVal
+   if "Fontviewer" is among the lines of the windows then
+      put gCurrentFont && ":" &quote & numtoChar(gCurrentAsciiVal)&quote && gCurrentAsciiVal &&"@"&&gCurrentCharacterImage into tLabel
+      set the title of stack "FontViewer" to  tLabel
+      set the title of stack (the mainStack of this stack) to "Draw"&&gCurrentASciiVal
+   end if
+end scrollThroughCharacters
+
+on rawKeyDown tKey
+   if the tool is not "browse tool" then pass rawKeyDown
+   if word 1 of  the target is not "image" then pass rawKeyDown
+   --put tKey
+   switch tKey
+      case 65308 --scroll back
+         scrollThroughCharacters -1
+         break
+      case 65309 --scroll forward
+         scrollThroughCharacters 1
+         break
+   end switch
+   pass rawKeyDown
+end rawKeyDown
+
+-- allow faster undo
+on rawKeyUp tkey
+   if the tool is not "browse tool" then pass rawKeyUp
+   
+   put false into bAltArrowKeyRepeat
+   if tKey is 122 then  set lastControlKey of stack (the mainStack of this stack) to empty 
+   pass rawKeyUp
+end rawKeyup
+
+
+on new.mouseDown.record
+   set the customPropertySet of this stack to mousedownHistory
+   put the mousedowns of this stack into tArray
+   put the keys of tArray into tKeys
+   put number of lines of tKeys+1 into tIndex
+   put roundedMouse(gGridWidth,gGridWidth,gGridSize) into  grid_xy
+   put cr& grid_xy after tArray[tIndex]
+   set the mousedowns of this stack to tarray
+   set the customPropertySet of this stack to mousedownHistory
+end new.mouseDown.record
+
+on record.grid.changes grid_xy
+   set the customPropertySet of this stack to mousedownHistory
+   put the mousedowns of this stack into tArray
+   put the keys of tArray into tKeys
+   put number of lines of tKeys  into tIndex
+   put cr& grid_xy after tArray[tIndex]
+   set the mousedowns of this stack to tarray
+   set the customPropertySet of this stack to mousedownHistory
+end record.grid.changes
+
+on GridDraw.updateGrid
+   if the mouse is not down then exit GridDraw.updateGrid
+   if the mouseloc is not within the rect of image "Image_1" of stack (the mainStack of this stack) then exit GridDraw.updateGrid
+   put roundedMouse(gGridWidth,gGridWidth,gGridSize) into  grid_xy
+   --put grid_xy
+   -- get the current state of the stored bit at the location 
+   set itemDel to comma
+   put char ((item 1 of grid_xy)+1) of line ((item 2 of grid_xy)+1) of gBinaryString into tGridBit
+   --- name looks like "002_015"
+   record.grid.changes grid_xy
+   
+   if pMouseDownBtn > 1 then put white into tDrawColor
+   if pMouseDownBtn = 1  then put black into tDrawColor
+   
+   if tDrawColor is black then
+      put  1 into gGridBit
+   else
+      put 0 into gGridBit
+   end if
+   put gGridBit into char (item 1 of grid_xy)+1 of line (item 2 of grid_xy)+1 of gBinaryString
+   set the lastMouseLoc of stack (the mainStack of this stack) to the mouseloc
+   
+   put empty into PBMString
+   repeat for each char c in gBinaryString 
+      put c & space after PBMString
+   end repeat
+   replace (cr&space) with cr in PBMString
+   put "P1" & cr & gGridSize && gGridSize & cr & PBMString into tData
+   lock screen
+   set the text of image "Image_1" to tData
+   --save.binary.bits.in.stack gBinaryString
+   
+   set the rect of image "Image_1" to 0,0,gGridWidth,gGridWidth
+   show image "Image_1" of  stack (the mainstack of this stack)
+   unlock screen
+   --updateGridImagePreview
+   if the mouse is down then send checkDrag to stack (the mainstack of this stack) in 10 milliseconds
+end GridDraw.updateGrid
+
+on update.global.binary.string pString
+   put pString into gBinaryString
+end update.global.binary.string
+
+function pbm.from.binary.string pBinaryString
+   put empty into PBMString
+   repeat for each char c in pBinaryString 
+      put c & space after PBMString
+   end repeat
+   replace (cr&space) with cr in PBMString
+   put "P1" & cr & gGridSize && gGridSize & cr & PBMString into tData
+   return tData
+end pbm.from.binary.string
+
+on updateGridImagePreview
+   lock screen
+   --put gCurrentCharacter 
+   show group "graphicsgroup" of stack ( the mainstack of this stack)
+   put the rect of image "Image_1" of stack (the mainstack of this stack) into tRect
+   set the fileName of image "Image_1" of stack (the mainstack of this stack) to empty
+   put gCurrentDirectory & "/temp.png" into tTempImage
+   put getFontFolderpath()&"/"&gCurrentAsciiVal & ".png" into tPreviewImage
+   --put getFontFolderpath()&"/"&gCurrentAsciiVal & ".png" into tPreviewImage
+   --put the text of image "image_1" into URL tPreviewIMage
+   export image "image_1" to file tPreviewimage as PNG
+   --put binary64decode(text of image "Image_1") into URL tPreviewImage --   (image "Image_1" of stack  (the mainstack of this stack)) to file tPreviewImage as PNG
+   --set the rect of group "graphicsGroup" of stack (the mainstack of this stack) to trect
+   --export snapshot from group "graphicsGroup" of stack (the mainstack of this stack) to file tTempImage as PNG
+   --export snapshot from group "graphicsGroup" of stack (the mainstack of this stack) to file tPreviewImage as PNG
+   --set the fileName of image "Image_1" of stack (the mainstack of this stack) to tTempImage
+   show image "Image_1" of  stack (the mainstack of this stack)
+   if "FontViewer" is among the lines of the windows and  bAnimationLoop is false then updateFontViewerPreview gCurrentCharacterImage
+   if bEditFont is true then saveEditedCharacter
+   unlock screen
+end updateGridImagePreview
+
+
+function getFontFolderpath
+   set the defaultFolder to  gCurrentDirectory
+   put gCurrentDirectory & "/"&gCurrentFont into gCurrentFontFolder
+   if there is not a folder gCurrentFontFolder then create folder gCurrentFontFolder
+   return gCurrentFontFolder
+end getFontFolderpath
+
+
+on save.actor pActorArray 
+   --pName,pAnim,pFrame
+   --put pName,pAnim,pFrame
+   set the customPropertySet of stack (the mainStack of this stack) to Actors
+   do "put the" && pActorArray["actor"] && "of stack (the mainStack of this stack) into tarray"
+   put tarray[pActorArray["anim"]] into tClipA
+   put the keys of tClipA into tKeys
+   if pFrame is empty then  put the number of lines of tKeys+1 into pFrame
+   put gBinaryString into tClipA[pActorArray["Frame"]]
+   put tClipA into tarray[pActorArray["anim"]]
+   do "set the" &&  pActorArray["actor"] && "of stack (the mainStack of this stack) to tarray"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   --send UI.update.current.lists to stack (the mainStack of this stack)
+end save.actor
+
+on actor.save.state
+   put UI.record.state() into gEditorState
+   save.actor gEditorState --item 1 of gEditorState,item 2 of gEditorState,item 3 of gEditorState
+end actor.save.state
+
+on play.actor.frames  pName,pAnim,pStart,pEnd,pAnimDir
+   if the tool is not "Browse tool" then exit play.actor.frames
+   set the customPropertySet of this stack to Actors
+   do "put the" && pName && "of this stack into tarray"
+   set the customPropertySet of this stack to empty
+   put tArray[pAnim] into tClipA
+   put the keys of tClipA into tKeys
+   sort lines of tKeys numeric ascending
+   
+   if pStart is not empty  then 
+      put pStart into gActorFrame
+      put pStart into gLoopStart
+   end if
+   
+   if pEnd is empty then
+      if   gLoopEnd > 1  then
+         put gLoopEnd into pEnd
+      end if
+   else
+      put number of lines of tKeys into pEnd
+   end if
+   put pEnd into gLoopEnd
+   if gLoopEnd > number of lines of tKeys then put number of lines of tKeys into gLoopEnd
+   put gLoopStart, gActorFrame,gLoopEnd
+   if gActorFrame is empty then put 0 into gActorFrame
+   if gActorFrame+gAnimDir < gLoopStart or gActorFrame+gAnimDir > gLoopEnd then
+      if bAnimPingPong then
+         multiply gAnimDir by -1
+      else
+         put 1 into gAnimDir
+         put gLoopStart-1 into gActorFrame
+      end if
+   end if
+   add gAnimDir to gActorFrame
+   put tClipA[gActorFrame] into gBinaryString
+   --put gBinaryString
+   update.anim
+   
+   put  pName &comma& pAnim  into tCommands
+   
+   if gActorFrame <= gLoopEnd then send play.actor.frames && tCommands to this stack in 430 milliseconds
+end play.actor.frames
+
+on update.anim
+   put pbm.from.binary.string(gBinaryString) into pbmText
+   set the text of image "image_1" to pbmText
+   set the rect of image "image_1" of stack (the mainStack of this stack) to 0,0,gGridWidth,gGridWidth
+end update.anim
+
+
+
+on updateFontViewerPreview tImageNumber,tAscii
+   lock screen
+   if tImageNumber is empty then put gCurrentCharacterImage into tImageNumber
+   if tImageNumber is empty then put gCurrentAsciiVal+1 into tImageNumber
+   
+   if tAscii is empty then put tImageNumber-1 into tAScii
+   
+   put numToChar(tAscii) into gCurrentCharacter 
+   
+   if exists(image tImageNumber of stack "FontViewer") then
+      put  word 1 to -4 of the long ID of image tImageNumber of stack "FontViewer" into tLName
+      do "put the rect of" &&  tLName && "into tRect"
+      do "set the fileName of" && tLName && "to empty"
+      put getFontFolderPath() into gCurrentFontFolder
+      put gCurrentFontFolder&"/"&charToNum(gCurrentCharacter ) & ".png" into tPreviewImage
+      do "set the fileName of" && tLName && "to tPreviewImage" 
+      do "set the rect  of" && tLName && "to tRect"
+      show image tImageNumber of stack "FontViewer"
+   end if
+   unlock screen
+end updateFontViewerPreview
+
+on cleanAllFontViewerImages
+   repeat with i = 1 to number of images of stack "FontViewer"
+      set the alwaysBuffer of image i of stack "Fontviewer" to true
+   end repeat
+end cleanAllFontViewerImages
+
+on checkDrag
+   if the mouse is not down then exit checkDrag
+   if the mouseloc is not within the rect of image "Image_1" then exit checkDrag
+   put true into bDragging
+   if bMouseDown is true then send GridDraw.updateGrid to stack (the mainStack of this stack) in 10 milliseconds
+end checkDrag
+
+on preOpenStack twhichStack
+   --put tWhichStack
+   put the long name of the target into tTargetName
+   put the long name of card 1 of stack (the mainStack of this stack) into defaultCardName
+   if tTargetName is defaultCardName then
+      app.init 
+   else
+      pass preOpenStack
+   end if
+end preOpenStack
+
+
+
+--on rawKeyDown tKey
+--   pass rawKeyDown
+--end rawKeyDown
+
+on keyUp tKey
+   if the tool is not "Browse tool" then pass keyUp
+   put true into bEditFont
+   set the customPropertySet of stack (the mainstack of this stack) to empty
+   set lastControlKey of stack (the mainStack of this stack) to empty 
+   
+   -- 11-09-2023 fix the preview character system
+   --if tkey is the lastKeyUp of stack (the mainStack of this stack)  then put not bPreviewVis into  bPreviewVis
+   --set the visible of field "preview_character" of stack (the mainStack of this stack)  to bPreviewVis
+   
+   --if bEditFont is true then SaveEditedCharacter
+   set the lastKeyUp of stack (the mainStack of this stack) to tKey
+   --put tKey into gCurrentCharacter 
+   --if bEditFont is true then  send DrawFromBitFontdata && (charToNum(tKey),gCurrentFont) to stack (the mainStack of this stack)
+   pass keyup
+end keyUp
+
+
+
+on commandKeyDown tKey
+   --if word 1 of the target is not "image" then pass CommandKeyDown
+   send controlKeyDown && tKey to me
+end commandKeyDown
+
+on controlKeyDown tKey
+   --put tKey & cr & gTargetPath
+   --put  gTargetPath
+   if word 1 of gTargetPath is not "image" then pass controlKeyDown
+   replace quote with empty in gTargetPath
+   --if "ScriptWindow" is among the words of gTargetPath then pass ControlKeyDown 
+   if the lastcontrolKey of stack (the mainStack of this stack) is tKey then exit controlKeyDown
+   set the lastcontrolKey of stack (the mainStack of this stack) to tKey 
+   switch tKey
+      case "d"
+         --         set visible of stack  "todo" to not visible of stack "todo"
+         --         set the lastcontrolKey of stack (the mainStack of this stack) to tKey 
+         break
+      case "m"
+         --go stack "FontViewer"
+         set visible of stack  "FontViewer" to not visible of stack "FontViewer"
+         break
+      case "n"
+         init 
+         break
+      case "o"
+         put 0 into tImportAttempted
+         ImportImage 
+         break
+      case "s"
+         put the seconds &"_16x16_" into tSaveImageFile --setup something for this 11/11/2023!!
+         saveImage tSaveImageFile
+         break
+      case "t"
+         put the seconds &"_16x16_t" into tTransparentImageFile  --setup something for this 11/11/2023!!
+         saveImage tTransparentImageFile,true
+         break
+      case "z"
+         UndoCommand
+         break
+      case "r"
+         RedoCommand
+         break
+   end switch
+   pass controlKeyDown
+end controlKeyDown
+
+function getCProp tCPropSet,tArrayName
+   do "set the customPropertySet of stack (the mainStack of this stack) to" &&  tCPropSet
+   do "put the" && tArrayName && "of stack (the mainStack of this stack) into tArray"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   return tArray
+end getCProp
+
+on setCProp tCPropSet,tArrayName,tData,IndexName,tIndexValue
+   do "set the customPropertySet of this stack to" &&  tCPropSet
+   do "put the" && tArrayName && "of this stack into tArray"
+   if tIndexName is  empty then 
+      put the keys of tArray into tSubKeys
+      put the number of lines of tSubKeys into tKeyCount
+      put tKeyCount+1 into tIndexName
+      put padNumber(tIndexName,5) into tNum
+      put tData into  tArray[tNum]
+   else
+      put tArray[IndexName] into tSubArray
+      if IndexValue is  empty then 
+         put the keys of tSubArray into tSubKeys
+         put the number of lines of tSubKeys into tIndexValue
+         
+         put tData into tArray[padNumber(tIndexValue+1,5)]
+      else
+         put tData into  tSubArray[padNumber(tIndexValue,5)]
+      end if
+      put tSubArray into tArray[IndexName]
+   end  if
+   do "set the"&& tArrayName && "of this stack to tArray"
+   set the customPropertySet of this stack to empty
+end setCProp
+
+function stringrepeat i,tstring
+   repeat with reps = 1 to i
+      put tString after tOutput
+   end repeat
+   return tOutput
+end stringrepeat
+
+on getAquariusBinary 
+   put getEightBit(gCurrentAsciiVal,true) into gBinaryString
+   UpdateGridFromBinaryString
+   put buildBitWise(gBinaryString) into tFontBinary
+   set the customPropertySet of stack (the mainStack of this stack) to FontData
+   do "put the" && gCurrentFont && "of stack (the mainStack of this stack) into tArray"
+   put tFontBinary into tArray[gCurrentAsciiVal]
+   do "set the" && gCurrentFont && "of stack (the mainStack of this stack) to tArray"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   if "FontViewer" is among the lines of the windows  then updateFontViewerPreview gCurrentCharacterImage
+end getAquariusBinary
+
+--might have been an error in this
+on makeAquariusFont
+   repeat with i = 0 to 255 
+      put i into gCurrentAsciiVal
+      put numtochar(gCurrentAsciiVal) into gCurrentCharacter 
+      getAquariusBinary
+   end repeat
+end makeAquariusFont
+
+-- retrieve 8x8 pixel bit data strings, return with or without padding for 16x16
+function getEightBit tNumber,bPadded,pSize
+   if tNumber is not a number then put chartonum(char 1 of tNumber) into tNumber
+   put getCProp("Eightbit","Aquarius") into t8BitBinaryString
+   put line tNumber of t8BitBinaryString into tLine
+   
+   put widestringToGrid(tLine,8) into tBlock
+   if bPadded is true then
+      if pSize is empty then put 16 into pSize
+      put stringRepeat(pSize,"0") into tEmptySpaceLines
+      put stringRepeat((pSize/4),"0") into tEmptySpaceColumns
+      put stringRepeat((pSize/4),tEmptySpaceLines&cr) into tEmptySpaceChunk
+      repeat for each line L in tBlock
+         put tEmptySpaceColumns & L & tEmptySpaceColumns &cr after tPaddedOutput
+      end repeat
+      put tEmptySpaceChunk & tPaddedOutput & tEmptySpaceChunk into finalOutput
+   else
+      return tBlock
+   end if
+   return finalOutput
+end getEightBit
+
+-- convert a long string such as "abcdefghi" to multiple lines like "ab"& cr& "de"& cr& "fg"& cr& "hi"
+function widestringToGrid tString,tWidth
+   put twidth *-1 into tStepback
+   repeat with i = number of characters of tString down to tWidth step tStepback
+      put cr after char i of tString
+   end repeat
+   return tString
+end widestringToGrid
+
+on BinaryCharacterSetToFontMaker  tListofBinary,tFont
+   set the customPropertyset of stack (The mainStack of this stack) to empty
+   if tFont is not empty then put tFont into gCurrentFont
+   put 0 into n
+   repeat for each line L in tListofBinary
+      put wideStringToGrid(L,gGridSize) into tempBinary
+      put BuildBitWise(line 1 to -1 of tempBinary) into tFontBin
+      set the customPropertySet of this stack to FontData
+      do "put the"&& gCurrentFont &&"of stack (the mainStack of this stack) into tFontArray"
+      put tFontBin into tFontArray[n]
+      do "set the"&&  gCurrentFont&&" of stack (the mainStack of this stack) to tFontArray"
+      DrawfromBitFontdata gCurrentAsciiVal,gCurrentFont
+      set the customPropertySet of this stack to empty
+      add 1 to n
+   end repeat
+   chooseFont gCurrentFont
+end BinaryCharacterSetToFontMaker
+
+
+on saveWhitePNG
+   lock screen
+   put gCurrentDirectory & "/white.png" into tSaveImageFile
+   put the backgroundcolor of graphic 1 of stack (the mainStack of this stack) into tOldColor
+   set the backgroundcolor of graphic 1 of stack (the mainStack of this stack) to white
+   export snapshot from of graphic 1 of stack (the mainStack of this stack) to file tSaveImageFile as PNG
+   set the backgroundcolor of graphic 1 of stack (the mainStack of this stack) to tOldColor
+   lock screen
+end saveWhitePNG
+
+on randomNoiseJam tNumber
+   put "NoiseCloud" into gCurrentFont
+   --setCurrentFont gCurrentFont
+   repeat with i = 1 to tNumber
+      setCurrentAscii i-1 -- we save to here
+      put setCurrentcharacterImage(i) into nut -- we see it here
+      randomnoise
+      saveEditedcharacter
+   end repeat
+   exportFontMapImage
+end randomNoiseJam
+
+--save current editor screen as a 512x512 png
+on saveImage tName,bTrans
+   --hide image "bitfontmaker2UI_grid" of stack (the mainStack of this stack)
+   if exists(field "preview_character") then hide field "preview_character" of stack (the mainStack of this stack)
+   
+   --turn the graphics  off for alpha channel
+   ## SHOULD REDO THIS WITH FLIPPED BITS 10 24 2026
+   if bTrans is true then
+      repeat with i = 1 to number of graphics of stack (The mainStack of this stack)
+         if backgroundColor of graphic i of stack (The mainStack of this stack) is white then hide graphic i of stack (The mainStack of this stack)
+      end repeat
+   end if
+   ---save the image
+   replace quote with empty in tName
+   put getFontFolderPath() into gCurrentFontFolder
+   put gCurrentFontFolder & "/"&tName & ".png" into tSaveImageFile
+   put "file:" & gCurrentFontFolder & "/"&tName & ".pbm" into tSaveImagepbm
+   put the text of image "image_1" into URL tSaveImagepbm
+   --put tSaveImageFile
+   export snapshot from group "graphicsGroup" of stack (the mainStack of this stack) to file tSaveImageFile as PNG 
+   set the fileName of image "Image_1" of stack (the mainStack of this stack) to tSaveImageFile
+   put tSaveImageFile into tLastSavedImage
+   --turn them back on
+   if bTrans is true then
+      repeat  with i = 1 to number of graphics in Group "graphicsGroup" of stack (the mainStack of this stack)
+         if backgroundColor of graphic i of Group "graphicsGroup" of stack (the mainStack of this stack) is white then show graphic i of Group "graphicsGroup" of stack (the mainStack of this stack)
+      end repeat
+   end if
+   -- 11-09-2023 fix the preview character system
+   --set the visible of field "preview_character" of stack (the mainStack of this stack) to bPreviewVis
+   --show image "bitfontmaker2UI_grid" of stack (the mainStack of this stack)
+end saveImage
+
+on exportFontMapImage
+   put getFontFolderPath() into gCurrentFontFolder
+   put gCurrentFontFolder & "/"&gCurrentFont & "_map.png" into tSaveFullImageFile
+   --put tSaveFullImageFile
+   export snapshot from group "imagegridgroup" of stack "fontviewer" to file tSaveFullImageFile as PNG 
+end exportFontMapImage
+
+on ExportAllCharactersToPNG
+   put getFontFolderPath() into gCurrentFontFolder
+   put gCurrentFontFolder & "/"&tName & ".png" into tSaveImageFile
+   repeat with i = 0 to 256
+      put i into gCurrentAsciiVal
+      put numtochar(i) into gCurrentCharacter 
+      put i+1 into gCurrentCharacterImage
+      DrawFromBitFontdata gCurrentAsciiVal,gCurrentFont 
+      if i=255 then exit repeat
+   end repeat
+end ExportAllCharactersToPNG
+
+
+
+on fontViewerImageMenuPick myPick
+   switch (item 1 of myPick)
+      case "Clear"
+         --put "clear"
+         saveforundo
+         put emptyBinaryMatrix(gGridSize,gGridSize) into gBinaryString
+         --saveEditedCharacter
+         UpdateGridFromBinaryString
+         break
+      case "Fill"
+         
+         saveforundo
+         put emptyBinaryMatrix(gGridSize,gGridSize) into gBinaryString
+         
+         replace 0 with 1 in gBinaryString
+         --put gBinaryString
+         --saveEditedCharacter
+         UpdateGridFromBinaryString
+         break
+      case "Import"
+         ImportImage
+         break
+      case "Shift Pixels"
+         shiftPixels
+         break
+      case "Random Noise"
+         RandomNoise
+         break
+      case "Invert"
+         UpdateGridFromBinaryStringInverted
+         break
+      case "Copy"
+         set the customPropertySet of this stack to FontData
+         do "put the"&& gCurrentFont &&"of stack (the mainStack of this stack) into tFontArray"
+         put tFontArray[gCurrentAsciiVal] into gBinaryStringCopy
+         set the customPropertySet of this stack to empty
+         break
+      case "Paste"
+         --put the keys of gBinaryStringCopy
+         put BuildBitWise(line 1 to -1 of gBinaryStringCopy) into tFontBin
+         set the customPropertySet of this stack to FontData
+         do "put the"&& gCurrentFont &&"of stack (the mainStack of this stack) into tFontArray"
+         put gBinaryStringCopy into tFontArray[gCurrentAsciiVal]
+         do "set the"&&  gCurrentFont&&" of stack (the mainStack of this stack) to tFontArray"
+         DrawfromBitFontdata gCurrentAsciiVal,gCurrentFont
+         set the customPropertySet of this stack to empty
+         break
+      case "Scripts"
+         go to stack "ScriptWindow"
+         break
+      case "Settings"
+         BitMapFontEditorSettings
+         break
+      case "New"  
+         newCharacter
+         break
+      case "Renumerate"  
+         RenumerateCharacter
+         break
+      case "Delete" 
+         Actor.Delete
+         break
+      case "Duplicate" 
+         Actor.duplicate
+         
+         break
+      case "Undo"
+         UNdoCommand
+         break
+      case "Redo"
+         RedoCommand
+         break
+      case "rectangle"
+         lock messages
+         go to stack "shapeMaker"
+         unlock  messages
+         break
+         
+   end switch
+   
+   put myPick into tPick2
+   switch tPick2
+      case "Import|Image"
+         ImportImage
+         break
+      case "Flip|Horiztonal"
+         flipPixels "Horizontal" 
+         break
+      case "Flip|Vertical"
+         flipPixels "Left" 
+         break
+      case ("Rotate|90"&numtochar(248))
+         flipPixels "rot90" 
+         break
+      case ("Rotate|"&numtochar(127)&"-90"&numtochar(248))
+         flipPixels "rot-90" 
+         break
+      case "Save|With Transparency"
+         put gCurrentAsciiVal &"_"& gCurrentCharacter  &"_"&gCurrentFont &"_16x16_" into tTransparentImageFile 
+         saveImage tTransparentImageFile,true
+         break
+      case "Save|Image"
+         put quote &gCurrentAsciiVal &"_"& gCurrentCharacter  &"_"&gCurrentFont &"_16x16_" & quote into tSaveImageFile --setup something for this 11/11/2023!!
+         saveEditedCharacter
+         saveImage tSaveImageFile
+         break
+   end switch
+end fontViewerImageMenuPick
+
+
+
+function FontViewerImageMenuText
+   put "Undo" & cr & "Redo" into myText
+   put cr & "Copy" & cr & "Paste" after myText
+   put cr &"Clear"& cr &"Fill" after myText
+   put cr & "Invert" &cr after myText
+   put cr & "Random Noise" after myText
+   put cr & "Rectangle"after myText
+   put cr&   "Flip" after myText 
+   put cr& tab & "Horiztonal" after myText 
+   put cr& tab & "Vertical" after myText 
+   put cr&   "Rotate" after myText 
+   put cr& tab & "90"&numtochar(248) after myText 
+   put cr& tab & numtochar(127)&"-90"&numtochar(248) after myText
+   put cr &"Import" after myText
+   put cr& tab & "Image" after myText 
+   #put cr& tab & "Folder" after myText   ## 10 17 2026
+   #put cr& tab & "JSON" after myText   ## 10 17 2026
+   #put cr& tab & "16Bit" after myText   ## 10 17 2026
+   put cr&"Save" after myText
+   put cr & tab & "Image" after myText
+   put cr & tab & "With Transparency" after myText
+   return myText 
+end FontViewerImageMenuText
+
+function fontOptionsMenuText
+   put "Refresh"&cr&"-"&cr into myText
+   put "Scripts" &cr after myText
+   put   "Settings"  after myText 
+   put cr& "-"& cr & "New" &cr&"Rename" after myText
+   put cr &  "Duplicate" after myText
+   -- export menu
+   put cr&   "Export" after myText 
+   put cr& tab & "Font Map" after myText 
+   put cr& tab & "16x16PNG" after myText 
+   put cr& tab & "Images" after myText 
+   put cr& tab &  "BitFontMaker2"	 after myText 
+   put cr& tab &  "Binary"	 after myText 
+   -- import menu
+   put cr&   "Import" after myText 
+   put cr& tab & "16x16PNG" after myText 
+   put cr& tab & "Folder" after myText 
+   put cr& tab &  "BitFontMaker2"	 after myText 
+   put cr& tab &  "Binary"	 after myText 
+   put cr & "Consolodate" &cr&"Shift All"  after myText 
+   put cr &"-"&cr & "Delete" after myText
+   return myText
+end fontOptionsMenuText
+
+
+-- bitfontmaker2 data is a compressed binary showing only the black blocks
+on DrawFromBitFontdata tASCII,tFontName
+   lock screen
+   cleanGraphics
+   set the customPropertySet of stack (the mainstack of this stack) to FontData
+   put the customkeys of stack (the mainstack of this stack) into tStackFonts
+   sort tStackFonts numeric ascending
+   if tASCII is empty then put gCurrentAsciiVal into tASCII
+   put tASCII into gCurrentAsciiVal 
+   if tFontName is empty then  put gCurrentFont into tFontName
+   if tFontname is not among the lines of tStackFonts  then 
+      put line -1 of tStackFonts into tFontName
+      chooseFont tFontName
+   end if
+   put tFontName into gCurrentFont
+   do "put the" && tFontName && "of stack (the mainstack of this stack)  into tFontArray"
+   set the customPropertySet of stack (the mainstack of this stack) to empty
+   put the keys of tFontArray into tKeys
+   sort tKeys numeric ascending
+   --PreviewCharacterSystem Was here
+   put tFontArray[tASCII] into tString
+   --put tString
+   --exit DrawFromBitFontdata
+   repeat for each item i in tString
+      if i is not 0 then
+         --convert compressed binary to the location of filled columns in the grid
+         put getFilledColumns(i) & cr after columnsList
+      else
+         put 0 & cr after columnsList
+      end if
+   end repeat
+   filter columnsList without empty
+   put 0 into R
+   repeat for each line L in columnsList
+      if L <> 0 then
+         repeat for each item i in L
+            put padNumber(i-1,2) &"_"&padNumber(R,2) into tName
+            --put tName
+            IF EXISTS(GRAPHIC TNAME) THEN 
+               set the backgroundColor of graphic tName of group "GraphicsGroup" of stack (the mainstack of this stack) to black
+               put 1 into char i of line R of gBinaryString
+               
+            end if
+         end repeat
+      end if
+      add 1 to R
+   end repeat
+   updateGridImagePreview
+   unlock screen
+end DrawFromBitFontdata
+
+
+
+function fixStringLength tLen,tString
+   put number of chars of tString into tNum
+   put tLen into n
+   repeat with i   = 1 to tNum step tLen
+      put cr after char n of tString
+      add tLen to N
+   end repeat
+   return tString
+end fixStringLength
+
+
+
+function padNumber tNum,tDepth
+   put the number of chars of tNum into tCurrentCount
+   repeat with i = tCurrentCount to tDepth
+      put "0" before tNum
+   end repeat
+   return tNum
+end padNumber
+
+function UnpadNumber tNum
+   repeat with i = the number of chars of tNum down to 1
+      if char 1 of tNum is "0" then put char 2 to -1 of tNum into tNum
+   end repeat
+   return tNum
+end UnpadNumber
+
+// bitfontmaker2 data processing bitwise operation find out which bit in row is lit
+function getFilledColumns inputValue
+   put "1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768" into columnValues
+   set itemDel to comma
+   put empty into filledColumns
+   repeat with i = number of items in columnValues down to 1
+      if inputValue >= item i of columnValues then
+         put i & comma after filledColumns
+         
+         subtract item i of columnValues from inputValue
+      end if
+   end repeat
+   delete the last char of filledColumns -- remove trailing comma
+   return filledColumns
+end getFilledColumns
+
+-- bitwise operation turns long 010101 style binary to compressed bitwise binary for BitFontMaker2 (and cleaner data)
+Function BuildBitWise pBinaryString
+   if pBinaryString is empty then put gBinaryString into pBinaryString
+   put pBinaryString into gBinaryString
+   put "1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768" into columnValues
+   put gBinaryString into tBits
+   set itemDel to comma
+   repeat with i = 1 to gGridSize
+      put 0 into tLineTotal
+      repeat with j = 1 to gGridSize
+         if char j of line i of tBits is not 0 then add item j of columnValues to  tLineTotal
+      end repeat
+      put tLineTotal & comma after AllTotals
+   end repeat
+   --put AllTotals
+   return char 1 to -2 of AllTotals
+end BuildBitWise
+
+function charToBinary tChar
+   put chartonum(tChar) into N
+   put getCProp("Fontdata",gCurrentFont) into tArray
+   return tArray[N]
+end charToBinary
+
+--formats the character data to compressed binary following is FULL format but this is not full
+-- {"97":[0,0,0,0,496,280,256,992,816,792,920,1776,1024,0,0,0],"name":"","copy":"","letterspace":"64","basefont_size":"512","basefont_left":"62","basefont_top":"0","basefont":"Arial","basefont2":"
+function BitFontMaker.Data.format tAscii
+   // theader =//{"97":[0,0,0,0,496,280,256,992,816,792,920,1776,1024,0,0,0]
+   put "{" & quote & tAscii & quote & ":" into tCharHeader
+   put BuildBitWise() into tFontBinaryString
+   put "["&  tFontBinaryString & "]" into tCharBinaryString
+   put tCharHeader & tCharBinaryString  into tCharBinaryString
+   -- full format is commented out to be handled by mass or single final output
+   --put "name,copy,letterspace,basefont_size,basefont_left,basefont_top,basefont,basefont2" into tFONTTables 
+   return tCharBinaryString
+end BitFontMaker.Data.format
+
+
+on BitFontMaker2.FontData.Export
+   put getCProp("Fontdata",gCurrentFont) into tFontArray
+   put the keys of tFontArray into tKeys
+   sort tKeys numeric ascending
+   repeat for each line L in tKeys
+      if L is empty then next repeat
+      put  quote & L & quote & ":" into tCharHeader
+      put tFontArray[L] into tFontBinaryString
+      put "["&  tFontBinaryString & "]" into tCharBinaryString
+      put tCharHeader & tCharBinaryString  into tCharBinaryString
+      put tCharBinaryString & comma after  bitfontmaker2output 
+   end repeat
+   put getFontFolderPath() into gCurrentFontFolder
+   put "File:"& gCurrentFontFolder & "/"&gCurrentFont&".json" into tURL 
+   put "{" & bitfontmaker2output &quote&"name" & quote & ":" &quote & gCurrentFont & quote&  the bitfontmakerstump of stack (the mainStack of this stack)  into tFinalOutPut
+   put textEncode(tFinalOutPut, "UTF-8") into URL tURL 
+end BitFontMaker2.FontData.Export
+
+// store bit font maker 2 data as individual elements of array in Fontadata custom property set
+on BitFontMaker.Data.Store tdata
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   replace "{"&quote with empty in tdata
+   replace quote & "}" with empty in tdata
+   replace quote & ":" with space in tData
+   replace comma & quote with cr in tData
+   replace "[" with empty in tdata
+   replace "]" with empty in tdata
+   replace quote with empty in tData
+   --put tdata into field 1
+   
+   put lineoffset("name",tData) into n
+   if n =0 then exit BitFontMaker.Data.Store
+   put word 2 of line n of tdata into TName
+   set the customPropertySet of stack (the mainStack of this stack) to Fontdata
+   if tName ="" then 
+      put the customKeys of stack (the mainStack of this stack) into tArrayList
+      filter mylist with "unititled_" &"*" 
+      put "untitled_"&padNumber(the number of lines of tArrayList+1,3)  after tName
+   end if
+   put "put the" && tName && " of stack (the mainStack of this stack) into myArray" into tCom
+   do tCom
+   repeat with i = n+1 to number of lines of tdata
+      if word 2 of line i of tData is empty then
+         put "put empty into myArray[" & word 1 of line 1 of tdata & "]" into tCom
+      else
+         put "put" && word 2 of line i of tdata &&  "into myArray[" & word 1 of line 1 of tdata & "]" into tCom
+      end if
+      
+      do tCom
+   end repeat
+   
+   repeat with ii = 1 to n-1
+      if word 2 of line ii of tData is empty then
+         put "put empty into myArray[" & word 1 of line ii of tdata & "]" into tCom
+      else
+         put "put" && quote &  word 2 of line ii of tdata & quote&&  "into myArray[" & word 1 of line ii of tdata & "]" into tCom
+      end if
+      --put cr  & tcom --after field 1
+      do tCom
+   end repeat
+   
+   put "set the" && tName && " of stack (the mainStack of this stack) to myArray" into tCom
+   do tCom
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end BitFontMaker.Data.Store
+
+-- test raw bitfontmaker data to custom property set arrays
+on BitFontMaker.Data.Transfer
+   set the customPropertySet of stack (the mainstack of this stack)  to bitfontmaker2_raw_data
+   put the AquariusDoubleFromBitFontMaker2 of stack (the mainstack of this stack) into tRawData
+   set the customPropertySet of  stack  (the mainstack of this stack)  to empty
+   BitFontMaker.Data.Store tRawData
+end BitFontMaker.Data.Transfer
+
+
+-- return a grid coordinate based on gridSpacing
+function roundedMouse pWidth,pHeight,pGridSpacing
+   if the mouseLoc is not within the rect of image "Image_1" of  stack  (the mainstack of this stack) then return 0,0
+   put the mouseLoc into tMouseLoc
+   set itemDel to comma
+   put round(((item 1 of tMouseLoc) / (pWidth / pGridSpacing))-0.5) into grid_x  
+   put round(((item 2 of tMouseLoc) / (pHeight / pGridSpacing))-0.5) into grid_y  
+   if grid_X <0 then put 0 into grid_X
+   if grid_y <0 then put 0 into grid_y
+   return grid_x,grid_y
+end roundedMouse
+
+
+on GenerateBackgroundGrid pGridSize
+   if pGridSize is empty then put gGridSize into pGridSize
+   put pGridSize into gGridSize
+   put "" into tGridLines
+   if gGridSize is empty then put 32 into gGridSize
+   repeat with i = 0 to gGridWidth step 32
+      put 0 into n
+      repeat with j = 0 to gGridWidth step 32
+         put i-29&comma&j & cr after tGridLines
+         put i&comma&j & cr &cr after tGridLines
+         put i&comma&j-29 & cr after tGridLines
+         put i&comma&j & cr &cr after tGridLines
+      end repeat
+   end repeat
+   if there is not a graphic "TheGrid" then create graphic "TheGrid"
+   set the style of graphic "TheGrid" to polygon
+   set the points of graphic "TheGrid" to tGridLines
+   show graphic "TheGrid"
+   set the layer of graphic "TheGrid" to top
+   if there is not a group "GraphicsGroup" then init.graphicsGroup
+   set the layer of group "GraphicsGroup" to bottom
+   set the layer of image "Image_1" to bottom
+end GenerateBackgroundGrid
+
+on init.graphicsGroup
+   set the name of the templateGroup to "GraphicsGroup"
+   repeat with i = 1 to number of graphics of this card
+      put the  name of graphic i of this card into tName
+      put tName && "and" & space after all.graphics
+   end repeat
+   do "group" && word 1 to -2 of all.graphics
+end init.graphicsGroup
+
+on delete.Graphics whichStack
+   if whichStack is empty then put (short name of stack (the mainStack of this stack)) into whichStack
+   repeat with i = number of graphics of stack whichStack down to 1
+      delete graphic i of stack whichStack
+   end repeat
+end delete.Graphics
+
+on delete.groups whichStack
+   repeat with i = number of groups of stack whichStack down to 1
+      delete group i of stack whichStack
+   end repeat
+end delete.groups
+
+on totalReset
+   lock screen
+   delete.groups (short name of stack (the mainStack of this stack))
+   delete.Graphics  (short name of stack (the mainStack of this stack))
+   createGrid
+   init
+   unlock screen
+end totalReset
+
+on showCurrentFont
+   FontViewer.clean.Images
+   saveWhitePNG
+   put getFontFolderpath() into gCurrentFontFolder
+   put gCurrentDirectory & "/white.png" into tWhiteImagePath
+   set the customPropertySet of stack (the mainStack of this stack) to FontData
+   do "put the" && gCurrentFont && "of stack (the mainStack of this stack) into tFontArray"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   put the keys of tFontArray into tKeys
+   sort tKeys numeric Ascending
+   put 0 into tImageNumber
+   put the number of lines of tKeys into tNLines
+   put 0 into currentN
+   set the cursor to busy
+   lock screen
+   set the defaultFolder to gCurrentFontFolder
+   repeat with i = 0 to 256 
+      if i+1 > number of images of  group "imageGridgroup" stack "Fontviewer" then exit repeat
+      if i is among the lines of tKeys  then
+         put i into gCurrentAsciiVal
+         put numtochar(i) into gCurrentCharacter
+         put i+1 into gCurrentCharacterImage
+         put gCurrentFontFolder&"/"&gCurrentAsciiVal&".png" into tFile
+         
+         if there is a file tfile then
+            put  the rect of image (i+1) of group "imageGridgroup" stack "Fontviewer"  into trect
+            set the fileName of image (i+1) of group "imageGridgroup" of stack "FontViewer" to tFile
+            set the rect of image  (i+1) of group "imageGridgroup" of stack "fontviewer"  to trect
+         else
+            FontViewer.Map.Update (gCurrentAsciiVal),(gCurrentCharacterImage)
+         end if
+      else 
+         put  the rect of image (i+1) of group "imageGridgroup" stack "Fontviewer"  into trect
+         set the fileName of image (i+1) of group "imageGridgroup" of stack "FontViewer" to tWhiteImagePath
+         set the rect of image  (i+1) of group "imageGridgroup" of stack "fontviewer"  to trect
+      end if
+      --FontViewerClick  gCurrentCharacterImage,gCurrentAsciiVal 
+   end repeat
+   set the cursor to arrow
+   put 0 into tCurrentAscii
+   
+   put 1 into gCurrentCharacterImage
+   put numToChar(0) into gCurrentCharacter 
+   --if "FontList" is among the lines of the windows then updateFontListField
+   
+   unlock screen
+end showCurrentFont
+
+on FontViewer.Map.Update tAsciiVal,tImageNumber
+   lock screen
+   if tAsciiVal is empty then put gCurrentAsciiVal into tAsciiVal
+   put tAsciiVal into  gCurrentAsciiVal 
+   if tImageNumber is empty then put tAsciiVal+1 into tImageNumber
+   put tImageNumber into gCurrentCharacterImage
+   if tImageNumber > number of images of stack "Fontviewer" then exit FontViewer.Map.Update  
+   DrawFromBitFontdata tAsciiVal,gCurrentFont
+   
+   put getFontFolderpath() into gCurrentFontFolder
+   put gCurrentFontFolder& "/"& tAsciiVal &".png" into tFileName
+   SaveImage tAsciiVal,false
+   put tAsciiVal into gCurrentAsciiVal
+   wait 10 milliseconds
+   
+   put  the rect of image (tImageNumber) of stack "Fontviewer"  into trect
+   put the width of image (tImageNumber) of stack "Fontviewer" into tWide
+   put the height of image (tImageNumber) of stack "Fontviewer" into tHigh
+   set the fileName of image  (tImageNumber) of stack "fontviewer" to tFileName
+   set the rect of image  (tImageNumber) of stack "fontviewer"  to trect
+   set the AsciiValue of image (tImageNumber) of stack "fontviewer" to tAsciiVal
+   set the ImageIndex of image (tImageNumber) of stack "fontviewer" to tImageNumber
+   unlock screen
+end FontViewer.Map.Update
+
+on FontViewer.Click tImageNumber,tAsciiVal
+   put tAsciiVal into gCurrentAsciiVal
+   set the customPropertySet of stack (the mainstack of this stack) to empty
+   set the lastKeyUp of stack (the mainStack of this stack) to numtochar(gCurrentAsciiVal)
+   put numtoChar(tAsciiVal) into gCurrentCharacter 
+   put tImageNUmber into gCurrentCharacterImage
+   set the title of stack (the mainStack of this stack) to "Draw"&&gCurrentASciiVal
+   -- 11-09-2023 fix the preview character system
+   --set the visible of field "preview_character" of stack (the mainStack of this stack) to bPreviewVis
+   DrawFromBitFontdata gCurrentAsciiVal,gCurrentFont 
+end FontViewer.Click
+
+on toggleEditFont tBool
+   if tBool is empty then 
+      if bEditFont is empty then put true into bEditFont
+      put not bEditFont into tBool
+   end if
+   put tBool into bEditFont
+   put tBool into bPreviewVis -- 11-09-2023 fix the preview character system
+end toggleEditFont
+
+
+on FontViewer.Delete.Grid
+   deletegroups "FontViewer"
+   repeat with i = number of images of stack "Fontviewer" down to 1
+      delete image i of stack "FontViewer"
+   end repeat
+end FontViewer.Delete.Grid
+
+on FontViewer.Create.Image.Grid
+   set the defaultStack to "FontViewer"
+   Delete.FontViewer.Grid
+   create graphic "gridFrame"
+   set the opaque of it to false
+   -- Create and position the graphics objects to create the grid
+   set the rect of graphic "gridframe" of stack "FontViewer" to 0,0,512,512
+   put (the width of graphic "gridframe" of stack "FontViewer") into gImageWidth
+   put (the height of graphic "gridframe" of stack "FontViewer") into tImageHeight
+   put 16 into gGridSize -- Adjust the grid size as needed
+   put item 2 the rect of of graphic "gridframe" of stack "FontViewer" into tX
+   put item 1 the rect of of graphic "gridframe" of stack "FontViewer" into tY
+   put 0 into tImageNumber
+   repeat with i = 1 to gGridSize
+      repeat with j = 1 to gGridSize
+         
+         put tX, tY, tX + gImageWidth / gGridSize, tY + tImageHeight / gGridSize into tRect
+         put (gGridSize/2) into tBoxcenter
+         put padNumber(i-1,2)&"_"&padNumber(j-1,2) into tName
+         set the name of the templateImage to tName
+         
+         set the rect of the templateImage to tRect
+         set the opaque of the templateImage to false
+         set the AsciiValue of the templateImage to tImageNumber
+         add 1 to tImageNumber
+         set the ImageIndex of the templateImage to tImageNumber
+         create image
+         put the  name of it into ImageName
+         
+         put   ImageName  && "of stack" &&quote& "FontViewer" &quote && "and" & space after tGroupImages
+         --put ImageId && "of stack" &&quote& "FontViewer" &quote && cr after tGridImages
+         add gImageWidth / gGridSize to tX
+      end repeat
+      put 0 into  tX
+      add tImageHeight / gGridSize to tY
+   end repeat
+   unlock screen
+   set the name of the templateGroup to "imageGridgroup"
+   set the margins of the templateGroup to 0
+   set the rect of the templateGroup to 0,0,512,512
+   set the layer of graphic "gridframe"  of stack "Fontviewer" to bottom
+   put "group graphic" && quote & "gridframe" &quote &&"and"&& (word 1 to -2 of tGroupImages) into tCom
+   do tCom
+   set the defaultStack to (short name of stack (the mainStack of this stack))
+end FontViewer.Create.Image.Grid
+
+on resizeFontViewerGrid
+   put (the width of graphic "gridframe" of stack "FontViewer") into gImageWidth
+   put (the height of graphic "gridframe" of stack "FontViewer") into tImageHeight
+   put 8 into gGridSize -- Adjust the grid size as needed
+   put item 2 the rect of of graphic "gridframe" of stack "FontViewer" into tX
+   put item 1 the rect of of graphic "gridframe" of stack "FontViewer" into tY
+   repeat with i = 1 to 10
+      repeat with j = 1 to 10
+         put tX, tY, tX + gImageWidth / gGridSize, tY + tImageHeight / gGridSize into tRect
+         put padNumber(i-1,2)&"_"&padNumber(j-1,2) into tName
+         set the rect of image tName to tRect
+         add gImageWidth / gGridSize to tX
+      end repeat
+      put 0 into tX
+      add tImageHeight / gGridSize to tY
+   end repeat
+end resizeFontViewerGrid
+
+--- find dirty debug outputs
+function emptyPuts
+   put the script of stack (the mainStack of this stack) into tScript
+   put tScript into tSubScript
+   filter lines of tSubScript with "*put*"
+   Filter lines of tScript with "Put*"
+   put tSubScript & cr & tScript into tScript
+   filter lines of tScript without "*into*"
+   filter lines of tScript without "*after*"
+   filter lines of tScript without "*before*"
+   filter lines of tScript without "--put*"
+   filter lines of tScript without "*--put*"
+   return  tScript
+end emptyPuts
+
+on ChooseFont tFontName
+   set the customPropertySet of stack (the mainstack of this stack) to FontData
+   put the customkeys of stack (the mainstack of this stack) into tStackFonts
+   if tFontName is empty then put line -1 of tStackFonts into tFontName
+   if tFontName is among the lines of tStackFonts then
+      put tFontName into gCurrentFont
+      put gCurrentDirectory& "/"& gCurrentFont into gCurrentFontFolder
+      if there is not a folder gCurrentFontFolder then create folder gCurrentFontFolder
+      showCurrentFont
+      put numtoChar(0) into gCurrentCharacter 
+      put 1 into gCurrentCharacterImage
+      put 0 into gCurrentAsciiVal
+      DrawFromBitFontdata gCurrentAsciiVal,gCurrentFont 
+      if "FontList" is among the lines of the windows then updateFontListField
+      if "FontViewer" is among the lines of the windows then
+         
+         set the title of stack "FontViewer" to gCurrentFont &":" && quote & numTochar(0)&quote&&"0 @ 1"
+         toggleEditFont false
+         set the hilite of button "EditFont" of stack "FontViewer" to bEditFont
+      end if
+   end if
+   
+end ChooseFont
+
+on newFont tFontName
+   set the customPropertySet of stack (the mainstack of this stack) to FontData
+   put the customkeys of stack (the mainstack of this stack) into tStackFonts
+   if tFontName is empty then 
+      ask "Name the new font, please:" with "untitled"
+      if it is empty then 
+         put "untitled_00" into tFontName
+      else
+         put it into tFontName
+      end if
+   end if
+   
+   if tFontName is among the lines of tStackFonts then 
+      put tStackFonts into tShortList
+      filter tShortList with char 1 to -2 of tFontName&"*"
+      put number of lines of tShortList+1 after tFontName
+      do "put the" && tFontName &&"of stack (the mainstack of this stack)  into tFontArray"
+      put stringrepeat(16,"0")  into tBinary 
+      put buildbitwise(tBinary) into tEmptyChar
+      repeat with i =  0 to 255
+         do "put tEmptyChar into tFontArray["&i&"]"
+      end repeat
+      do "set the" && tFontName && "of stack (the mainstack of this stack) to tFontArray"
+   end if
+   set the customPropertySet of stack (the mainstack of this stack) to empty
+   put empty into gCurrentCharacter 
+   put 0 into gCurrentCharacterImage
+   put tFontName into gCurrentFont
+   put empty into gBinaryString
+   cleanGraphics
+   if "FontViewer" is among the lines of the windows then send  showCurrentFont  to stack (the mainStack of this stack) in 400 milliseconds
+   if "FontList" is among the lines of the windows then  send updateFontListField to stack (the mainStack of this stack) in 100 milliseconds
+end newFont
+
+on renameFont
+   ask "Rename" with gCurrentFont
+   if it is empty then exit renameFont
+   put it into tNewName
+   set the customPropertySet of stack (the mainStack of this stack) to FontData
+   do "put the" && gCurrentFont && "of stack (the mainStack of this stack) into tFontArray"
+   do "set the" && tNewName && "of stack (the mainStack of this stack) to tFontArray"
+   do "set the" && gCurrentFont && "of stack (the mainStack of this stack) to empty"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   put tNewName into gCurrentFont
+   if "FontList" is among the lines of the windows then UpdateFontListField
+end renameFont
+
+
+
+
+
+function  parseFrameInput tFrames
+   replace comma with cr in tFrames
+   repeat with F = 1 to number of lines of tFrames
+      put line F of tFrames  into tCheckItem
+      set itemDel to "-" 
+      if number of items of tCheckItem > 1 then
+         repeat with n=item 1 of tCheckItem to item 2 of tCheckItem
+            put n & comma after tNewItems 
+         end repeat
+         put char 1 to -2 of tNewItems into line F of tFrames
+      end if
+   end repeat
+   replace cr with comma in tFrames
+   return tFrames
+end parseFrameInput
+
+function togglePlay tBool
+   if tBool is empty  then 
+      put not bAnimationLoop into  bAnimationLoop
+   else
+      put tBool into  bAnimationLoop
+   end if
+   if bAnimationLoop is empty then put true into bAnimationloop
+   return bAnimationLoop
+end togglePlay
+
+on StartAnimation
+   put line 1 of field "frameDelay" of stack "FontViewer"into tFramedelay
+   put parseFrameInput(line 1 of field "PlayFrames" of stack "FontViewer") into tAnimationFrames
+   playFrames tAnimationFrames
+end StartAnimation
+
+on playFrames tFrames
+   if tFrames is empty then put  tAnimationFrames into tFrames
+   put tFrames into tAnimationFrames
+   set the defaultStack to (short name of stack (the mainStack of this stack))
+   if the tool is not "browse tool" then exit playFrames
+   if bAnimationLoop is false then exit playFrames
+   --put tFrames
+   set itemDel to comma
+   repeat with F = 1 to number of items of tFrames
+      if the tool is not "browse tool" then exit repeat
+      if bAnimationLoop is false then exit repeat
+      put item F of tFrames into gCurrentAsciiVal
+      put numToChar(F) into gCurrentCharacter 
+      put gCurrentAsciiVal+1 into gCurrentCharacterImage
+      DrawFromBitFontData gCurrentAsciiVal,gCurrentFont
+      wait tFramedelay milliseconds with messages
+   end repeat
+   if bAnimationLoop is true then 
+      set the icon of button "play" of stack "Fontviewer" to 10061
+      send playFrames to stack (the mainStack of this stack) in tFramedelay milliseconds
+   else
+      set the icon of button "play" of stack "Fontviewer" to 200947
+   end if
+end playFrames
+
+on triggerScalup
+   set the cursor to busy
+   repeat with i = 1 to 257
+      lock screen
+      put "AquaDouble" into gCurrentFont
+      put i-1 into gCurrentAsciiVal
+      scaleUpTypeface gCurrentAsciiVal
+      unlock screen
+      if "FontViewer" is among the lines of the windows  then updateFontViewerPreview i,i-1
+   end repeat
+   set the cursor to arrow
+   --showCurrentFont
+end triggerScalup
+
+on scaleUpTypeface tAscii
+   if tAscii is empty then put gCurrentAsciiVal into tAscii
+   put tAscii into gCurrentAsciiVal
+   if gCurrentAsciiVal is not an integer or gCurrentAsciiVal <0 then put 0 into gCurrentAsciiVal
+   put getEightBit(gCurrentAsciiVal) into tSourceBinaryString
+   put "" into gBinaryString
+   repeat with n = 1 to 8
+      repeat with i = 1 to 8
+         put char i of line n of tSourceBinaryString into tBit
+         put tBit & tBit after gBinaryString
+      end repeat
+      put cr & line -1 of gBinaryString &cr after gBinaryString
+   end repeat
+   put buildBitWise(gBinaryString) into tFontBinary
+   set the customPropertySet of stack (the mainStack of this stack) to FontData
+   do "put the" && gCurrentFont && "of stack (the mainStack of this stack) into tFontArray"
+   put tFontBinary into tFontArray[gCurrentAsciiVal]
+   do "set the" && gCurrentFont && "of stack (the mainStack of this stack) to tFontArray"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   put gCurrentAsciiVal+1 into gCurrentCharacterImage
+   updateGridFromBinaryString
+   saveEditedCharacter  
+end scaleUpTypeface
+
+on BitMapFontEditorSettings
+   lock messages
+   go to stack "BitMapFontEditorSettings" 
+   unlock messages
+end BitMapFontEditorSettings
+
+
+
+on fontViewerOptionsMenuPick myPick
+   
+   set itemDel to"|"
+   --put item 1 of myPick
+   switch (item 1 of myPick)
+      case "Refresh"
+         UpdateFontListField
+         break
+      case "Scripts"
+         lock messages
+         go to stack "ScriptWindow"
+         unlock messages
+         break
+      case "Settings"
+         BitMapFontEditorSettings
+         break
+      case "New"  
+         newFont
+         break
+      case "Rename"  
+         renameFont
+         break
+      case "Delete" 
+         delete.Font
+         break
+      case "Duplicate" 
+         duplicateFont
+         break
+      case "Import"
+         send importMenu &&  myPick to stack (The mainStack of this stack) in 30 milliseconds
+         break
+      case "Export"
+         send exportMenu &&  myPick to stack (The mainStack of this stack) in 30 milliseconds
+         break
+      case "Consolodate" 
+         ConsolodateFont
+         break
+         
+      case "Shift All"  
+         ask "Shift All Characters Amount (negative or positive integers)"
+         if it is not empty and it is an integer then shiftFontPosition it
+         break
+   end switch
+end fontViewerOptionsMenuPick
+
+on exportMenu myPick
+   switch myPick
+      case "Export|Font Map"
+         exportFontMapImage
+         wait 30 milliseconds
+         put quote into Q
+         put Q & Q &&  quote & gCurrentFontFolder & "/"&gCurrentFont & "_map.png" & quote into tSaveFullImageFile
+         put shell("start" &&  tSaveFullImageFile) into tShock
+         break
+      case "Export|16x16PNG"
+         saveImage gCurrentAsciiVal,true
+         wait 30 milliseconds
+         put quote into Q
+         put Q & Q &&  quote & gCurrentFontFolder & "/"&gCurrentAsciiVal & ".png" & quote into tSaveFullImageFile
+         put shell("start" &&  tSaveFullImageFile ) into tShock
+         break
+      case "Export|Images"
+         ExportAllCharactersToPNG
+         break
+      case "Export|BitFontmaker2"
+         ExportBitFontmaker2Fontdata
+         wait 30 milliseconds
+         put  getFontFolderPath()&"/" &gCurrentFont& "_paste_into_bitfontmaker2.txt" into tExportURL 
+         put shell("notepad.exe" && quote & tExportURL & quote) into tShock
+         break
+      case "Export|binary"
+         put  getFontFolderPath()&"/" &gCurrentFont& "_binary.txt" into tExportURL 
+         put shell("notepad.exe" && quote & tExportURL & quote)into tShock
+         break
+   end switch
+end exportMenu
+
+on exportAllFontMaps
+   set the customPropertySet of stack (The mainStack of this stack) to FontData
+   put the customKeys of stack (The mainStack of this stack) into tFonts
+   repeat for each line F in tFonts
+      put F into gCurrentFont
+      chooseFont F
+      exportFontMapImage
+   end repeat 
+   set the customPropertySet of stack (The mainStack of this stack) to empty
+end exportAllFontMaps
+
+
+on importMenu myPick
+   --put mypick
+   switch myPick
+      case "Import|16x16PNG"
+         put 0 into tImportAttempted
+         ImportImage 
+         break
+      case "Import|Folder"
+         ImportFolder
+         break
+      case "Import|BitFontmaker2"
+         ImportBitFontMaker2
+         break
+      case "Import|binary"
+         put  getFontFolderPath()&"/" &gCurrentFont& "_binary.txt" into tExportURL 
+         put shell("notepad.exe" && quote & tExportURL & quote) into tShock
+         break
+   end switch
+   showCurrentFont gCurrentFont
+end importMenu
+
+on ImportAllBitFontEditorData
+   put stackDirectory()   & cr & gCurrentDirectory into tSources
+   repeat for each line S in tSources
+      set the defaultFolder to S
+      put the Folders into tFolderList
+      filter lines of tFolderList without ".."
+      
+      repeat for each line D in tFolderList
+         put S &"/"&D into tSubFolder
+         set the defaultFolder to tSubFolder
+         put files() into tFiles
+         filter tFiles with "*.json"
+         if tFiles is empty then next repeat
+         repeat for each line L in tFiles
+            set itemDel to "/" 
+            put char 1 to -6 of item -1 of L into gCurrentFont
+            put tSubFolder&"/" &L into tFile
+            put URL ("file:"&tFile) into tBitFontMaker2JSONText
+            if char 1 of tBitFontMaker2JSONText is not "{" then  next repeat
+            set the customPropertySet of stack (the mainStack of this stack) to bitfontmaker2_raw_data
+            do "set the"&& gCurrentFont &&"of  stack (the mainStack of this stack) to tBitFontMaker2JSONText"
+            StoreBitFontMakerData tBitFontMaker2JSONText
+            set the customPropertySet of stack (the mainStack of this stack) to empty
+         end repeat
+      end repeat
+   end repeat
+end ImportAllBitFontEditorData
+
+
+on ImportBitFontMaker2
+   answer file "A BitFontMaker2 style text file with JSON data" with  type "JSON files|json|JSON"
+   if it is  empty then exit ImportBitFontMaker2
+   put "file:"& it into tFile
+   put URL tFile into tBitFontMaker2JSONText
+   if char 1 of tBitFontMaker2JSONText is not"{" then exit ImportBitFontMaker2
+   set the customPropertySet of stack (the mainStack of this stack) to bitfontmaker2_raw_data
+   set itemDel to "/" 
+   put char 1 to - 5 of item -1 of tFile into tImportName
+   put tImportName into gCurrentFont
+   do "set the"&& tImportName &&"of  stack (the mainStack of this stack) to tBitFontMaker2JSONText"
+   StoreBitFontMakerData tBitFontMaker2JSONText
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end ImportBitFontMaker2
+
+on duplicateFont tFontName
+   set the customPropertySet of  stack (the mainStack of this stack) to Fontdata
+   put the customkeys of stack  (the mainStack of this stack) into tFontListArray
+   sort tFontListArray
+   filter tFontListArray without empty
+   
+   if tFontName is empty then put gCurrentFont into tFontName
+   if tFontName is empty then put line -1 of tFontListArray into tFontName
+   put tFontListArray into tShortList
+   filter tShortList with  tFontName
+   do "put the"&& tFontName &&"of  stack (the mainStack of this stack) into tSourceData"
+   put "_"& number of lines of tShortlist+1 after tFontName
+   do "set the"&&tFontName&&"of  stack (the mainStack of this stack) to tSourceData"
+   set the customPropertySet of  stack (the mainStack of this stack) to empty
+   put 0 into gCurrentAsciiVal
+   put 1 into gCurrentCharacterImage
+   put numtochar(0) into gCurrentCharacter 
+   put tFontName into gCurrentFont
+   chooseFont gCurrentFont
+   if "FontList" is among the lines of the windows then UpdateFontListField
+   showCurrentFont
+end duplicateFont
+
+
+on PREVIEWCHARACTERSYSTEMTOFIX tASCII
+   -- used to be in the drawBitfontdata, if a character didn't exist we'd preview it
+   --   -- 11-09-2023 need to fix the preview character system
+   if tASCII is not among the lines of tKeys and tAScii is an integer then
+      
+      set the visible field "preview_character" of stack (the mainstack of this stack) to bPreviewVis
+      set the layer of field "preview_character" of stack (the mainstack of this stack) to top
+      put numToChar(tASCII) into field  "preview_character" of stack (the mainstack of this stack)
+      set the layer of image "Image_1" to top
+      cleanGraphics
+      exit PREVIEWCHARACTERSYSTEMTOFIX
+   else 
+      hide field "preview_character" of stack (the mainstack of this stack)
+   end if
+   -- get the  filled bits from binary additive data
+end PREVIEWCHARACTERSYSTEMTOFIX
+
+on exportPropertiesToStack
+   put the customkeys of this stack into tLooseKeys
+   put the custompropertysets of this stack into tSets
+   filter tSets without "cRev*"
+   filter tSets without "undo*"
+   filter tSets without "redo"
+   put the short name of stack (the mainstack of this stack) into tMainStack
+   set the rect of the templateStack to 0,0, 128,128
+   put "FontData_"&seconds() into tName
+   set the name of the templateStack to tName
+   create stack tName
+   set the custompropertysets of stack tName to tSets
+   repeat for each line L in tSets
+      do "set the customPropertySet of stack (the mainStack of this stack) to" &&L
+      do "set the customPropertySet of stack "&tname&" to" &&L
+      put the customKeys of stack (the mainStack of this stack) into tMainStackKeys
+      repeat for each line K in tMainStackKeys
+         do "put the"&& k && "of stack (the mainStack of this stack) into tArrayLevel1"
+         put the keys of tArrayLevel1 into tArray1Keys
+         do "set the"&& k && "of stack" && tName &&" to tArrayLevel1"
+      end repeat
+   end repeat
+   set the customPropertySet of stack tName  to empty
+   set the customPropertySet of stack (the mainStack of this stack)  to empty
+   put gCurrentDirectory &"/"&tName&".livecode" into tpath
+   save stack tName  as tpath
+end exportPropertiesToStack
+
+on ConsolodateFont tFontName
+   set the customPropertySet of stack (the mainStack of this stack) to FontData
+   
+   if tFontName is empty then
+      put gCurrentFont into tFontName
+      if fontName is empty then exit ConsolodateFont
+   end if
+   put tFontName into gCurrentFont
+   --put gCurrentFont
+   do "put the"&& gCurrentFont && "of stack (the mainStack of this stack)into tAsciiArray"
+   put the keys of tAsciiArray into tAsciikeys
+   put 0 into n
+   put "" into tNewArray
+   --put tAsciiKeys
+   repeat for each line K in tAsciikeys
+      put tAsciiArray[k] into tCheck
+      if addallitems(tCheck,",") <> 0 then
+         put tCheck into tNewArray[n]
+         add  1 to n
+      end if
+   end repeat
+   
+   do "set the"&& gCurrentFont && "of stack (the mainStack of this stack)to tNewArray"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   send chooseFont && gCurrentFont to stack (the mainStack of this stack) in 300 milliseconds
+end ConsolodateFont
+
+
+on shiftFontPosition tDistance
+   put 0 into tChar
+   put "" into tNewArray
+   set the customPropertySet of stack (the mainStack of this stack) to FontData
+   do "put the"&& gCurrentFont && "of stack (the mainStack of this stack)into tAsciiArray"
+   put the keys of tAsciiArray into tKeys
+   filter lines of tKeys without empty
+   sort lines of tKeys numeric ascending
+   put empty into tLoopAround
+   if tDistance > 0 then 
+      put tDistance*-1 into tEnd
+      put line 1 to (tEnd-1) of tKeys into  tStepsBack 
+      if number of lines of tStepsBack < number of lines of tKeys then
+         put line tEnd to -1 of tKeys into tWrapAround
+         put cr & tStepsBack after tWrapAround
+      end if
+      put abs(tDistance) into tChar
+   else 
+      put tDistance into tEnd
+      put abs(tDistance) into tStart
+      put line 1 to tStart of tKeys into tWrapAround
+      if number of lines of tWrapAround < number of lines of tKeys then
+         put line tStart+1 to -1 of tKeys &cr before tWrapAround
+      end if
+      put tDistance into tChar
+   end if
+   
+   repeat for each line K in tWrapAround
+      put tAsciiArray[k] into tNewArray[tChar]
+      put gcurrentFOntFolder&"/"&k&".png" into tFileName
+      put gcurrentFOntFolder&"/"&tChar&".png" into tNewFileName
+      rename tFileName to tNewFileName
+      add 1 to tChar
+      if tChar > 255 then put 0 into tChar
+   end repeat
+   filter lines of tWrapAround without empty
+   
+   do "set the"&& gCurrentFont && "of stack (the mainStack of this stack)to tNewArray"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   send showCurrentFont to stack (the mainStack of this stack)  in 300 milliseconds
+end shiftFontPosition
+
+on ShowAsciiVal N
+   put n into gCurrentAsciiVal
+   put numtochar(n) into gCurrentCharacter 
+   put n+1 into gCurrentCharacterImage
+   DrawFromBitFontdata gCurrentAsciiVal,gCurrentFont 
+   updateGridImagePreview
+   unlock screen
+end ShowAsciiVal
+
+
+on scrollBarMouseDown
+   put false into bDragging
+   set the customPropertySet of stack (the mainStack of this stack) to FontData
+   do "put the" && gCurrentFont && "of stack (the mainStack of this stack) into tFontArray"
+   put the keys of tFontArray  into tCharacterTables
+   set the endValue of scrollbar "scrollbar" of stack "FontViewer" to number of lines of tCharacterTables
+end scrollBarMouseDown
+
+on initScriptWindow
+   UpdateSpellsList
+end initScriptWindow
+
+on upDateSpellsList tCast
+   if tCast is empty then put 1 into tCast
+   set the customPropertySet of stack (the mainStack of this stack) to ScriptLevel
+   put the Spells of stack (the mainStack of this stack) into tGrimoire
+   put the keys of tGrimoire into tSpells
+   sort tSpells numeric ascending
+   put tSpells into field "Spells" of stack "ScriptWindow"
+   if tCast < 0 then put number of lines of tGrimoire into tCast
+   set the hilitedLine of field "Spells" of stack "ScriptWindow" to tCast
+   set the lastSelectedLine of  field "Spells" of stack "ScriptWindow"  to tCast
+   put  tGrimoire[line tCast of tSpells  ] into tSpellText
+   put tSpellText into field "Incantations" of stack "ScriptWindow"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end upDateSpellsList
+
+on saveScript tscriptNumber
+   set the customPropertySet of stack (the mainStack of this stack) to ScriptLevel
+   put the Spells of stack (the mainStack of this stack) into tGrimoire
+   put the keys of tGrimoire into tSpells
+   sort tSpells numeric ascending
+   if tscriptNumber is empty then put the lastSelectedLine of field "Spells" of stack "ScriptWindow" into tscriptNumber
+   if tScriptNumber is empty or tScriptNumber is not an integer  then exit saveScript
+   put line tscriptNumber of tSpells into currentScript
+   put  field "Incantations" of stack "ScriptWindow" into tSpellText
+   put tSpellText into tGrimoire[currentScript]
+   set the Spells of stack (the mainStack of this stack) to tGrimoire
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end saveScript
+
+on saveExternalScript tscriptNumber
+   if tscriptNumber is empty then put word 2 selectedLine of field "ScriptFiles" of stack "ScriptWindow" into tScriptNumber
+   put gStackDirectory &"/Scripts/" into tfolder
+   set the defaultFolder to tFolder
+   put the files into tFiles
+   filter tFiles with "*.txt"
+   put "file:"& tfolder& line  tscriptNumber of tFiles into tFile
+   put line 1 to -1 of  field "externalscripttext" of stack "ScriptWindow" into tText
+   put tText into URL tFile
+   
+   set the defaultFolder to gCurrentDirectory
+end saveExternalScript
+
+on DeleteScript tscriptNumber
+   set the customPropertySet of stack (the mainStack of this stack) to ScriptLevel
+   put the Spells of stack (the mainStack of this stack) into tGrimoire 
+   
+   put the keys of tGrimoire into tSpells
+   sort tSpells numeric ascending
+   if tscriptNumber is empty then put the lastSelectedLine of field "Spells" of stack "ScriptWindow" into tscriptNumber
+   if tScriptNumber is empty or tScriptNumber is not an integer  then
+      --put "tScriptNumber" && tScriptNumber
+      exit DeleteScript
+   end if
+   put line tscriptNumber of tSpells into currentScript
+   delete variable tGrimoire[currentScript]
+   set the Spells of stack (the mainStack of this stack) to tGrimoire 
+   put the keys of tGrimoire into tSpells
+   sort tSpells numeric ascending
+   put the number of lines of tSpells into numLines
+   if tscriptNumber > numLines-1 then put numLines-1 into tscriptNumber
+   upDateSpellsList tscriptNumber
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end DeleteScript
+
+
+on selectScript tScriptNumber
+   saveScript
+   set the customPropertySet of stack (the mainStack of this stack) to ScriptLevel
+   put the Spells of stack (the mainStack of this stack) into tGrimoire
+   put the keys of tGrimoire into tSpells
+   sort tSpells numeric ascending
+   put line tscriptNumber of tSpells into tSpell
+   put tGrimoire[tSpell] into tSpellText
+   put tSpellText into field "Incantations" of stack "ScriptWindow"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end selectScript
+
+on renameScript tScriptNumber
+   if tScriptNumber is empty then put the lastSelectedLine of field "Spells" of stack "ScriptWindow" into tscriptNumber
+   set the customPropertySet of stack (the mainStack of this stack) to ScriptLevel
+   put the Spells of stack (the mainStack of this stack) into tGrimoire
+   put the keys of tGrimoire into tSpells
+   sort tSpells numeric ascending
+   put line tScriptNumber of tSpells into tOldName
+   ask "rename macro" with tOldName
+   if it is not empty then
+      put tGrimoire[tOldName] into ttempvar
+      delete variable tGrimoire[tOldName]
+      put tTempVar into tGrimoire[it]
+      set the Spells of stack (the mainStack of this stack) to tGrimoire
+   end if
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   upDateSpellsList tScriptNumber
+end renamescript
+
+function getMacroSpellSource tScriptNumber
+   if tScriptNumber is empty then put the lastSelectedLine of field "Spells" of stack "ScriptWindow" into tscriptNumber
+   set the customPropertySet of stack (the mainStack of this stack) to ScriptLevel
+   put the Spells of stack (the mainStack of this stack) into tGrimoire
+   put the keys of tGrimoire into tSpells
+   sort tSpells numeric ascending
+   put line tScriptNumber of tSpells into tSpellToCast
+   put tGrimoire[tSpellToCast] into tIncantation
+   put cleanIncantation(tIncantation) into tIncantation
+   if number of lines of tIncantation = 1 then
+      put "on RunScript" & cr & tIncantation & cr &"end RunScript" into tIncantation
+   end if
+   set the customPropertySet of stack (the mainStack of this stack) to empty 
+   return tIncantation
+end getMacroSpellSource
+
+function cleanIncantation tIncantation
+   filter lines of tIncantation without empty
+   filter lines of  tIncantation without "--*" 
+   filter  lines of tIncantation without "//*" 
+   filter lines of  tIncantation without "##*"
+   filter  lines of tIncantation without "/*"
+   return tIncantation
+end cleanIncantation
+
+function getExternalSpellSource tScriptNumber
+   if tScriptNumber is empty then put the lastSelectedLine of field "ScriptFiles" of stack "ScriptWindow" into tscriptNumber
+   put StackDirectory() &"/Scripts/" into tfolder
+   set the defaultFolder to tFolder
+   put the files into tFiles
+   filter tFiles with "*.txt"
+   sort tFiles numeric ascending
+   put "file:"& tfolder& line  tScriptNumber of tFiles into tFile
+   put URL tFile into tText
+   put cleanIncantation(tText) into tIncantation
+   set the defaultFolder to gCurrentirectory
+   
+   return tIncantation
+end getExternalSpellSource
+
+function getStackScriptCommands
+   put the script of stack (the mainStack of this stack) into tStackScript
+   put tStackScript into tHandlers
+   put tStackScript into tFunctions
+   filter tHandlers with "on *"
+   filter tFunctions with "function *"
+   repeat for each line L in tHandlers
+      put word 2 to -1 of L & cr after tShortHand
+   end repeat
+   repeat for each line F in tFunctions
+      put word 2 to -1 of F & cr after tHalfFun
+   end repeat
+   put tShortHand & cr & tHalfFun into tCommands
+   filter tCommands without empty
+   sort tCommands 
+   return tCommands
+end getStackScriptCommands
+
+function getCommandText tProc
+   --put tProc
+   put the script of stack (the mainStack of this stack) into tStackScript
+   
+   put tStackScript into tHandlers
+   put tStackScript into tFunctions
+   put tStackScript into tHandlerswSpace
+   put tStackScript into tFunctionswSpace
+   filter tHandlers with ("on"&& word 1 of tProc&"*")
+   filter tFunctions with ("function"&& word 1 of tProc&"*")
+   filter tHandlerswSpace with ("on"&& word 1 of tProc&" *")
+   filter tFunctionswSpace with ("function"&& word 1 of tProc&" *")
+   put tHandlers & cr & tFunctions &cr& tHandlerswSpace &cr & tFunctionswSpace into tCommands
+   --put tCommands
+   filter tCommands without empty
+   put word 2 of line 1 of tCommands into tHandle
+   put "End" && tHandle into tEndtext
+   filter tStackScript without "global*"
+   filter tStackScript without "local*"
+   put lineOffset(tHandle,tStackScript) into tStart
+   put lineOffset(tEndtext,tStackScript) into tEnd
+   --put tHandle,tstart,tend
+   put line tStart to tEnd of tStackScript into tCommandText
+   return tCommandText
+end getCommandText
+
+
+on selectInternalProcess tScriptNumber
+   put getStackScriptCommands() into tProcs
+   put line tScriptNumber of tProcs into tProcName
+   put getCommandText(tProcName) into tProcText
+   put tProcText into field "ProcessText"
+   return tCurrentScript
+end selectInternalProcess
+
+on updateProcessList tScriptNumber
+   put getStackScriptCommands() into field "internalProcs"
+   if tScriptNumber is empty then put the lastselectedLine of field "internalProcs" into tScriptNumber
+   set the hilitedLine of field "internalProcs" to tScriptNumber
+   put line tScriptnumber of field "internalProcs" into tProc
+   put getCommandText(tProc) into field "ProcessText"
+end updateProcessList
+
+on runScriptsButton tScriptNumber
+   put the menuHistory of button "ScriptsTabMenu" of stack "ScriptWindow" into tModeN
+   put line tModeN of the text of button "ScriptsTabMenu" of stack "ScriptWindow" into tMode
+   
+   switch (tMode)
+      case "Macros"
+         if tScriptNumber is empty then put the lastSelectedLine of field "Spells" of stack "ScriptWindow" into tscriptNumber
+         put getMacroSpellSource(tScriptNumber) into tIncantation
+         break
+      case "Internal"
+         if tScriptNumber is empty then put the lastSelectedLine of field "ScriptFiles" of stack "ScriptWindow" into tscriptNumber
+         put getInternalSpellSource(tScriptNumber) into tIncantation
+         break
+      case "External"
+         if tScriptNumber is empty then put the lastSelectedLine of field "ScriptFiles" of stack "ScriptWindow" into tscriptNumber
+         put getExternalSpellSource(tScriptNumber) into tIncantation
+         break
+   end switch
+   
+   if number of lines of tIncantation = 1 then
+      put "on RunScript" & cr & tIncantation & cr &"end RunScript" into tIncantation
+   end if
+   set the defaultStack to (short name of stack (the mainStack of this stack) )
+   set the script of the templatebutton to tIncantation
+   set the visible of the templatebutton to false
+   set the name of the templatebutton to "userscriptbutton"
+   set the loc of the templatebutton to -100,-100
+   if not exists(button "userscriptbutton") then create button
+   --put tIncantation
+   set the script of button "userscriptbutton"  to tIncantation
+   --put tIncantation
+   if word 2 of tIncantation is "RunScript" then 
+      try
+         send RunScript to button "userscriptbutton" of stack (the mainStack of this stack) in 30 milliseconds 
+      catch chkErr
+         put cr & "runScriptsButton:"&& chkErr after URL ("file:"&gCurrentDirectory&"/bugs.txt")
+      end try
+   else
+      try
+         send (word 2 of tIncantation) to button "userscriptbutton" of stack (the mainStack of this stack) in 30 milliseconds 
+      catch chkErr
+         put cr & "runScriptsButton:"&& chkErr after URL ("file:"&gCurrentDirectory&"/bugs.txt")
+      end try
+   end if
+   
+end runScriptsButton
+
+
+
+on newScript
+   set the customPropertySet of stack (the mainStack of this stack) to ScriptLevel
+   put the Spells of stack (the mainStack of this stack) into tGrimoire
+   put the keys of tGrimoire into tSpells
+   filter lines of tSpells without empty
+   sort tSpells numeric ascending
+   put the number of lines of tSpells+1 into tNewNumber
+   put "macro_"&padnumber(tNewNumber,2) into tNewScript
+   
+   if   clipboardData["text"] is not empty then
+      put clipboardData["text"] into tGrimoire[tNewScript]
+   else
+      put "--place script here" into tGrimoire[tNewScript]
+   end if
+   set the Spells of stack (the mainStack of this stack) to tGrimoire
+   put the Spells of stack (the mainStack of this stack) into tGrimoire
+   put the keys of tGrimoire into tSpells
+   sort tSpells numeric ascending
+   filter lines of tSpells without empty
+   put tSpells into field "Spells" of stack "ScriptWindow"
+   put lineOffset(tNewScript,field "Spells" of stack "ScriptWindow") into tNewLine
+   set the hilitedLine of field "Spells" of stack "ScriptWindow" to (tNewLine)
+   set the lastSelectedLine of field "Spells" of stack "ScriptWindow" to (tNewLine)
+   do "put  tGrimoire[" && line tNewLine of tSpells && "] into tSpellText"
+   put tSpellText into field "Incantations" of stack "ScriptWindow"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+end newScript
+
+on openScript
+   answer file "open a text file" with type  "TEXT Documents|txt|TEXT"
+   if it is empty then exit openScript
+   set the customPropertySet of stack (the mainStack of this stack) to ScriptLevel
+   put the Spells of stack (the mainStack of this stack) into tGrimoire
+   
+   put "file:"&it into tPath
+   put URL tPath into tText
+   set itemDel to "/" 
+   put char 1 to -5 of item -1 of tPath into tFileName
+   put tText into tGrimoire[tFileName]
+   set the Spells of stack (the mainStack of this stack) to tGrimoire
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   updateSpellsList
+   put lineoffset(tFileName,field "Spells") into tNline
+   set the hilitedLine of field "Spells" of stack "ScriptWindow" to tNline
+   put tText into field "Incantations"
+   set the lastSelectedLine of field "Spells" of stack "ScriptWindow" to tNline
+end openScript
+
+on updateExternalScriptList
+   put StackDirectory() &"/Scripts" into tfolder
+   set the defaultFolder to tFolder
+   put the files into tFiles
+   filter tFiles with "*.txt"
+   put tFiles into field "ScriptFiles" of stack "ScriptWindow"
+   set the defaultFolder to gCurrentirectory
+end updateExternalScriptList
+
+on selectExternalScript tLineNumber
+   put gStackDirectory &"/Scripts" into tfolder
+   set the defaultFolder to tFolder
+   put the files into tFiles
+   filter tFiles with "*.txt"
+   put "file:"& line  tLineNumber of tFiles into tFile
+   put URL tFile into tText
+   put tText into field "externalscripttext" of stack "ScriptWindow"
+   set the defaultFolder to gCurrentirectory
+end selectExternalScript
+
+on randomNoise
+   put getBinaryString() into gBinaryString
+   put getCurrentAscii() into tAscii
+   replace cr with empty in gBinaryString
+   repeat with i = 1 to 255
+      put abs(random(2)-1) into b
+      put b into char i of gBinaryString
+   end repeat
+   put wideStringToGrid(gBinaryString,16) into gBinaryString
+   setBinaryString gBinaryString
+   saveEditedCharacter tascii,gBinaryString,gCurrentFont
+   UpdateGridFromBinaryString 
+end randomNoise
+
+function getStackOfTarget tWhat
+   if the mouseControl is empty then return empty
+   if tWhat is "Mouse" then 
+      put the long name of the mouseControl into tLongName
+   else
+      put  the long name of the focusedObject into tLongName
+   end if
+   put wordoffset("stack",tLongName)+1 into N
+   put word N of tLongName into  tTargetStack
+   replace quote with empty in tTargetStack
+   return tTargetStack
+end getStackOfTarget
+
+
+
+on updateFontListField
+   set the customPropertyset of stack (the mainStack of this stack) to FontData
+   put the customKeys of stack (the mainStack of this stack) into tFonts
+   if the mouseLoc is not within the rect of stack "FontList" then put tFonts into field "FontList" of stack "FontList"
+   if gCurrentFont is not empty and gCurrentFont is among the lines of tFonts then
+      set the hilitedLine of field "FontList" of stack "Fontlist" to lineOffset(gCurrentFont,tFonts)
+   end if
+end updateFontListField
+
+
+
+
+-- Initialize grid dimensions
+constant cGridWidth = gGridSize
+constant cGridHeight = gGridSize
+global gGrid
+global gRectangles
+
+
+-- unused
+--- SUPPOSED TO, make a bunch of rectangles that aren't touching each other
+on RectangleGeneratorMain 
+   -- Initialize variables
+   put "0000000000000000" into gGrid
+   put empty into gRectangles
+   -- Main loop to generate rectangles
+   repeat with i = 1 to 5  -- Change the number of rectangles as needed
+      put generateRectangle() into tNewRect
+      put line 1 of tNewRect into tX
+      put line 2 of tNewRect into tY
+      put line 3 to -1 of tNewRect into tRectData
+      
+      -- Check if the new rectangle overlaps with existing rectangles
+      put pointInRectangle(tX, tY, tRectData) into tPoints
+      put rectangleOverlaps(tPoints, gRectangles) into tOverlap
+      
+      -- If there is no overlap, draw the new rectangle
+      if not tOverlap then
+         put tNewRect & return after gRectangles
+         put item 1 of tPoints into tLeft
+         put item 2 of tPoints into tTop
+         repeat with x = item 1 of tPoints to item 3 of tPoints
+            put 1 into char (x) of line  (item 2 of tPoints) of gGrid
+            put 1 into char (x) of line  (item 4 of tPoints) of gGrid
+         end repeat
+         repeat with y = item 2 of tPoints to item 4 of tPoints
+            put 1 into char (item 1 of tPoints) of line  (y) of gGrid
+            put 1 into char (item 3 of tPoints) of line  (y) of gGrid
+         end repeat
+      end if
+   end repeat
+   
+   -- Display the final grid
+   set the clipboardData["text"] to gRectangles
+   --answer "Rectangles:" && return & gRectangles
+end RectangleGeneratorMain
+
+-- Function to check if a point is within a rectangle
+function pointInRectangle pX, pY, pRect
+   repeat with i = 1 to the number of lines in pRect
+      put line i of pRect into tLine
+      repeat with j = 1 to the number of chars in tLine
+         if charToNum(char j of tLine) = 1 then
+            put (pX + j - 1) & "," & (pY + i - 1) & return after tPoints
+         end if
+      end repeat
+   end repeat
+   return tPoints
+end pointInRectangle
+
+-- Function to check if a rectangle overlaps with existing rectangles
+function rectangleOverlaps pRect, pRectangles
+   repeat with i = 1 to the number of lines in pRectangles
+      put line i of pRectangles into tExistingRect
+      put item 1 of pRect & comma & item 2 of pRect into tTopLeft
+      put item 3 of pRect & comma & item 4 of pRect into tBottomRight
+      
+      if item 1 of pRect is empty then exit rectangleOverlaps
+      repeat with x = item 1 of Prect to item 3 of Prect
+         if (x,item 2 of pRect) or (x,item 4 of pRect) is within tExistingRect then return true
+      end repeat
+      repeat with y = item 2 of Prect to item 4 of Prect
+         if (item 1 of prect,y) or (item 3 of prect,y) is within tExistingRect then return true
+      end repeat
+   end repeat
+   return false
+end rectangleOverlaps
+
+-- Function to generate a random rectangle
+function generateRectangle 
+   put "" into tRect
+   put random(4) + 3 into tWidth
+   put random(4) + 3 into tHeight
+   put random(cGridWidth - tWidth + 1) into tX
+   put random(cGridHeight - tHeight + 1) into tY
+   if tx > gGridSize then put gGridSize into tx
+   if ty > gGridSize then put gGridSize into ty
+   return tX & "," & tY &","&tx+tWidth &","&ty+tHeight     --& return & tRect
+end generateRectangle
+
+on ScriptsWindowMenuPick myPick
+   switch myPick
+      case "New"
+         newScript
+         break
+      case "Save"
+         saveScript
+         break
+      case "Open"
+         openScript
+         break
+      case "Rename"
+         renameScript
+         break
+      case "Copy"
+         do "put"&&the selectedChunk&&"into tCopyText"
+         set the clipboardData["text"] to tCopyText
+         break
+      case "Paste"
+         if the clipboard is text then paste
+         break
+      case "Delete"
+         deleteScript
+         break
+   end switch
+end ScriptsWindowMenuPick
+
+
+
+
+on createAButton tStack
+   set the defaultStack to tStack
+   create Button
+end createAButton
+
+
+--This script dissects the large image into 16x16 grids, and for each grid,
+--it generates a binary string representing white and non-white pixels. 
+--The resulting binary strings are stored in the variable gBinaryStrings. 
+--Adjust the pGridWidth and pGridHeight parameters as needed.
+-- thanks chatGPT 11/12/2023
+function dissectImageIntoGrids pGridWidth, pGridHeight, pImage
+   --put the rect of image pImage into tOldRect
+   set the name of the templateImage to pImage
+   put "C:\Users\Private\Pictures\TEST.png" into tPath
+   set the filename of the templateImage to tPath
+   set the rect of the templateImage to 0,0,255,255
+   create image pImage
+   set itemDel to comma
+   put the width of image pImage into gImageWidth
+   put the height of image pImage into tImageHeight
+   put the imageData of image pImage into pImageData
+   put empty into gBinaryStrings
+   set the custompropertyset of stack (The mainStack of this stack) to Fontdata
+   put "ImageImport" into gCurrentFont
+   put 0 into gCurrentAsciiVal
+   repeat with startY = 1 to tImageHeight step pGridHeight
+      do "put the"&&gCurrentFont&& "of stack (The mainStack of this stack) into tFontArray"
+      repeat with startX = 1 to gImageWidth step pGridWidth
+         put getImageBinaryColor(pGridWidth, pGridHeight, pImage, startX, startY) into tBinaryString
+         repeat for each line L in tBinaryString
+            put BuildBitWise(L,16) & comma after tFontData
+         end repeat
+         put tFontData into tFontArray[gCurrentAsciiVal]
+         do "set the"&&gCurrentFont&& "of stack (The mainStack of this stack) to tFontArray"
+         put tBinaryString & return after gBinaryStrings
+      end repeat
+   end repeat
+   set the custompropertyset of stack (The mainStack of this stack) to empty
+   delete image pimage
+   return gBinaryStrings
+end dissectImageIntoGrids
+
+function InternalVars
+   --put the short name of stack (the mainstack of this stack) into tStack
+   --put the script of stack tStack into tScript
+   return empty
+   filter lines of  tScript with "global *"
+   filter lines of tScript without "--"
+   filter lines of tScript without empty
+   filter lines of tScript without "$*"
+   replace "global" with comma in tScript
+   return char 1 to -1 of tScript
+end InternalVars
+
+function list.stack.Globals 
+   put the globalNames into gStackGlobalist
+   replace comma with cr in gStackGlobalist
+   filter lines of gStackGlobalist without "gREV"&"*"
+   filter lines of gStackGlobalist without "$"&"*"
+   filter lines of gStackGlobalist without "$P"&"*"
+   filter lines of gStackGlobalist without "each"
+   filter lines of gStackGlobalist without "msg"
+   --put tGlobaList
+   return gStackGlobalist
+end list.stack.Globals
+
+
+--- data stored in stack to files
+on exportAllBitFontEditorData
+   set the customPropertySet of stack (the mainStack of this stack) to FontData
+   put the customkeys  of stack (the mainStack of this stack) into tFontList
+   repeat for each line F in tFontlist
+      put F into gCurrentFont 
+      ExportBitFontMaker2FontData
+   end repeat
+end exportAllBitFontEditorData
+
+
+
+
+on GenerateRedGuideLines
+   put gGridWidth/gGridSize into tUnitWidth
+   put 0 & comma & gGridWidth-(tUnitWidth*4) & cr & gGridWidth & comma & gGridWidth-(tUnitWidth*4) & cr into tPoints
+   put cr & tUnitWidth*2 & comma & 0 & cr & tUnitWidth*2 & comma & gGridWidth after tPoints
+   set the points of graphic "RedGuideLines" to tPoints
+   set the foregroundColor of graphic "RedGuideLines" to Red
+end GenerateRedGuideLines
+
+On ImageNoise tName,tTrans
+   randomNoise 
+   saveImage tname,tTrans
+end ImageNoise
+
+on delete.all.cards
+   repeat with i =  number of cards of this stack down to 1
+      delete card i of this stack
+   end repeat
+end delete.all.cards
+
+on hide.all.graphics
+   repeat with i = 1 to number of graphics of this card
+      hide graphic i of this card
+   end repeat
+end hide.all.graphics
+
+--- 
+---
+-- THIS IS THE END OF THE MAIN STACK SCRIPT OF THE BITFONTMAKER2 LIKE EDITOR STACK
+
+
+
+-- script editor access
+function get.window.controls pWindow
+   if pWindow is empty then put the long name of stack "revNewScriptEditor 1" into pWindow
+   if pWindow is not empty and word 1 of pWindow is not "stack" then
+      do "put the long name of stack" && quote & pWindow &quote &&"into pWindow"
+      --return pWindow
+   end if
+   do "put the number of controls of" && pWindow && "into tcount"
+   repeat with i = 1 to  tcount
+      do "put the long name of control" && i &&"of" &&  pWindow && "& cr after tOut"
+      do "put the name of control" && i &&"of" &&  pWindow && "& cr after tOutSimple"
+   end repeat
+   
+   put tOut into tGroups
+   filter lines of tGroups with "group" &&  quote &"*"
+   if tGroups is not empty then
+      repeat for each line G in tGroups
+         do "put the number of controls of" && G &&"into N"
+         repeat with i = 1 to N
+            
+            put "put the name of control" && i && "of" && G  && "into tNam" into tCon
+            do tCon
+            put " - "  && tNam &cr after tGrouped
+            
+         end repeat
+         put G & cr & tGrouped after tControlList
+         put empty into tGrouped
+      end repeat
+   else 
+      put tOutSimple into tControlList
+   end if
+   return  tControlList
+end get.window.controls
+
+
+function UI.record.state
+   put word 2 selectedLine of fld "actors" of stack (the mainStack of this stack) into gActorN
+   put line gActorN of fld "actors" of stack (the mainStack of this stack) into gCurrentActor
+   put word 2 selectedLine of fld "anims" of stack (the mainStack of this stack) into gAnimN
+   put line gAnimN of fld "anims" of stack (the mainStack of this stack)  into gCurrentAnim
+   put word 2 selectedLine of fld "frames" of stack (the mainStack of this stack)  into gFrameN
+   put line gFrameN of fld "frames" of stack (the mainStack of this stack) into gCurrentFrame
+   set the customPropertySet of stack (the mainStack of this stack) to EditorStates
+   put the states of stack (the mainStack of this stack) into tArray
+   put number of lines of the keys of tArray+1 into tIndex
+   put gCurrentActor into tArray[tIndex]["actor"]
+   put gCurrentAnim into tArray[tIndex]["anim"]
+   put gCurrentFrame into tArray[tIndex]["frame"]
+   put gBinaryString into tArray[tIndex]["bits"]
+   set the states of stack (the mainStack of this stack) to tArray
+   set the customPropertySet  of stack (the mainStack of this stack) to empty
+   return  tArray[tIndex] --gCurrentActor,gCurrentAnim,gCurrentFrame
+end UI.record.state
+
+function actor.anims pActor
+   if pActor is empty then 
+      put UI.record.state() into gEditorState
+      put gEditorState["actor"] into pActor
+      if pActor is empty then put "bitmap" into pActor
+   end if
+   set the customPropertySet of stack (the mainStack of this stack) to Actors
+   do "put the" && pActor  &&"of stack (the mainStack of this stack) into tAnimsArray"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   return  tAnimsArray
+end actor.anims
+
+on frames.rebase
+   put ui.record.state() into gEditorState
+   put actor.anims(gEditorState["actor"]) into tAnimsArray
+   put tAnimsArray[gEditorState["anim"]] into tFramesArray
+   put the keys of tFramesArray 
+   repeat with i = gEditorState["frame"] to number of lines of the keys of tFramesArray
+      put gBinaryString into tFramesArray[i]
+   end repeat
+   put tFramesArray into tArray[gEditorState["anim"]]
+   actor.update.state.array gEditorState["actor"],tArray
+end frames.rebase
+
+on actor.update.state.array pActor,pArray
+   set the customPropertySet of this stack to Actors
+   do "set the" && pActor &&"of stack (the mainStack of this stack) to pArray"
+   set the customPropertySet of this stack to empty
+end actor.update.state.array
+
+on frame.add
+   put word 2 selectedLine of fld "actors" of stack (the mainStack of this stack) into tN
+   put line tN of fld "actors" of stack (the mainStack of this stack) into tActor
+   put word 2 selectedLine of fld "anims" of stack (the mainStack of this stack) into tNn
+   put line tNn of fld "anims"  of stack (the mainStack of this stack)  into tAnim
+   set the customPropertySet of  stack (the mainStack of this stack) to Actors
+   do "put the" && tActor && "of  stack (the mainStack of this stack) into tarray"
+   put tArray[tAnim] into tClipA
+   put word 2 selectedLine of fld "frames" of stack (the mainStack of this stack)  into N
+   if N is empty then  put number of lines of the keys of tClipA  into N
+   put tClipA[N] into gBinaryString
+   add 1 to N
+   put N into gActorFrame
+   put gBinaryString into tClipA[gActorFrame]
+   put tClipA into tarray[tAnim]
+   do "set the" && tActor && "of  stack (the mainStack of this stack) to tarray"
+   update.global.binary.string gBinarystring
+   put pbm.from.binary.string(gBinaryString) into pbmText
+   
+   set the text of image "image_1" of stack (the mainStack of this stack) to pbmText
+   set the customPropertySet of  stack (the mainStack of this stack) to empty
+   put the keys of tClipA into tKeys
+   sort lines of tKeys numeric ascending
+   put tKeys into field "Frames"
+end frame.add
+
+on filter.bit.files
+   answer folder "bit files"
+   if it is empty then exit filter.bit.files
+   put it into tDir
+   set the defaultFolder to tDir
+   put files() into tFiles
+   repeat for each line F in files()
+      put tDir &"/" & F  into tFile
+      put "file:" & tFile into tURL
+      put URL tURL into tBits
+      if "1" is not in tBits then
+         put tDir& "/" & "empty" into tFold
+         if there is not a folder tFold then create folder tFold
+         rename file tFile to (tFold &"/" & F) 
+      end if
+   end repeat
+end filter.bit.files
+
+
+
+
+### ANIMATION FIELDS
+
+
+global gCurrentActor
+global gCurrentAnim
+global gCurrentFrame
+global gCurrentCheese
+
+on init.animation.globals
+   put empty into gCurrentActor
+   put empty into gCurrentAnim
+   put 1 into gCurrentFrame
+   put "gooda" into gCurrentCheese
+end init.animation.globals
+
+on select.frame
+   put UI.record.state() into gEditorState
+   if geditorstate["actor"] is empty then put "bitmap" into geditorState["actor"]
+   if geditorstate["anim"] is empty then put "idle" into geditorState["anim"]
+   if geditorstate["frame"] is empty then put 1 into geditorState["frame"]
+   
+   set the customPropertySet of  stack (the mainStack of this stack) to Actors
+   do "put the" && gEditorState["actor"] && "of  stack (the mainStack of this stack) into tarray"
+   set the customPropertySet of  stack (the mainStack of this stack) to empty
+   put tArray[geditorState["anim"]] into tClipA
+   put tClipA[gEditorState["frame"]] into gBinaryString
+   update.global.binary.string gBinarystring
+   put pbm.from.binary.string(gBinaryString) into pbmText
+   set the text of image "image_1" of stack (the mainStack of this stack) to pbmText
+end select.frame
+
+
+
+
+on ui.update.frames.list pActor,pAnim
+   set the customPropertySet of stack (the MainStack of this stack)  to Actors
+   do "put the" && pActor && "of stack (the MainStack of this stack) into tArray"
+   set the customPropertySet of stack (the MainStack of this stack) to empty
+   put tArray[pAnim] into pAnimA
+   put the keys of pAnimA into tKeys
+   sort lines of tKeys numeric ascending
+   if field "frames" of stack (the mainStack of this stack) is not empty then
+      put the hilitedLine of field "frames" of stack (the mainStack of this stack) into N
+      if N < 1 or N is empty then put 1 into N
+   end if
+   if tKeys is empty then
+      put clear.binary.string() into gBinaryString
+      put gBinaryString into tArray[pAnim][1]
+      do "set the" && pActor && "of stack (the MainStack of this stack) to tArray" 
+      put 1 into tKeys
+   end if 
+   put tKeys into fld "frames" of stack (the mainStack of this stack)
+   set the hilitedLine of fld "frames" of stack (the mainStack of this stack) to N
+   select.frame
+   --send mouseDown to fld "frames" of stack (the mainStack of this stack) in 30 milliseconds 
+   
+end ui.update.frames.list
+
+on ui.update.actors.list
+   set the customPropertySet of stack (the MainStack of this stack) to  Actors
+   put the customKeys of stack (the MainStack of this stack)  into  tActors
+   set the customPropertySet of stack (the MainStack of this stack) to empty
+   put tActors into field "actors" of stack (the mainStack of this stack)
+end ui.update.actors.list
+
+on ui.update.anims.list pActor
+   set the customPropertySet of stack (the MainStack of this stack) to  Actors
+   do "put the" && pActor && "of stack (the MainStack of this stack) into tArray"
+   put tArray[pAnim] into pAnimA
+   put the keys of tArray into tKeys
+   sort lines of tKeys numeric ascending
+   if field "anims" of stack (the mainStack of this stack) is not empty then
+      put the hilitedLine of field "anims" of stack (the mainStack of this stack) into N
+      if N < 1 or N is empty then put 1 into N
+   end if
+   
+   put the keys of tArray into field "anims" of stack (the mainStack of this stack)
+   set the hilitedLine of field "anims" of stack (the mainStack of this stack) to N
+   ui.update.frames.list tActor,tAnim
+   select.frame
+   --send mouseDown to field "anims" of stack (the mainStack of this stack) in 30 milliseconds
+end ui.update.anims.list
+
+on UI.update.current.lists
+   put UI.record.state into gEditorState
+   put item 1 of gEditorState into tActor
+   put item 2 of gEditorState into tAnim
+   put item 3 of gEditorState into tFrame
+   ui.update.actors.list
+   ui.update.anims.list tActor
+   ui.update.frames.list tActor,tAnim
+   put lineoffset(tActor,field "actors" of stack (the mainStack of this stack)) into tactorLine
+   put lineoffset(tAnim,field "anims" of stack (the mainStack of this stack)) into tAnimLine
+   list.select.available.line "actors",tactorLine
+   list.select.available.line "anims",tAnimLine
+   list.select.available.line "frames",tFrame
+   ui.update.frames.list tActor,tAnim
+   send select.frame to this stack in 30 milliseconds
+end UI.update.current.lists
+
+on list.select.available.line pFieldObject,pLineNumber
+   put field pFieldObject of stack (the mainStack of this stack) into tLines
+   put number of lines of tLines into tMax
+   if pLineNumber > tMax or pLineNumber is empty then put 1 into pLineNumber
+   set the hilitedLine of field pFieldObject of stack (the mainStack of this stack) to pLineNumber
+end list.select.available.line
+
+on  anim.duplicate
+   ask "Anim name?" with "idle2"
+   if it is empty then exit  anim.duplicate
+   set the customPropertySet of stack (the mainStack of this stack) to Actors
+   put UI.record.state() into gEditorState
+   put item 1 of gEditorState into tActor
+   put item 2 of gEditorState into tAnim
+   put item 3 of gEditorState into tFrame
+   set  the customPropertySet of stack (the mainStack of this stack) to Actors
+   do "put the" && tactor && "of stack (the mainStack of this stack) into tarray"
+   put tArray[tAnim] into tAnimA
+   put tAnimA into tArray[it]
+   do  "set the" && tactor && "of stack (the mainStack of this stack) to tarray"
+   set  the customPropertySet of stack (the mainStack of this stack) to empty
+   UI.update.current.lists
+   set the hilitedLine of field "anims" to  lineoffset(it,field "anims")
+   set the hilitedLine of field "frames" to  1
+end  anim.duplicate
+
+
+on  Actor.duplicate
+   put UI.record.state() into gEditorState
+   put item 1 of gEditorState into tActor
+   put item 2 of gEditorState into tAnim
+   put item 3 of gEditorState into tFrame
+   ask "Cloned Actor name?" with (tActor & "-2") 
+   if it is empty then exit  Actor.duplicate
+   put it into tClone
+   set  the customPropertySet of stack (the mainStack of this stack) to Actors
+   do "put the" && tactor && "of stack (the mainStack of this stack) into tarray"
+   do "set the" && tClone && "of stack (the mainStack of this stack) to tarray"
+   set  the customPropertySet of stack (the mainStack of this stack) to empty
+   UI.update.current.lists
+   set the hilitedLine of field "actors" to  lineoffset(tClone,field "actors")
+   set the hilitedLine of field "anims" to   lineoffset(tAnim,field "Anims")
+   set the hilitedLine of field "frame" to tFrame
+   select.frame
+end  Actor.duplicate
+
+on ui.clear.editor.fields
+   put empty into field "actors" of stack (the mainStack of this stack)
+   put empty into field "anims" of stack (the mainStack of this stack)
+   put empty into field "frames" of stack (the mainStack of this stack)
+end ui.clear.editor.fields
+
+on frame.duplicate
+   put UI.record.state() into gEditorState
+   set  the customPropertySet of stack (the mainStack of this stack) to Actors
+   do "put the" && gEditorState["actor"] && "of stack (the mainStack of this stack) into tarray"
+   put tarray[gEditorState["Anim"]] into tAnimA
+   put tAnima[gEditorState["frame"]] into gBinaryString
+   put gEditorState["frame"]+1 into tKey
+   put tAnimA into tTempA
+   put gBinaryString into tAnimA[tKey]
+   if number of lines of the keys of tAnima >= tKey then
+      repeat with i = tKey to number of lines of the keys of tTempA
+         put tTempA[i] into tAnimA[i+1]
+      end repeat
+   end if
+   
+   put tAnimA into tArray[tAnim]
+   do  "set the" && gEditorState["actor"] && "of stack (the mainStack of this stack) to tarray"
+   set  the customPropertySet of stack (the mainStack of this stack) to empty
+   UI.update.current.lists
+   set the hilitedLine of field "frames" to  tKey
+   select.frame
+end frame.duplicate
+
+
+
+on bits.flip.horizontal
+   put "flipping? H"
+   repeat for each line L in gBinaryString
+      repeat with i = number of chars of L down to 1
+         put char I of L after tLine
+      end repeat
+      put tLine & cr after tNewGrid
+      put empty into tLine
+   end repeat
+   put tNewGrid into gBinaryString
+   put pbm.from.binary.string(gBinaryString) into tPBM
+   set the text of image "image_1" to tPBM
+   put UI.record.state() into gEditorState
+   save.actor gEditorState --item 1 of gEditorState,item 2 of gEditorState,item 3 of gEditorState
+   select.frame
+end bits.flip.horizontal
+
+on bits.flip.vertical
+   put "flipping? V"
+   repeat with i = number of lines of gBinaryString down to 1
+      repeat with j = 1 to number of chars of line i of gBinaryString 
+         put char j of line i of gBinaryString after tLine
+      end repeat
+      put tLine & cr after tNewGrid
+      put empty into tLine
+   end repeat
+   put tNewGrid
+   put tNewGrid into gBinaryString
+   put pbm.from.binary.string(gBinaryString) into tPBM
+   set the text of image "image_1" to tPBM
+   put UI.record.state() into gEditorState
+   save.actor gEditorState --item 1 of gEditorState,item 2 of gEditorState,item 3 of gEditorState
+   select.frame
+end bits.flip.vertical
+
+
+on anims.popup.menupick myPick
+   switch myPick
+      case "Add"
+         anim.add
+         break
+      case "Clear"
+         anim.clear
+         break
+      case "Duplicate"
+         anim.duplicate
+         break
+      case "Copy"
+         break
+      case "Paste"
+         break
+      case "Rename"
+         break
+      case "Invert"
+         break
+      case "Flip|Horizontal"
+         break
+      case "Flip|Vertical"
+         break
+      case "Export|Text"
+         break
+      case "Export|PBM"
+         break
+      case "Export|PNG"
+         break
+      case "Import|Text"
+         break
+      case "Import|PBM"
+         break
+      case "Import|PNG"
+         break
+      case "Delete"
+         break
+   end switch
+end  anims.popup.menupick 
+
+on anim.clear
+   set the customPropertySet of stack (the mainstack of this stack) to Actors
+   do "put the" && item 1 of gEditorState && "of stack (the mainstack of this stack) into tArray"
+   put tarray[item 2 of gEditorState] into tAnima
+   repeat with i = number of lines of keys of tAnima down to 1
+      delete variable tAnima[i]
+   end repeat
+   put clear.binary.string() into tAnima[1]
+   put tAnima into tarray[item 2 of gEditorState]
+   do "set  the" && item 1 of gEditorState &&"of stack (the mainstack of this stack) to tArray"
+end anim.clear
+
+on actors.popup.menupick myPick
+   switch myPick
+      case "Add"
+         actor.add
+         break
+      case "Duplicate"
+         actor.duplicate
+         break
+      case "Delete"
+         set the customPropertySet of stack (the mainStack of this stack) to Actors
+         put the customKeys of stack (the mainStack of this stack) into tList
+         filter lines of tList without item 1 of gEditorState
+         set the customKeys of stack (the mainStack of this stack) to tList
+         set the customPropertySet of stack (the mainStack of this stack) to empty
+         UI.update.current.lists
+         break
+   end switch
+end  actors.popup.menupick 
+
+
+
+on actor.add
+   ask "Character name?" with "untitled-1"
+   if it is empty then exit actor.add
+   set the customPropertySet of stack (the mainStack of this stack) to Actors
+   
+   put clear.binary.string() into tArray["idle"][1]
+   do "set the" && it && "of stack (the mainStack of this stack) to tarray"
+   --put the customKeys of (the mainStack of this stack) into tKeys
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   ui.clear.editor.fields
+   ui.update.actors.list
+end actor.add
+
+
+
+on actor.clean.junk.anims
+   put  UI.record.state() into gEditorstate
+   put actor.anims(gEditorState["actor"]) into tAnimsArray
+   repeat with i = 0 to 9
+      filter lines of tAnimsArray without i& "*"
+      filter lines of tAnimsArray without space & "*"
+   end repeat
+   repeat for each line L in the keys of tAnimsArray
+         put tAnimsArray[L] into tReplaceArray[L]
+   end repeat
+   put the keys of tReplaceArray 
+   set the customPropertySet of stack (the mainStack of this stack) to Actors
+   --do "set the" && geditorState["actor"] &&"of stack (the mainStack of this stack) to empty"
+   do "set the" && geditorState["actor"] &&"of stack (the mainStack of this stack) to tReplaceArray"
+   ui.update.anims.list geditorState["actor"]
+end actor.clean.junk.anims
+
+on anim.add
+   put UI.record.state() into gEditorstate
+   put gEditorState["anim"] into tAnim
+   ask "new anim" with tAnim
+   if it is empty then exit anim.add
+   set the customPropertySet of stack (the mainStack of this stack) to Actors
+   do "put the" && gEditorState["actor"] &&"of stack (the mainStack of this stack) into tArray"
+   put clear.binary.string() into tArray[it][1]
+   do "set the" && gEditorState["actor"] &&"of stack (the mainStack of this stack) to tArray"
+   UI.update.current.lists
+end anim.add
+
+on actor.update.state pImage
+   if pImage is empty then
+      if there is not an image 1 of this card then 
+         put "image_1" into pImage
+         set the name of the templateImage to pImage
+         create image pImage
+      end if
+   end if
+   put pbm.from.binary.string(gBinaryString) into tPBM
+   set the text of image pImage  to tPBM
+   actor.save.state
+end actor.update.state
+
+on frames.popup.menuPick myPick
+   switch myPick
+      --put "Add Clear Copy Paste Duplicate Move - Invert Flip|Horizontal|Vertical - Export|Text|PBM|PNG Import|Text|PBM|PNG - Delete" into tActorMenu
+      case "Add"
+         frame.add
+         break
+      case "Clear"
+         put clear.binary.string() into gBinaryString
+         actor.update.state
+         break
+      case "Duplicate"
+         frame.duplicate
+         break
+      case "Move"
+         break
+      case "Invert"
+         break
+      case "Export|Text"
+         break
+      case "Export|PBM"
+         break
+      case "Export|PNG"
+         break
+         
+      case "Import|Text"
+         break
+      case "Import|PBM"
+         break
+      case "Import|PNG"
+         break
+      case "Delete"
+         break
+      case "Save"
+         actor.save.state
+         break
+      case "Copy"
+         set the copybits of me to gBinaryString
+         break
+      case "Paste"
+         put the copyBits of me into gBinaryString
+         put pbm.from.binary.string(gBinaryString) into tPBM
+         set the text of image "Image_1" to tPBM
+         put UI.record.state() into gEditorState
+         save.actor gEditorState --item 1 of gEditorState,item 2 of gEditorState,item 3 of gEditorState
+         select.frame
+         break
+      case "Flip|Horizontal"
+         bits.flip.horizontal
+         break
+      case "Flip|Vertical"
+         bits.flip.Vertical
+         break
+      case "Rebase"
+         frames.rebase
+         break
+      case "Revert"
+         frame.revert
+         break
+   end switch
+end frames.popup.menuPick
+
+
+-- these will be modified slightly
+function menu.text.property pWhat
+   put empty into tMenuText
+   switch pWhat
+      case "actors"
+         Put "Add Clear Copy Paste Duplicate Move - Invert Flip|Horizontal|Vertical - Export|Text|PBM|PNG Import|Text|PBM|PNG - Delete" into tMenuText
+         break
+      case "anims"
+         Put "Add Clear Copy Paste Duplicate Move - Invert Flip|Horizontal|Vertical - Export|Text|PBM|PNG Import|Text|PBM|PNG - Delete" into tMenuText
+         break
+      case "frames"
+         Put "Add Clear Copy Paste Duplicate Move -  Flip|Horizontal|Vertical - Export|Text|PBM|PNG Import|Text|PBM|PNG Invert Rebase - Revert Delete" into tMenuText
+         break
+   end switch
+   return tMenuText
+end menu.text.property
+
+
+on actor.duplicate
+   ask "Character name?" with "untitled-1"
+   if it is empty then exit actor.duplicate
+   set the customPropertySet of stack (the mainStack of this stack) to Actors
+   put clear.binary.string() into tArray["idle"][1]
+   do "set the" && it && "of stack (the mainStack of this stack) to tarray"
+   set the customPropertySet of stack (the mainStack of this stack) to empty
+   ui.clear.editor.fields
+   ui.update.actors.list
+end actor.duplicate
+
+
+
+#### END OF GridDraw_Animation_Stack_10272026 Bitfontmaker compatible font edit/animator STACK SCRIPT

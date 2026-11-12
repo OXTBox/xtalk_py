@@ -4,7 +4,7 @@
     python3 tools/glossary_census.py [--out docs/GLOSSARY.md] [--json docs/glossary.json] PATH...
 
 PATH can be a script file or a folder (searched for *.livecodescript and *.txt).
-With no PATH, the owner's projects under ~/projects are used.
+With no PATH, xtalk_py/corpus and the Vibecode3D harvest's control scripts are used.
 
 This is a census, not a parser: it strips comments and string literals, then counts
   commands    first word of each statement (also after "then" / "else" on one line)
@@ -19,12 +19,8 @@ import argparse, collections, hashlib, json, os, re, sys
 
 HOME_PROJECTS = os.path.expanduser('~/projects')
 DEFAULT_PATHS = [
-    'Vibecode3D/Vibecode3D_STACK_SCRIPT_11112026g.txt',
-    'Vibecode3D/XTJSON/scripts',
-    'bitmap_trace_animate',
-    'GridDrawAnimation',
-    'XTJSON/xtjson',
-    'xt3D_Raylib_Livecode_Bridge/testbench',
+    'xtalk_py/corpus',               # the script corpus (see corpus/README.md)
+    'Vibecode3D/XTJSON/scripts',     # every control script of the harvested engine stack
 ]
 
 CONTROL = set('''if then else end repeat exit next return pass switch case break default try catch

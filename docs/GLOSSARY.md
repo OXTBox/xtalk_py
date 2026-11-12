@@ -10,12 +10,12 @@ code, only working custom-property support.
 
 | | |
 |---|---|
-| script files (duplicates removed) | 50 |
-| script lines | 22341 |
-| handlers defined by the scripts | 831 |
-| distinct commands | 103 (top 25 = 98% of uses, top 60 = 100%) |
-| distinct functions | 79 (top 25 = 87% of uses, top 60 = 98%) |
-| distinct properties | 206 (top 25 = 67% of uses, top 60 = 85%) |
+| script files (duplicates removed) | 66 |
+| script lines | 25457 |
+| handlers defined by the scripts | 935 |
+| distinct commands | 116 (top 25 = 97% of uses, top 60 = 99%) |
+| distinct functions | 90 (top 25 = 83% of uses, top 60 = 96%) |
+| distinct properties | 210 (top 25 = 66% of uses, top 60 = 84%) |
 | distinct chunks | 5 (top 25 = 100% of uses, top 60 = 100%) |
 
 Status column: `-` not started, `ok` implemented and tested against LiveCode 9.6.3.
@@ -24,50 +24,77 @@ Status column: `-` not started, `ok` implemented and tested against LiveCode 9.6
 
 | name | uses | files | status |
 |---|---:|---:|---|
-| `put` | 7481 | 26 | - |
-| `set` | 1530 | 37 | - |
-| `add` | 277 | 13 | - |
-| `do` | 188 | 5 | - |
-| `filter` | 170 | 7 | - |
-| `replace` | 129 | 12 | - |
-| `unlock` | 121 | 10 | - |
-| `delete` | 118 | 12 | - |
-| `lock` | 104 | 10 | - |
-| `create` | 87 | 10 | - |
-| `go` | 70 | 9 | - |
-| `subtract` | 56 | 8 | - |
-| `answer` | 51 | 7 | - |
-| `sort` | 49 | 8 | - |
-| `send` | 47 | 14 | - |
+| `put` | 8305 | 42 | - |
+| `set` | 1647 | 46 | - |
+| `add` | 322 | 23 | - |
+| `do` | 190 | 7 | - |
+| `filter` | 173 | 8 | - |
+| `delete` | 162 | 23 | - |
+| `replace` | 139 | 17 | - |
+| `unlock` | 123 | 12 | - |
+| `lock` | 106 | 12 | - |
+| `create` | 99 | 17 | - |
+| `go` | 72 | 11 | - |
+| `subtract` | 59 | 10 | - |
+| `send` | 56 | 18 | - |
+| `answer` | 56 | 11 | - |
+| `sort` | 54 | 10 | - |
 | `word` | 32 | 2 | - |
-| `reset` | 28 | 6 | - |
+| `dispatch` | 30 | 8 | - |
 | `hide` | 28 | 13 | - |
-| `show` | 24 | 5 | - |
+| `reset` | 28 | 6 | - |
+| `show` | 26 | 7 | - |
 | `choose` | 22 | 5 | - |
-| `dispatch` | 22 | 5 | - |
-| `get` | 17 | 9 | - |
+| `get` | 22 | 12 | - |
+| `start` | 20 | 10 | - |
+| `close` | 18 | 9 | - |
 | `ask` | 15 | 3 | - |
+| `cancel` | 13 | 5 | - |
+| `item` | 13 | 2 | - |
 | `place` | 12 | 2 | - |
-| `close` | 11 | 6 | - |
+| `xt3d_setbackfaceculling` | 12 | 4 | - |
+| `multiply` | 11 | 6 | - |
+| `stop` | 11 | 4 | - |
+| `the` | 11 | 3 | - |
+| `script` | 11 | 11 | - |
 | `updategridfrombinarystring` | 11 | 1 | - |
-| `multiply` | 10 | 5 | - |
-| `the` | 10 | 2 | - |
+| `xt3d_begintexturemode` | 11 | 5 | - |
+| `xt3d_endtexturemode` | 11 | 5 | - |
+| `xt3d_settraceloglevel` | 11 | 3 | - |
 | `wait` | 10 | 3 | - |
-| `start` | 8 | 2 | - |
-| `stop` | 8 | 2 | - |
+| `xt3d_unloadmodel` | 10 | 4 | - |
+| `xt3d_drawmodelwiresex` | 9 | 4 | - |
 | `relayer` | 8 | 3 | - |
 | `export` | 8 | 4 | - |
-| `cancel` | 7 | 3 | - |
+| `xt3d_clearbackground` | 8 | 6 | - |
+| `xt3d_beginmode3d` | 8 | 6 | - |
+| `xt3d_endmode3d` | 8 | 6 | - |
+| `xt3d_drawtext` | 8 | 6 | - |
+| `xt3d_unloadrendertexture` | 8 | 4 | - |
+| `open` | 7 | 7 | - |
+| `xt3d_drawline3d` | 7 | 1 | - |
+| `xt3d_closewindow` | 7 | 4 | - |
+| `read` | 6 | 4 | - |
+| `write` | 6 | 5 | - |
+| `xt3d_camerafree` | 6 | 5 | - |
+| `xt3d_setcullface` | 6 | 2 | - |
+| `xt3d_modelsettransform` | 6 | 3 | - |
 | `popup` | 5 | 5 | - |
-| `xt3d_settraceloglevel` | 5 | 1 | - |
+| `xt3d_drawgrid` | 5 | 5 | - |
+| `xt3d_drawmodelex` | 5 | 5 | - |
 | `into` | 4 | 2 | - |
-| `open` | 4 | 4 | - |
-| `read` | 4 | 3 | - |
 | `or` | 4 | 2 | - |
+| `quit` | 4 | 4 | - |
+| `xt3d_inithidden` | 4 | 4 | - |
+| `xt3d_drawtexturepro` | 4 | 3 | - |
 | `group` | 3 | 3 | - |
-| `tsnetcloseconn` | 3 | 1 | - |
 | `cleangraphics` | 3 | 1 | - |
-| `xt3d_setcullface` | 3 | 1 | - |
+| `xt3d_drawcube` | 3 | 3 | - |
+| `xt3d_settexturefilter` | 3 | 3 | - |
+| `xt3d_updatemodelanimation` | 3 | 3 | - |
+| `xt3d_cameraset` | 3 | 2 | - |
+| `xt3d_unloadmodelanimations` | 3 | 3 | - |
+| `tsnetcloseconn` | 3 | 1 | - |
 | `gselectedlocalx` | 2 | 2 | - |
 | `gselectedcamerax` | 2 | 2 | - |
 | `trawy` | 2 | 2 | - |
@@ -76,26 +103,22 @@ Status column: `-` not started, `ok` implemented and tested against LiveCode 9.6
 | `pivy` | 2 | 2 | - |
 | `pivz` | 2 | 2 | - |
 | `clone` | 2 | 2 | - |
-| `quit` | 2 | 2 | - |
 | `to` | 2 | 2 | - |
 | `copy` | 2 | 2 | - |
-| `edit` | 2 | 2 | - |
+| `accept` | 2 | 2 | - |
 | `flip` | 2 | 1 | - |
 | `focus` | 2 | 1 | - |
 | `init` | 2 | 1 | - |
 | `exportbitfontmaker2fontdata` | 2 | 1 | - |
 | `storebitfontmakerdata` | 2 | 1 | - |
 | `rename` | 2 | 1 | - |
-| `script` | 2 | 2 | - |
-| `write` | 2 | 2 | - |
-| `xt3d_unloadrendertexture` | 2 | 1 | - |
-| `xt3d_closewindow` | 2 | 1 | - |
-| `xt3d_begintexturemode` | 2 | 1 | - |
-| `xt3d_setbackfaceculling` | 2 | 1 | - |
-| `xt3d_endtexturemode` | 2 | 1 | - |
-| `xt3d_unloadmodel` | 2 | 1 | - |
-| `tsnetsettimeouts` | 1 | 1 | - |
-| `post` | 1 | 1 | - |
+| `load` | 2 | 2 | - |
+| `divide` | 2 | 2 | - |
+| `edit` | 2 | 2 | - |
+| `exitcapturestacktext` | 1 | 1 | - |
+| `line` | 1 | 1 | - |
+| `pcx` | 1 | 1 | - |
+| `ttarget` | 1 | 1 | - |
 | `init.template.import.image` | 1 | 1 | - |
 | `fontviewerclick` | 1 | 1 | - |
 | `updategridfrombinarystringinverted` | 1 | 1 | - |
@@ -108,189 +131,194 @@ Status column: `-` not started, `ok` implemented and tested against LiveCode 9.6
 | `save` | 1 | 1 | - |
 | `paste` | 1 | 1 | - |
 | `frame.revert` | 1 | 1 | - |
-| `exitcapturestacktext` | 1 | 1 | - |
-| `accept` | 1 | 1 | - |
-| `divide` | 1 | 1 | - |
-| `xt3d_inithidden` | 1 | 1 | - |
-| `xt3d_settexturefilter` | 1 | 1 | - |
-| `xt3d_camerafree` | 1 | 1 | - |
-| `xt3d_updatemodelanimation` | 1 | 1 | - |
-| `xt3d_cameraset` | 1 | 1 | - |
-| `xt3d_clearbackground` | 1 | 1 | - |
-| `xt3d_beginmode3d` | 1 | 1 | - |
-| `xt3d_drawgrid` | 1 | 1 | - |
-| `xt3d_drawmodelex` | 1 | 1 | - |
-| `xt3d_drawmodelwiresex` | 1 | 1 | - |
-| `xt3d_endmode3d` | 1 | 1 | - |
-| `xt3d_drawtext` | 1 | 1 | - |
-| `xt3d_drawtexturepro` | 1 | 1 | - |
-| `xt3d_modelsettransform` | 1 | 1 | - |
-| `xt3d_unloadmodelanimations` | 1 | 1 | - |
-| `xt3d_drawcube` | 1 | 1 | - |
+| `xt3d_drawlineex` | 1 | 1 | - |
+| `xt3d_setconfigflags` | 1 | 1 | - |
+| `xt3d_initwindow` | 1 | 1 | - |
+| `xt3d_clearwindowstate` | 1 | 1 | - |
+| `xt3d_begindrawing` | 1 | 1 | - |
+| `xt3d_drawfps` | 1 | 1 | - |
+| `xt3d_enddrawing` | 1 | 1 | - |
+| `tsnetsettimeouts` | 1 | 1 | - |
+| `post` | 1 | 1 | - |
 
 ## Functions
 
 | name | uses | files | status |
 |---|---:|---:|---|
-| `cos` | 152 | 6 | - |
-| `sin` | 152 | 6 | - |
-| `random` | 117 | 8 | - |
-| `round` | 67 | 8 | - |
-| `max` | 46 | 6 | - |
-| `abs` | 43 | 8 | - |
-| `bytetonum` | 41 | 3 | - |
-| `numtochar` | 38 | 8 | - |
+| `cos` | 159 | 8 | - |
+| `sin` | 155 | 8 | - |
+| `random` | 118 | 9 | - |
+| `round` | 78 | 13 | - |
+| `max` | 61 | 11 | - |
+| `abs` | 46 | 10 | - |
+| `bytetonum` | 42 | 4 | - |
+| `min` | 41 | 10 | - |
+| `numtochar` | 39 | 9 | - |
+| `url` | 32 | 14 | - |
 | `sqrt` | 30 | 6 | - |
-| `min` | 29 | 6 | - |
-| `url` | 20 | 10 | - |
+| `trunc` | 14 | 9 | - |
 | `char` | 12 | 7 | - |
 | `floor` | 12 | 4 | - |
 | `lineoffset` | 12 | 2 | - |
+| `add` | 11 | 6 | - |
+| `offset` | 11 | 6 | - |
 | `exists` | 11 | 4 | - |
 | `item` | 10 | 2 | - |
-| `trunc` | 10 | 6 | - |
 | `line` | 10 | 5 | - |
-| `add` | 10 | 5 | - |
-| `offset` | 8 | 5 | - |
-| `textdecode` | 8 | 5 | - |
+| `xt3d_version` | 10 | 5 | - |
+| `textdecode` | 9 | 6 | - |
+| `textencode` | 9 | 7 | - |
+| `xt3d_loadrendertexture` | 9 | 5 | - |
+| `xt3d_modelanimationinfo` | 8 | 3 | - |
 | `numtocodepoint` | 8 | 2 | - |
 | `files` | 7 | 4 | - |
-| `textencode` | 7 | 6 | - |
+| `xt3d_cameracreate` | 7 | 6 | - |
+| `xt3d_rendertextureimagedata` | 7 | 4 | - |
 | `baseconvert` | 6 | 2 | - |
 | `screenrect` | 6 | 2 | - |
 | `length` | 6 | 4 | - |
 | `chartonum` | 6 | 3 | - |
+| `xt3d_iswindowready` | 6 | 3 | - |
 | `toupper` | 5 | 3 | - |
-| `byte` | 5 | 3 | - |
-| `replace` | 5 | 3 | - |
-| `shell` | 5 | 1 | - |
 | `matchtext` | 5 | 2 | - |
+| `replace` | 5 | 3 | - |
+| `byte` | 5 | 3 | - |
+| `shell` | 5 | 1 | - |
+| `xt3d_loadmodel` | 5 | 3 | - |
+| `xt3d_modelinfo` | 5 | 3 | - |
+| `format` | 4 | 4 | - |
 | `word` | 4 | 3 | - |
 | `specialfolderpath` | 4 | 2 | - |
-| `binarydecode` | 4 | 2 | - |
-| `format` | 4 | 4 | - |
 | `jsonimport` | 4 | 2 | - |
-| `xt3d_version` | 4 | 2 | - |
+| `binarydecode` | 4 | 2 | - |
+| `xt3d_checkcollisionspheres` | 4 | 3 | - |
+| `xt3d_loadmodelfrommesh` | 4 | 4 | - |
+| `tolower` | 3 | 3 | - |
+| `value` | 3 | 3 | - |
+| `atan2` | 3 | 3 | - |
+| `xt3d_colortoint` | 3 | 3 | - |
+| `xt3d_rendertextureexport` | 3 | 2 | - |
+| `xt3d_settracelogfile` | 3 | 3 | - |
+| `xt3d_rendertexturegettexture` | 3 | 3 | - |
+| `xt3d_loadmodelanimations` | 3 | 3 | - |
+| `xt3d_getmodelboundingbox` | 3 | 3 | - |
 | `jsonexport` | 3 | 1 | - |
-| `xt3d_modelanimationinfo` | 3 | 1 | - |
+| `div` | 2 | 2 | - |
 | `arraytojson` | 2 | 2 | - |
 | `itemoffset` | 2 | 2 | - |
 | `folders` | 2 | 2 | - |
 | `getobjectpositions` | 2 | 2 | - |
 | `getobjectrotations` | 2 | 2 | - |
+| `urldecode` | 2 | 2 | - |
 | `binary.binary.getfieldfilleddynamic` | 2 | 2 | - |
 | `rect` | 2 | 2 | - |
-| `atan2` | 2 | 2 | - |
+| `xt3d_genmeshcube` | 2 | 2 | - |
+| `xt3d_measuretext` | 2 | 1 | - |
+| `subtract` | 2 | 2 | - |
+| `xt3d_modelgettransform` | 2 | 2 | - |
+| `xt3d_meshfromtext` | 2 | 2 | - |
+| `xt3d_getmouseposition` | 2 | 2 | - |
 | `replacetext` | 2 | 2 | - |
-| `tolower` | 2 | 2 | - |
-| `xt3d_loadrendertexture` | 2 | 1 | - |
-| `xt3d_rendertextureimagedata` | 2 | 1 | - |
-| `xt3d_loadmodel` | 2 | 1 | - |
-| `xt3d_modelinfo` | 2 | 1 | - |
-| `xt3d_iswindowready` | 2 | 1 | - |
-| `id` | 1 | 1 | - |
 | `globalloc` | 1 | 1 | - |
-| `div` | 1 | 1 | - |
-| `tsnetpost` | 1 | 1 | - |
-| `tsnetretrievedata` | 1 | 1 | - |
-| `tsnetretrieveerror` | 1 | 1 | - |
+| `file` | 1 | 1 | - |
+| `jsontoarray` | 1 | 1 | - |
 | `seconds` | 1 | 1 | - |
 | `getinternalspellsource` | 1 | 1 | - |
 | `wordoffset` | 1 | 1 | - |
+| `xt3d_cameraget` | 1 | 1 | - |
+| `exp` | 1 | 1 | - |
+| `atan` | 1 | 1 | - |
+| `xt3d_drawlineex` | 1 | 1 | - |
+| `xt3d_windowshouldclose` | 1 | 1 | - |
 | `compactprops` | 1 | 1 | - |
-| `file` | 1 | 1 | - |
-| `jsontoarray` | 1 | 1 | - |
-| `urldecode` | 1 | 1 | - |
-| `value` | 1 | 1 | - |
-| `subtract` | 1 | 1 | - |
-| `xt3d_settracelogfile` | 1 | 1 | - |
-| `xt3d_rendertexturegettexture` | 1 | 1 | - |
-| `xt3d_cameracreate` | 1 | 1 | - |
-| `xt3d_getmodelboundingbox` | 1 | 1 | - |
-| `xt3d_loadmodelanimations` | 1 | 1 | - |
-| `xt3d_getmouseposition` | 1 | 1 | - |
-| `xt3d_colortoint` | 1 | 1 | - |
-| `xt3d_checkcollisionspheres` | 1 | 1 | - |
+| `id` | 1 | 1 | - |
+| `tsnetpost` | 1 | 1 | - |
+| `tsnetretrievedata` | 1 | 1 | - |
+| `tsnetretrieveerror` | 1 | 1 | - |
 
 ## Properties
 
 | name | uses | files | status |
 |---|---:|---:|---|
-| `mainstack` | 500 | 21 | - |
+| `mainstack` | 502 | 22 | - |
 | `custompropertyset` | 311 | 7 | - |
-| `number` | 241 | 16 | - |
-| `name` | 175 | 13 | - |
-| `keys` | 170 | 8 | - |
-| `id` | 118 | 11 | - |
-| `rect` | 115 | 11 | - |
-| `width` | 87 | 8 | - |
+| `number` | 288 | 25 | - |
+| `name` | 205 | 20 | - |
+| `keys` | 176 | 9 | - |
+| `rect` | 122 | 16 | - |
+| `id` | 121 | 13 | - |
+| `width` | 94 | 15 | - |
 | `outerglow` | 85 | 11 | - |
-| `height` | 72 | 9 | - |
-| `loc` | 56 | 10 | - |
+| `height` | 80 | 16 | - |
+| `hilite` | 78 | 12 | - |
+| `result` | 72 | 16 | - |
+| `script` | 59 | 10 | - |
+| `loc` | 57 | 11 | - |
 | `templateimage` | 53 | 3 | - |
-| `lines` | 50 | 5 | - |
+| `lines` | 52 | 7 | - |
 | `templategraphic` | 50 | 5 | - |
-| `script` | 50 | 7 | - |
+| `last` | 49 | 12 | - |
 | `points` | 48 | 5 | - |
 | `customkeys` | 48 | 3 | - |
-| `hilite` | 48 | 11 | - |
-| `result` | 45 | 10 | - |
-| `label` | 44 | 12 | - |
+| `label` | 45 | 13 | - |
+| `filename` | 44 | 17 | - |
 | `items` | 42 | 6 | - |
 | `layer` | 41 | 7 | - |
-| `visible` | 38 | 6 | - |
-| `text` | 36 | 10 | - |
-| `imagedata` | 36 | 4 | - |
+| `visible` | 40 | 8 | - |
+| `milliseconds` | 40 | 11 | - |
+| `imagedata` | 40 | 7 | - |
+| `text` | 38 | 12 | - |
+| `owner` | 37 | 8 | - |
+| `defaultfolder` | 37 | 7 | - |
 | `cursor` | 36 | 6 | - |
-| `mouseloc` | 31 | 11 | - |
-| `owner` | 31 | 4 | - |
-| `defaultfolder` | 28 | 6 | - |
+| `mouseloc` | 32 | 12 | - |
 | `currentgrid` | 28 | 2 | - |
-| `milliseconds` | 27 | 7 | - |
+| `left` | 27 | 8 | - |
 | `tool` | 26 | 8 | - |
-| `filename` | 26 | 9 | - |
-| `left` | 24 | 7 | - |
+| `itemdel` | 24 | 10 | - |
+| `defaultstack` | 24 | 8 | - |
 | `foregroundcolor` | 23 | 3 | - |
 | `bottom` | 22 | 4 | - |
-| `last` | 22 | 6 | - |
+| `style` | 22 | 8 | - |
 | `seconds` | 22 | 5 | - |
 | `customproperties` | 20 | 3 | - |
-| `defaultstack` | 20 | 6 | - |
-| `style` | 19 | 7 | - |
+| `target` | 20 | 8 | - |
 | `alphadata` | 19 | 3 | - |
+| `mouse` | 18 | 8 | - |
+| `lockloc` | 18 | 11 | - |
 | `backgroundcolor` | 18 | 5 | - |
 | `gridhistory` | 18 | 2 | - |
 | `hud` | 17 | 3 | - |
-| `mouse` | 17 | 7 | - |
 | `showname` | 16 | 7 | - |
 | `hilitedline` | 16 | 1 | - |
-| `lockloc` | 15 | 8 | - |
 | `opaque` | 15 | 6 | - |
 | `folder` | 14 | 2 | - |
+| `title` | 14 | 10 | - |
 | `altkey` | 14 | 2 | - |
 | `spells` | 14 | 1 | - |
 | `linesize` | 13 | 3 | - |
 | `backgroundbehavior` | 13 | 3 | - |
+| `topleft` | 13 | 3 | - |
 | `windows` | 13 | 1 | - |
+| `top` | 12 | 7 | - |
 | `templategroup` | 12 | 5 | - |
 | `playloudness` | 12 | 2 | - |
 | `right` | 12 | 6 | - |
-| `topleft` | 12 | 2 | - |
+| `environment` | 12 | 9 | - |
 | `binaryhistory` | 12 | 2 | - |
 | `lastselectedline` | 12 | 1 | - |
 | `length` | 11 | 4 | - |
+| `files` | 11 | 5 | - |
+| `mouseh` | 10 | 5 | - |
+| `mousev` | 10 | 5 | - |
 | `custompropertysets` | 10 | 3 | - |
 | `templatestack` | 10 | 3 | - |
 | `originalwidth` | 10 | 2 | - |
 | `chars` | 10 | 2 | - |
-| `target` | 10 | 3 | - |
-| `top` | 9 | 6 | - |
 | `showborder` | 9 | 5 | - |
-| `title` | 9 | 5 | - |
+| `pendingmessages` | 9 | 5 | - |
 | `cantdelete` | 9 | 3 | - |
 | `meshedges` | 8 | 2 | - |
-| `mouseh` | 8 | 4 | - |
-| `mousev` | 8 | 4 | - |
 | `margins` | 8 | 4 | - |
 | `blendlevel` | 8 | 2 | - |
 | `currenttime` | 8 | 2 | - |
@@ -298,31 +326,38 @@ Status column: `-` not started, `ok` implemented and tested against LiveCode 9.6
 | `originalheight` | 8 | 2 | - |
 | `gridhistoryframe` | 8 | 2 | - |
 | `tracehistory` | 8 | 2 | - |
-| `files` | 8 | 4 | - |
+| `textsize` | 8 | 2 | - |
 | `entity` | 7 | 3 | - |
 | `templatebutton` | 7 | 4 | - |
 | `words` | 7 | 1 | - |
 | `savedbinary` | 7 | 1 | - |
+| `scalefactor` | 7 | 3 | - |
 | `meshvertices` | 6 | 2 | - |
 | `tfacelabel` | 6 | 2 | - |
 | `tarrayname` | 6 | 2 | - |
-| `pendingmessages` | 6 | 2 | - |
 | `viewcurrentpreset` | 6 | 2 | - |
 | `htmltext` | 6 | 2 | - |
 | `dashes` | 6 | 2 | - |
+| `itemdelimiter` | 6 | 5 | - |
+| `thumbposition` | 6 | 4 | - |
 | `seqeuence_step` | 6 | 2 | - |
 | `sequence_step` | 6 | 2 | - |
 | `binaryman` | 6 | 2 | - |
-| `itemdelimiter` | 6 | 5 | - |
 | `uradialsweepangle` | 6 | 2 | - |
+| `vscrollbar` | 6 | 2 | - |
 | `behavior` | 5 | 3 | - |
 | `undolist` | 5 | 1 | - |
 | `redolist` | 5 | 1 | - |
 | `lastcontrolkey` | 5 | 1 | - |
 | `mousecontrol` | 5 | 1 | - |
+| `endvalue` | 5 | 3 | - |
+| `menuhistory` | 5 | 3 | - |
+| `selectedtext` | 5 | 2 | - |
+| `lockcursor` | 4 | 1 | - |
 | `tedgelabel` | 4 | 2 | - |
 | `capslockkey` | 4 | 2 | - |
 | `currentgame` | 4 | 2 | - |
+| `menumode` | 4 | 4 | - |
 | `hudowners` | 4 | 2 | - |
 | `looping` | 4 | 2 | - |
 | `glowinc` | 4 | 2 | - |
@@ -331,18 +366,20 @@ Status column: `-` not started, `ok` implemented and tested against LiveCode 9.6
 | `cubefaces` | 4 | 2 | - |
 | `cylinderfaces` | 4 | 2 | - |
 | `controltype` | 4 | 2 | - |
-| `thumbposition` | 4 | 3 | - |
+| `openstacks` | 4 | 2 | - |
+| `destroystack` | 4 | 4 | - |
+| `version` | 4 | 4 | - |
+| `date` | 4 | 4 | - |
+| `vscroll` | 4 | 4 | - |
 | `walls3d` | 4 | 2 | - |
 | `floorsandceilings` | 4 | 2 | - |
 | `grids` | 4 | 2 | - |
 | `dontdither` | 4 | 3 | - |
 | `fillrule` | 4 | 2 | - |
-| `lockcursor` | 4 | 1 | - |
-| `sockettimeoutinterval` | 4 | 1 | - |
 | `mousedowns` | 4 | 1 | - |
-| `textsize` | 4 | 1 | - |
+| `sockettimeoutinterval` | 4 | 1 | - |
 | `topstack` | 3 | 3 | - |
-| `menumode` | 3 | 3 | - |
+| `shiftkey` | 3 | 3 | - |
 | `optionsnewvolume` | 3 | 3 | - |
 | `optionsnewfxvolume` | 3 | 3 | - |
 | `optionsnewfullscreen` | 3 | 3 | - |
@@ -351,18 +388,13 @@ Status column: `-` not started, `ok` implemented and tested against LiveCode 9.6
 | `useeffectsbool` | 3 | 3 | - |
 | `usebackmountains` | 3 | 3 | - |
 | `usebackmountainsfx` | 3 | 3 | - |
-| `vscroll` | 3 | 3 | - |
+| `locktext` | 3 | 3 | - |
+| `scriptexecutionerrors` | 3 | 1 | - |
 | `focusedobject` | 3 | 3 | - |
 | `folders` | 3 | 3 | - |
-| `shiftkey` | 3 | 3 | - |
 | `asciivalue` | 3 | 1 | - |
 | `imageindex` | 3 | 1 | - |
-| `endvalue` | 3 | 2 | - |
-| `menuhistory` | 3 | 2 | - |
-| `date` | 3 | 3 | - |
-| `version` | 3 | 3 | - |
-| `vscrollbar` | 3 | 1 | - |
-| `environment` | 2 | 2 | - |
+| `screenpixelscale` | 3 | 3 | - |
 | `tarraylabel` | 2 | 2 | - |
 | `objecttype` | 2 | 2 | - |
 | `tlabel` | 2 | 2 | - |
@@ -375,8 +407,8 @@ Status column: `-` not started, `ok` implemented and tested against LiveCode 9.6
 | `cylinderedges` | 2 | 2 | - |
 | `current` | 2 | 2 | - |
 | `menucopy` | 2 | 2 | - |
-| `stacks` | 2 | 1 | - |
-| `destroystack` | 2 | 2 | - |
+| `platform` | 2 | 2 | - |
+| `scriptparsingerrors` | 2 | 1 | - |
 | `thumbpos` | 2 | 2 | - |
 | `oglua` | 2 | 2 | - |
 | `trailarray` | 2 | 2 | - |
@@ -385,27 +417,27 @@ Status column: `-` not started, `ok` implemented and tested against LiveCode 9.6
 | `ogimagedata` | 2 | 2 | - |
 | `maskdata` | 2 | 2 | - |
 | `uradialsweep` | 2 | 2 | - |
-| `httpheaders` | 2 | 1 | - |
-| `openstacks` | 2 | 1 | - |
 | `bottomleft` | 2 | 1 | - |
 | `lastkeyup` | 2 | 1 | - |
 | `icon` | 2 | 1 | - |
 | `clipboarddata` | 2 | 1 | - |
 | `states` | 2 | 1 | - |
 | `copybits` | 2 | 1 | - |
-| `platform` | 2 | 2 | - |
+| `resizable` | 2 | 2 | - |
+| `screenloc` | 2 | 2 | - |
+| `loadedextensions` | 2 | 2 | - |
+| `revlibrarymapping` | 2 | 2 | - |
+| `dontwrap` | 2 | 2 | - |
+| `listbehavior` | 2 | 2 | - |
+| `startvalue` | 2 | 2 | - |
+| `showvalue` | 2 | 2 | - |
 | `xtjson_script` | 2 | 1 | - |
 | `xtharvest_script` | 2 | 1 | - |
 | `templatecard` | 2 | 1 | - |
-| `itemdel` | 2 | 1 | - |
-| `scalefactor` | 2 | 1 | - |
-| `selectedtext` | 2 | 1 | - |
-| `keycontrolstext` | 1 | 1 | - |
-| `clipstorect` | 1 | 1 | - |
-| `formattedrect` | 1 | 1 | - |
-| `dropshadow` | 1 | 1 | - |
+| `httpheaders` | 2 | 1 | - |
 | `screenmouseloc` | 1 | 1 | - |
 | `keysdown` | 1 | 1 | - |
+| `savedstack` | 1 | 1 | - |
 | `lastmouseloc` | 1 | 1 | - |
 | `alwaysbuffer` | 1 | 1 | - |
 | `bitfontmakerstump` | 1 | 1 | - |
@@ -413,29 +445,54 @@ Status column: `-` not started, `ok` implemented and tested against LiveCode 9.6
 | `selectedchunk` | 1 | 1 | - |
 | `clipboard` | 1 | 1 | - |
 | `globalnames` | 1 | 1 | - |
-| `savedstack` | 1 | 1 | - |
-| `screenpixelscale` | 1 | 1 | - |
-| `resizable` | 1 | 1 | - |
-| `screenloc` | 1 | 1 | - |
-| `locktext` | 1 | 1 | - |
-| `dontwrap` | 1 | 1 | - |
-| `listbehavior` | 1 | 1 | - |
-| `startvalue` | 1 | 1 | - |
-| `showvalue` | 1 | 1 | - |
+| `stacksinuse` | 1 | 1 | - |
+| `keycontrolstext` | 1 | 1 | - |
+| `clipstorect` | 1 | 1 | - |
+| `formattedrect` | 1 | 1 | - |
+| `dropshadow` | 1 | 1 | - |
 
 ## Chunks
 
 | name | uses | files | status |
 |---|---:|---:|---|
-| `item` | 681 | 17 | - |
-| `word` | 482 | 15 | - |
-| `line` | 261 | 11 | - |
-| `char` | 206 | 10 | - |
+| `item` | 901 | 29 | - |
+| `word` | 500 | 19 | - |
+| `line` | 301 | 17 | - |
+| `char` | 237 | 15 | - |
 | `byte` | 61 | 3 | - |
 
 ## Sources
 
-- `Vibecode3D/Vibecode3D_STACK_SCRIPT_11112026g.txt` (5591 lines)
+- `xtalk_py/corpus/games/vibecode3d/Vibecode3D_Play_Canyon.livecodescript` (438 lines)
+- `xtalk_py/corpus/games/vibecode3d/Vibecode3D_Play_Face.livecodescript` (101 lines)
+- `xtalk_py/corpus/games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript` (690 lines)
+- `xtalk_py/corpus/games/vibecode3d/Vibecode3D_Play_Simple_Test1.livecodescript` (46 lines)
+- `xtalk_py/corpus/games/vibecode3d/Vibecode3D_Play_Simple_Test2.livecodescript` (339 lines)
+- `xtalk_py/corpus/games/vibecode3d/Vibecode3D_Play_demo.livecodescript` (361 lines)
+- `xtalk_py/corpus/engines/Vibecode3D_engine_stack_script.livecodescript` (5610 lines)
+- `xtalk_py/corpus/reference/revErrorDisplay_capture_card_script.livecodescript` (29 lines)
+- `xtalk_py/corpus/libraries/LIB_DEVSERVER.livecodescript` (219 lines)
+- `xtalk_py/corpus/libraries/LIB_MCP_attach.livecodescript` (20 lines)
+- `xtalk_py/corpus/libraries/LIB_XTJSON.livecodescript` (600 lines)
+- `xtalk_py/corpus/libraries/lib_bit.livecodescript` (179 lines)
+- `xtalk_py/corpus/libraries/lib_map.livecodescript` (371 lines)
+- `xtalk_py/corpus/libraries/lib_mcp.livecodescript` (369 lines)
+- `xtalk_py/corpus/libraries/lib_trace.livecodescript` (127 lines)
+- `xtalk_py/corpus/originals/BITMAPVECTORTRACER_Livecode_Stack_Script.txt` (1745 lines)
+- `xtalk_py/corpus/originals/GridDraw_Animation_Stack_10272026.txt` (3098 lines)
+- `xtalk_py/corpus/xt3d/launcher.livecodescript` (38 lines)
+- `xtalk_py/corpus/xt3d/launcher_lib_mcp.livecodescript` (38 lines)
+- `xtalk_py/corpus/xt3d/vibe_xt3d_overrides.livecodescript` (127 lines)
+- `xtalk_py/corpus/xt3d/xt3d_diagnostic.livecodescript` (74 lines)
+- `xtalk_py/corpus/xt3d/xt3d_face.livecodescript` (206 lines)
+- `xtalk_py/corpus/xt3d/xt3d_testBench_lib_mcp.livecodescript` (1012 lines)
+- `xtalk_py/corpus/xt3d/xt3d_testbench.livecodescript` (750 lines)
+- `xtalk_py/corpus/xt3d/xt3d_view_demo.livecodescript` (113 lines)
+- `xtalk_py/corpus/xt3d/xt3d_window_demo.livecodescript` (46 lines)
+- `xtalk_py/corpus/tools/LCHarvest2.livecodescript` (203 lines)
+- `xtalk_py/corpus/tools/LIB_MCP_standalone_launcher.livecodescript` (31 lines)
+- `xtalk_py/corpus/tools/xtReemder_Rebuild_stack.livecodescript` (150 lines)
+- `xtalk_py/corpus/tools/xt_error_capture.livecodescript` (28 lines)
 - `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_2245_Sidebar.livecodescript` (13 lines)
 - `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3220_Edit_Stack_Script.livecodescript` (3 lines)
 - `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3221_Edit_Card_Script.livecodescript` (3 lines)
@@ -460,11 +517,7 @@ Status column: `-` not started, `ok` implemented and tested against LiveCode 9.6
 - `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_3228_Title.livecodescript` (7 lines)
 - `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_3428_Edit_HUD.livecodescript` (8 lines)
 - `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_3486_Edit_Trace.livecodescript` (1745 lines)
-- `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_5382_Play_Simple_Test2.livecodescript` (339 lines)
 - `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_5384_Play_Simple_Test1.livecodescript` (260 lines)
-- `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_5385_Play_Hunter.livecodescript` (690 lines)
-- `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_5432_Play_Canyon.livecodescript` (438 lines)
-- `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_6171_Play_demo.livecodescript` (361 lines)
 - `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_6208_LIB_LLM.livecodescript` (290 lines)
 - `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__field_3910_ScreenSizeValueLabel.livecodescript` (3 lines)
 - `Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__field_3915_MusicVolumeLabel.livecodescript` (3 lines)
@@ -476,12 +529,3 @@ Status column: `-` not started, `ok` implemented and tested against LiveCode 9.6
 - `Vibecode3D/XTJSON/scripts/QuitStack__button_1003_NoButton.livecodescript` (18 lines)
 - `Vibecode3D/XTJSON/scripts/QuitStack__button_1004_YesButton.livecodescript` (17 lines)
 - `Vibecode3D/XTJSON/scripts/QuitStack__stack.livecodescript` (7 lines)
-- `bitmap_trace_animate/BITMAPVECTORTRACER_Livecode_Stack_Script.txt` (1745 lines)
-- `GridDrawAnimation/GridDraw_Animation_Stack_10272026.txt` (3098 lines)
-- `XTJSON/xtjson/LCHarvest2.livecodescript` (203 lines)
-- `XTJSON/xtjson/LIB_XTJSON.livecodescript` (600 lines)
-- `XTJSON/xtjson/revErrorDisplay_capture_card_script.livecodescript` (29 lines)
-- `XTJSON/xtjson/xtReemder_Rebuild_stack.livecodescript` (150 lines)
-- `XTJSON/xtjson/xt_error_capture.livecodescript` (28 lines)
-- `xt3D_Raylib_Livecode_Bridge/testbench/xt3d_devserver.livecodescript` (232 lines)
-- `xt3D_Raylib_Livecode_Bridge/testbench/xt3d_testbench.livecodescript` (538 lines)

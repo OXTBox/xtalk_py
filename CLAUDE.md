@@ -29,6 +29,16 @@ not useful to him.
 
 Measured LiveCode behaviour goes in `docs/LIVECODE_FACTS.md`.
 
+## The script corpus (`corpus/`)
+
+All the owner's LiveCode scripts in one place: knowledge base and test bench. Read
+`corpus/INDEX.md` (or `corpus/index.json`) to find examples. `corpus/sources.json` is the
+catalogue (descriptions are written there); `tools/corpus_sync.py` refreshes the copies
+of project scripts and rebuilds the indexes. `originals/` holds scripts that live only
+here (GridDraw, the Bitmap Vector Tracer). New scripts arrive in `corpus/inbox/`: read
+each, give it an entry in `sources.json` (title, description, kind, tags, source), move it
+to its folder, run `tools/corpus_sync.py`, then re-run `tools/glossary_census.py`.
+
 ## Working rules
 
 - The reference for behaviour is LiveCode 9.6.3 itself, not documentation or memory.

@@ -1,0 +1,2492 @@
+#### BEGIN OF BITMAPVECTORTRACER.Livecode STACK SCRIPT 11 09 2026
+
+global  gImagePBMBinaryData  --- a string of 1s and 0s representing black and white image
+global gGridWidth, gGridHeight  --- width and/or height of object /gGridColumns or gGridRows
+global gGridColumns, gGridRows  --- total columns and/or rows of grid
+global gColorChar   --- this is the color being drawn (1=black or 0=white)...but 255 chars could be used.
+global gCurrentChar  --- current color character 
+global gPBMImageData --- binary data string with PBM Header and padding
+local defaultGraphicFramePoints
+--- draw with the mouse, mouse position turns on/of bits represented as 1 or 0 in a string
+--- the string is  put into the text of an image object
+--- the image object is scaled to the desired size 
+--- the image data is scaled by the engine  along with the object 
+global gGridScale
+global bPlaying 
+local iClicked
+global clickedButton
+global gPlayHistorySpeed
+global gAutoVectorCommand
+global gVectorDrawDelay,gVectorDrawIter
+global bGraphicOpaque
+--- BitFontMaker2 globals
+global gBinaryStrings
+global massImportFilePathList
+global bStartedMassImport,bFinishedTask
+global gNumberOfFilesToImport
+---
+on init.Globals
+   put 16 into gGridColumns
+   put 16 into gGridRows
+   put floor(width of this card / (gGridColumns*2)) into gGridWidth
+   put floor(height of this card / (gGridRows*2)) into gGridHeight
+   put "" into gColorChar
+   put 34 into gCurrentChar --- space char
+   put "" into  gImagePBMBinaryData
+   put Define.EmptyImagePBMData() into gImagePBMBinaryData
+   --- DIGITIZER GLOBALS
+   put "" into clickedButton
+   put -1 into iClicked
+   put false into bPlaying
+   put 100 into gGridScale  --- 0.189 for a LOT of graphis
+   put 20 into gPlayHistorySpeed
+   put "none" into gAutoVectorCommand
+   put 20 into gVectorDrawDelay
+   put 0 into gVectorDrawIter
+   put false into bGraphicOpaque
+   put "" into gBinaryStrings
+   put false into  bStartedMassImport
+   put false into bFinishedTask
+   put 0 into gNumberOfFilesToImport
+end init.Globals
+
+on rawkeyDown tkey
+   if  tKey is 65307 then
+      choose pointer tool
+      put false into bStartedMassImport
+      put true into bFinishedTask
+   end if
+   pass rawkeyDown
+end rawKeyDown
+
+
+on sortGroupImages
+   put 0 into x
+   put 0 into y
+   repeat with i =1 to number of images of group "imageGroup"
+      set the topLeft of image i of group "imageGroup" to x,y
+      add the width of image  i of group "imageGroup"  to x
+      if x >= width of this card then
+         put 0 into x
+         add height of image i of this card to y
+      end if
+   end repeat
+end sortGroupImages
+
+on visualizeAssets
+   put the BinaryHistory of this card into tBinaryArray
+   put the keys of tBinaryArray into tKeys
+   sort lines of tKeys numeric ascending
+   set the rect of the templategroup to 0,0,width of this card,  height of this card
+   set the lockloc of  the templategroup to true 
+   create group "imageGroup"
+   --   set the width of the templateImage to gGridWidth
+   --   set the height of the templateImage to gGridHeight
+   put 0 into x
+   put 0 into y
+   --put line 1 to 100 of tKeys into tShortKeys
+   repeat for each line tKey in tKeys
+      put tBinaryArray[tKey] into gImagePBMBinaryData
+      BinaryDataToPBMImage  gImagePBMBinaryData
+      wait 50 milliseconds
+      put the imageData of image 1 into tImageData
+      set the height of the templateImage to height of image 1
+      set the width of the templateImage to width of image 1
+      
+      set the imageData of the templateImage to tImageData
+      put number of images of this card into NumImages
+      if NumImages > 1 then add 16 to x
+      if x >= width of this card then 
+         put 0 into x
+         add 16 to y
+         if y > height of this card then
+            set the vScroll of group "Imagesgroup" to true
+            
+         end if
+      end if
+      
+      create image in group "imageGroup"
+      set the width of it to 16
+      set the height of it to 16
+      set the topLeft of it to x,y
+   end repeat
+end visualizeAssets
+
+on menuPick.GridSizeMenu tPick
+   replace "x" with comma in tpick
+   set itemDel to comma
+   put item 1 of tPick into gGridColumns
+   put item 2 of tPick into gGridRows
+   put floor((((width of image 1)) / gGridColumns)) into gGridWidth
+   put floor((((height of image 1)) / gGridRows)) into gGridHeight
+   put Define.EmptyImagePBMData() into gImagePBMBinaryData
+   set the text of image 1 to gImagePBMBinaryData
+   if gGridColumns > 32 then MouseUp.AutoVectorRadioButton "None"
+end menuPick.GridSizeMenu
+
+
+
+on init.app
+   init.globals
+   init.UI
+end init.app
+
+
+on init.UI
+   UI.ClearGraphics
+   show field 1
+   init.PBM_IMAGE
+   init.Graphic1
+   MouseUp.AutoVectorRadioButton "None"
+   Set the hilite of button "NoneCheckbox" to true
+   set the label of button "GridSize" to gGridWidth &"x" & gGridHeight
+   set the thumbPosition of scrollbar "PlayHistorySpeed" to gPlayHistorySpeed
+   set the points of grc 1 to empty
+end init.UI
+
+
+on init.Graphic1
+   set the style of the templateGraphic to "polygon"
+   set the opaque of the templateGraphic  to false
+   set the backgroundColor the templateGraphic to black
+   put 0,0 &cr &cr & L,0& cr & cr   before tPoints -- hold top corner
+   put cr & 0,B & cr & cr & L,B after tPoints --- hold bottom corner
+   set the points of the templateGraphic to tPoints
+   set the points of the templateGraphic to tPoints
+   create graphic
+end init.Graphic1
+
+on mouseDown tBtn
+   if there is not an image 1 then pass mouseDown
+   if the mouseLoc is within the rect of image "PBM_Image" then MouseDown.PBM_IMAGE tBtn
+   pass MouseDown
+end mouseDown
+
+
+
+
+on MouseDown.PBM_IMAGE tBtn
+   hide field 1
+   switch tBtn
+      case 1 --- black pixels
+         put "1" into gColorChar
+         break
+      case 3 --- white pixels
+         put "0" into gColorChar
+         break
+   end switch
+   if the mouse is down then  Loop.DrawWithMouse 
+end MouseDown.PBM_IMAGE
+
+on mouseDown.Digitizer
+   --put the name of the target into clickedTarget
+   put the name of the focusedObject into clickedTarget
+   --put clickedTarget
+   if word 1 of clickedTarget is "button" then put clickedTarget into clickedButton --- << global
+   if the altKey is down then put -1 into iClicked
+end mouseDown.Digitizer
+
+
+
+on mouseUp tBtn
+   if gAutoVectorCommand is "Mouse UP" and the mouseloc is within the rect of image 1 then
+      mouseUp.ToVectorButton
+      put 0 into gVectorDrawIter
+   end if
+   pass mouseUp
+end mouseUp
+
+
+on mouseUp.ExportHistory
+   answer folder "Folder to Export To?"
+   if it is empty then exit mouseUp.ExportHistory
+   File.ExportGridHistory it
+   File.ExportBinaryHistory it
+   File.ExportTraceHistory it
+end MouseUp.ExportHistory
+
+
+on mouseUP.ExcludeNeighborsButton
+   lock screen
+   --   mouseUP.ScriptedButton
+   put -1 into iClicked
+   --add 1 to iClicked
+   if iClicked is empty or iClicked > 8 then put -1 into iClicked
+   if iClicked > 8 then put -1 into iClicked
+   --  set the label of clickedButton to "ExcludeNeigbors" -- "Step:" && iClicked
+   put Digitize.Sequence(iClicked) into tScannedInput
+   put tScannedInput
+   GraphicFromBits.ExcludeNeigbors tScannedInput
+   add 1 to iClicked
+   Graphics.SortHorizontal
+   unlock screen
+end mouseUP.ExcludeNeighborsButton
+
+
+on mouseUp.InverseButton
+   put 8 into iClicked
+   --add 1 to iClicked
+   if iClicked is empty or iClicked > 8 then put -1 into iClicked
+   if iClicked > 8 then put -1 into iClicked
+   --  set the label of clickedButton to "Inverse" 
+   put Digitize.SequenceInversion(iClicked) into tScannedInput
+   GraphicFromBits tScannedInput
+   add 1 to iClicked
+   Graphics.SortHorizontal
+end mouseUp.InverseButton
+
+on mouseUp.StepButton
+   if iClicked is empty or iClicked > 8 then put -1 into iClicked
+   if iClicked > 8 then put -1 into iClicked
+   --  set the label of clickedButton to "Step:" && iClicked
+   put Digitize.Sequence(iClicked) into tScannedInput
+   GraphicFromBits tScannedInput
+   add 1 to iClicked
+   Graphics.SortHorizontal
+end mouseUp.StepButton
+
+on mouseUp.InverseStepButton
+   
+   if iClicked is empty or iClicked > 8 then put -1 into iClicked
+   --  set the label of clickedButton to "Inverse Step:" && iClicked
+   put Digitize.SequenceInversion(iClicked) into tScannedInput
+   GraphicFromBits tScannedInput
+   Graphics.SortHorizontal
+   add 1 to iClicked
+end mouseUp.InverseStepButton
+
+on MouseUp.AutoVectorRadioButton tButtonLabel
+   repeat with i = 1 to number of buttons of this card
+      if the label of button i of this card is not tButtonLabel then
+         set the hilite of button i of this card to false
+      end if
+   end repeat
+   put tButtonLabel into gAutoVectorCommand
+   set the hilite of button "Opaque" to bGraphicOpaque
+end MouseUp.AutoVectorRadioButton
+
+
+on Loop.DrawWithMouse
+   if the mouse is down and  the mouseLoc is within the rect of image "PBM_IMAGE"  then
+      DrawInImage
+      send Loop.DrawWithMouse to this stack in 1 milliseconds
+      if gAutoVectorCommand is "Mouse Down" then  
+         add 1 to  gVectorDrawIter 
+         if gVectorDrawIter >   gVectorDrawDelay then 
+            mouseUp.ToVectorButton
+            put 0 into gVectorDrawIter
+         end if 
+      end if
+   end if
+end Loop.DrawWithMouse
+
+
+on   init.PBM_IMAGE tArg
+   
+   if there is an image "PBM_IMAGE" then 
+      set the text of image "PBM_IMAGE" to empty
+      set the width of image "PBM_IMAGE" to width of this stack -2
+      set the height of image "PBM_IMAGE" to height of this stack -2
+      set the topLeft of image "PBM_IMAGE"  to 0,0
+      set the alphaData of image "PBM_IMAGE"  to empty
+      set the  ink of image "PBM_IMAGE"  to "srcCopy"
+   else
+      set the width of the templateImage to width of this stack -2
+      set the height of the templateImage to height of this stack -2
+      set the topLeft of the templateImage to 0,0
+      set the lockloc of the templateImage to true
+      set the name of the templateimage to "PBM_IMAGE"
+      set the alphaData of the templateImage to empty
+      set the  ink of   the templateImage  to "srcCopy"
+      create Image "PBM_IMAGE"  --- has no stack geometry constraints this way
+      
+   end if
+   if gImagePBMBinaryData is empty or tArg is empty then put Define.EmptyImagePBMData() into gImagePBMBinaryData
+   --   --   put "init.PBM_IMAGE" & cr &  gImagePBMBinaryData 
+   BinaryDataToPBMImage gImagePBMBinaryData
+end   init.PBM_IMAGE
+
+
+function MouseLoc.To_Column_Row gridWith,gridHeight,maxColums,maxRows
+   
+   --- Get  Column and Row of the grid that the mouse was clicked in
+   put trunc((item 1 of the mouseLoc) / gridWidth ) into columnNumber
+   put trunc((item 2 of the mouseLoc) / gridHeight )  into rowNumber
+   
+   --- Mouse outside window doesn't get counted as a bit!
+   if columnNumber <1  then put 1 into columnNumber
+   if columnNumber > maxColums then put maxColums into columnNumber
+   if rowNumber <1  then put 1 into rowNumber
+   if rowNumber > maxRows then put maxRows into rowNumber
+   return columnNumber,rowNumber
+end MouseLoc.To_Column_Row
+
+function Location.WriteToGridBinaryString x,y,gridWidth,gridHeight,gridColumns,gridRows,tBinaryString
+   if tBinaryString is empty then  put Define.EmptyImagePBMData()  into tBinaryString
+   
+end  Location.WriteToGridBinaryString
+
+on DrawInImage
+   if gImagePBMBinaryData is empty then    put Define.EmptyImagePBMData() into gImagePBMBinaryData
+   --put "DrawInImage" & cr &  gImagePBMBinaryData
+   put gGridWidth*gGridColumns into tMaxWidth
+   put gGridHeight*gGridRows into tMaxHeight
+   put 0 into tSensitizerX
+   put 0 into tSensitizerY
+   --- adjust mouse sesitivity for the width and height of grid
+   --   if item 1 of the mouseLoc > tMaxWidth/2 then 
+   --      put 0.55 into tSensitizerX
+   --   else 
+   --      put   -0.55 into tSensitizerX
+   --   end if
+   --   if item 1 of the mouseLoc > tMaxHeight/2 then 
+   --      put 0.55 into tSensitizerY
+   --   else 
+   --      put   -0.55 into tSensitizerY
+   --   end if
+   
+   --- Get  Column and Row of the grid that the mouse was clicked in
+   put (item 1 of the mouseLoc+tSensitizerX) / gGridWidth into columnNumber
+   put  (item 2 of the mouseLoc+tSensitizerY) / gGridHeight   into rowNumber
+   
+   --- Mouse outside window doesn't get counted as a bit!
+   if columnNumber <1  then put 1 into columnNumber
+   if columnNumber > gGridColumns then put gGridColumns into columnNumber
+   if rowNumber <1  then put 1 into rowNumber
+   if rowNumber > gGridRows then put gGridRows into rowNumber
+   
+   --- 'paint' the 'color' into the 'image'   
+   put gColorChar into char columnNumber of line rowNumber of gImagePBMBinaryData
+   
+   --- convert the image data to the PBM Image
+   --put "DrawInImage" & cr &  gImagePBMBinaryData
+   BinaryDataToPBMImage  (line 1 to gGridRows  of gImagePBMBinaryData)
+end DrawInImage
+
+
+function Define.EmptyImagePBMData
+   repeat with i = 1 to gGridColumns
+      put "0"  after tLine
+   end repeat
+   repeat with i = 1 to gGridRows
+      put tLine & cr after tData
+   end repeat
+   filter lines of tData without empty
+   put line 1 to -1 of tData into gImagePBMBinaryData
+   return gImagePBMBinaryData
+end Define.EmptyImagePBMData
+
+
+function Prop.getBinaryHistory n
+   put the BinaryHistory of this card into tBinaryArray
+   put the number of lines of the keys of tBinaryArray+1 into tCount
+   put the keys of tBinaryArray into binKeys
+   if tCount <1 then return empty
+   if n is empty or n > tCount then put tCount into n
+   return tBinaryArray["bit_"&padNumber(n,4)]
+end Prop.getBinaryHistory
+
+function string.isEmpty tString,tFilter
+   filter tString without tFilter
+   filter tString without empty
+   return (tString is empty)
+end string.isEmpty
+
+
+
+
+on BinaryDataToPBMImage tBinaryString
+   lock screen
+   --- create an string of 32x32 zeros if there is no data availale
+   if tBinaryString is empty then 
+      put Define.EmptyImagePBMData() into gImagePBMBinaryData
+      put gImagePBMBinaryData into tBinaryString
+   end if
+   
+   --- pass data  to the global
+   put tBinaryString into gImagePBMBinaryData
+   --- save the changes to history property
+   if bPlaying is false then  Prop.appendBinaryHistory gImagePBMBinaryData
+   
+   put gImagePBMBinaryData into pImageData
+   
+   put "" into pImageData
+   -- pad the characters in the data with spaces to create the PBM data
+   repeat for each char tBit in tBinaryString
+      put tBit & space after pImageData
+   end repeat
+   
+   --- truncate any extra line that might have been added by editing
+   put line 1 to gGridRows of pImageData into pImageData
+   
+   put the number of lines of pImageData into tVertLength 
+   
+   --- iterate over the data, is it just returning the data we had already?
+   repeat with y = 1 to tVertLength
+      put the number of words of line y of pImageData into tLineHorzLength
+      repeat with x = 1 to tLineHorzLength
+         get word x of line y of pImageData
+         if it = 0 or it = 1 then 
+            put it &" " after tNewLine
+         else 
+            --put it & cr after msg
+            next repeat
+         end if
+      end repeat
+      put tNewLine & cr after tData
+      put empty into tNewLine
+   end repeat
+   
+   filter lines of tData without empty
+   put "P1" & cr & the number of words of line 1 of tData && the number of lines of tData & cr & tData into tData
+   
+   if there is not an image "PBM_IMAGE" then create image "PBM_IMAGE"
+   set the text of image "PBM_IMAGE" to empty
+   set the text of image "PBM_IMAGE" to tData
+   set the alphaData of image "PBM_IMAGE" to empty
+   set the height of image "PBM_IMAGE" to width of this card/2    ---tVertLength*gGridWidth
+   set the width of image "PBM_IMAGE" to height of this card/2   ---tLineHorzLength*gGridWidth
+   
+   set the topLeft of image "PBM_IMAGE" to 0,0
+   unlock screen
+end BinaryDataToPBMImage
+
+
+---------------------------------DIGITIZER SCRIPT BELOW-----------------------------
+--- MOVED UP IN STACK SCRIPT
+--global gGridScale
+--global bPlaying 
+--local iClicked
+--global clickedButton
+
+--- moved up in stack script
+--on init.app
+--init.Globals
+--end init.app
+
+--on init.Globals
+--   put "" into clickedButton
+--   put -1 into iClicked
+--   put false into bPlaying
+--   put 0.189 into gGridScale
+--end init.Globals
+
+
+function math.GridScale tMin
+   
+   put the number of graphics of this card into tnumGraphics
+   put the originalwidth of grc 1 of this card into tOriginalWidth
+   if tOriginalWidth = 0 or tOriginalWidth = empty  then return 1
+   put the width of this card into tWidth
+   --if tNumGraphics < tMin then
+   put tMin into tNumGraphics
+   put tWidth/tNumGraphics into tMinimalWidth
+   
+   if tOriginalWidth = 0 or tMinimalWidth = 0 then return 1
+   put tMinimalWidth/tOriginalWidth into tAspectRatio
+   put tAspectRatio
+   return tAspectRatio
+end math.GridScale
+
+/*Exactly! You’ve got it right. Let’s break it down further:
+
+Boundary Walls (Outside): 
+The initial accumulation in WestWalls corresponds to the outer walls of the entire grid or map. These are the walls that enclose the entire area, forming the boundary.
+
+Grid Unit Closures (Columns and Rows): 
+As we traverse through the columns and rows of the grid, WestWalls accumulates information about the western walls of each individual grid unit. It keeps track of whether there’s a wall to the west of each unit.
+
+When moving from left to right (column-wise), WestWalls records the presence or absence of walls to the west of each grid unit.
+Similarly, when moving from top to bottom (row-wise), it continues to accumulate information about the western walls of each unit.
+In summary, WestWalls helps keep track of the western walls as we explore the grid, ensuring we know which walls are present and where the boundaries lie*/
+
+-- this turns grid x,y coordinates such as {10,30} into a 3D dungeon.
+function textToMap tBinaryString
+   ---  tBinaryString = grid of 1s and 0s
+   put empty into textArray	--Array{} -- whole map as one long string of 1s and 0s each element of array = map, or an ascii character whatever you paint
+   put empty into quadwalls	--Array{} -- the final "3D" defintion of where "quads" will be drawn
+   put empty into QuadFloors  --- array of floor locations in the grid
+   put "" into  WestWalls  -- WestWalls
+   
+   
+   repeat with Y = 1 to number of lines of tBinaryString
+      put line Y of tBinaryString into scanColumn
+      
+      repeat with  C =1 to number of chars of scanColumn 
+         --floor
+         put char C of scanColumn into QFloor
+         put char C+1 of scanColumn into QEast
+         put char C-1 of scanColumn into QWest
+         
+         --         put c & comma & y & cr after xystring -- string tracking all floors?
+         put WestWalls & QWest into WestWalls  ---Tracks the WEST, Left hand  walls as we progress
+         put QLfoor into textArray[number of lines of the keys of textArray+1] --- just tracking all positions?
+         
+         if QFloor <> "0" then
+            put c,y into QuadFloors[number of lines of the keys of QuadFloors+1]
+            put c , y & cr after xystring -- string tracking Walls?
+            
+            
+            -- using quadwalls for roof and floor
+            put c,y,"floor" into quadwalls[number of lines of the keys of quadwalls+1]
+            put c,y,"roof" into quadwalls[number of lines of the keys of quadwalls+1]
+            
+            put QFloor into QRoof 
+            if i <=  the number of lines of tBinaryString then 
+               put char c of line Y+1 of tBinaryString into QSouth
+               
+               if QSouth <> "1" then put c,y+1,"north" into quadwalls[number of lines of the keys of quadWalls+1] 
+            end if
+            
+            if i >= 2 then
+               put char c of line Y-1 of tBinaryString into QNorth -- wall faces south
+               if QNorth <> "1" then put c,y-1,"south" into quadwalls[number of lines of the keys of quadWalls+1] 
+            end if
+            --
+            -- east and west
+            if c < number of chars of scanColumn and QEast <> "1" then put c,y,"east" into quadwalls[number of lines of the keys of quadWalls+1] 
+            
+            --West
+            if c > 1 and QWest <> "1" then put c,y,"west" into quadwalls[number of lines of the keys of quadWalls+1] 
+            
+            -- Border
+            if y = 1 then    put c,y,"north" into quadwalls[number of lines of the keys of quadWalls+1] 
+            
+            if c = 1 then  put c,y,"west" into quadwalls[number of lines of the keys of quadWalls+1] 
+            
+            if c = number of chars of scanColumn then put c,y,"east" into quadwalls[number of lines of the keys of quadWalls+1] 
+            
+            if i = the number of lines of tBinaryString then put c,y,"south" into quadwalls[number of lines of the keys of quadWalls+1] 
+            
+         end if-- if
+      end repeat-- columns
+      
+   end repeat -- y+1 into y
+   set the Walls3D of this card to quadWalls
+   set the FloorsAndCeilings of this card to QuadFloors
+   return xystring
+end  textToMap
+
+
+
+function textToMap.ExcludeNeighbors tBinaryString
+   ---  tBinaryString = grid of 1s and 0s
+   put empty into textArray	--Array{} -- whole map as one long string of 1s and 0s each element of array = map, or an ascii character whatever you paint
+   put empty into quadwalls	--Array{} -- the final "3D" defintion of where "quads" will be drawn
+   put empty into QuadFloors  --- array of floor locations in the grid
+   put "" into  WestWalls  -- WestWalls
+   
+   
+   repeat with Y = 1 to number of lines of tBinaryString
+      
+      put line Y of tBinaryString into scanColumn
+      
+      repeat with  C =1 to number of chars of scanColumn 
+         --floor
+         put char C of scanColumn into QFloor
+         put char C+1 of scanColumn into QEast
+         put char C-1 of scanColumn into QWest
+         
+         --         put c & comma & y & cr after xystring -- string tracking all floors?
+         put WestWalls & QWest into WestWalls  ---Tracks the WEST, Left hand  walls as we progress
+         put QLfoor into textArray[number of lines of the keys of textArray+1] --- just tracking all positions?
+         
+         
+         
+         if QFloor = "0" then
+            put c,y into QuadFloors[number of lines of the keys of QuadFloors+1]
+            if QEast <> "0"   then  put c , y & cr after xystring -- string tracking Walls?
+            
+            
+            -- using quadwalls for roof and floor
+            put c,y,"floor" into quadwalls[number of lines of the keys of quadwalls+1]
+            put c,y,"roof" into quadwalls[number of lines of the keys of quadwalls+1]
+            
+            put QFloor into QRoof 
+            if i <=  the number of lines of tBinaryString then 
+               put char c of line Y+1 of tBinaryString into QSouth
+               
+               if QSouth <> "1" then put c,y+1,"north" into quadwalls[number of lines of the keys of quadWalls+1] 
+            end if
+            
+            if i >= 2 then
+               put char c of line Y-1 of tBinaryString into QNorth -- wall faces south
+               if QNorth <> "1" then put c,y-1,"south" into quadwalls[number of lines of the keys of quadWalls+1] 
+            end if
+            --
+            -- east and west
+            if c < number of chars of scanColumn and QEast <> "1" then put c,y,"east" into quadwalls[number of lines of the keys of quadWalls+1] 
+            
+            --West
+            if c > 1 and QWest <> "1" then put c,y,"west" into quadwalls[number of lines of the keys of quadWalls+1] 
+            
+            -- Border
+            if y = 1 then    put c,y,"north" into quadwalls[number of lines of the keys of quadWalls+1] 
+            
+            if c = 1 then  put c,y,"west" into quadwalls[number of lines of the keys of quadWalls+1] 
+            
+            if c = number of chars of scanColumn then put c,y,"east" into quadwalls[number of lines of the keys of quadWalls+1] 
+            
+            if i = the number of lines of tBinaryString then put c,y,"south" into quadwalls[number of lines of the keys of quadWalls+1] 
+            
+         end if-- if
+      end repeat-- columns
+      
+   end repeat -- y+1 into y
+   set the Walls3D of this card to quadWalls
+   set the FloorsAndCeilings of this card to QuadFloors
+   return xystring
+end  textToMap.ExcludeNeighbors
+
+function rectFromPoint x,y,tSize
+   put x,y & comma into tRect
+   put x+tSize,y+tSize after tRect
+   return tRect
+end rectFromPoint
+
+
+
+/*This function checks if a given point (x, y) is an edge point in a 2D grid represented by the string tXYString. 
+An edge point is defined as a point that has less than 8 neighbors in the grid. 
+The function loops over the 3x3 neighborhood around the point (x, y), counts the number of valid neighbors, and returns whether this count is less than 8. 
+The function excludes the center point (x, y) itself when counting the neighbors.*/
+
+function isEdgePoint x, y, tEdge,tBinaryString
+   put empty into tNeighbor  # Initialize the variable tNeighbor
+   put empty into tNeighborCount  # Initialize the variable tNeighborCount
+   repeat with dx = -1 to 1  # Loop over the x-axis from -1 to 1
+      repeat with dy = -1 to 1  # Loop over the y-axis from -1 to 1
+         if dx <> 0 or dy <> 0 then  # Exclude the center point
+            put char (x+dx) of line (y+dy) of tBinaryString into tNeighbor  # Get the character at the neighboring position
+            if tNeighbor is "0"  then  # Check if the neighboring character is in the string
+               add 1 to tNeighborCount  # If yes, increment the count
+            end if
+         end if
+      end repeat
+   end repeat
+   return tNeighborCount < tEdge  # Return true if the count is less than 8, indicating it's an edge point
+end isEdgePoint
+
+
+function Binary.GetFilled tBinaryString
+   repeat with Y = 1 to number of lines of tBinaryString
+      put line Y of tBinaryString into scanColumn
+      repeat with  C =1 to number of chars of scanColumn 
+         put isEdgePoint(C, y, 1, tBinaryString) into tBool
+         if tBool is true then 
+            put 0 after tResults
+         else
+            put "1" after tResults
+         end if
+      end repeat
+      put cr after tResults
+   end repeat
+   return tResults
+end Binary.GetFilled
+
+function Binary.GetFieldFilledDynamic tEdge,tBinaryString
+   repeat with Y = 1 to number of lines of tBinaryString
+      put line Y of tBinaryString into scanColumn
+      repeat with  C =1 to number of chars of scanColumn 
+         put isEdgePoint(C, y, tEdge, tBinaryString) into tBool
+         if tBool is true then 
+            put 0 after tResults
+         else
+            put "1" after tResults
+         end if
+      end repeat
+      put cr after tResults
+   end repeat
+   return tResults
+end Binary.GetFieldFilledDynamic
+
+
+function rectFromPoint x,y,tSize
+   put x,y & comma into tRect
+   put x+tSize,y+tSize after tRect
+   return tRect
+end rectFromPoint
+
+on GraphicFromBits tBinaryString
+   put rectGridFromPoint(tBinaryString,gGridWidth) into tNewGrid
+   Create.GeneratedGraphic tNewGrid
+   Prop.appendGridHistory tNewGrid
+end GraphicFromBits
+
+on GraphicFromBits.ExcludeNeigbors tBinaryString
+   put rectGridFromPoint.ExcludeNeighbors(tBinaryString,20) into tNewGrid
+   Create.GeneratedGraphic tNewGrid
+   Prop.appendGridHistory tNewGrid
+end GraphicFromBits.ExcludeNeigbors
+
+
+
+
+function rectGridFromPoint tBinaryString,tWidth
+   if tWidth is empty then put 20 into tWidth
+   filter lines of tBinaryString without empty
+   if tBinaryString is empty then return empty
+   
+   put textToMap(tBinaryString) into tXYString
+   repeat for each line L in tXYString
+      if L is empty then next Repeat
+      put item 1 of L-1 into x
+      put item 2 of L-1 into y
+      if x<1 then put 1 into x
+      if y<1 then put 1 into y
+      
+      -- convert bit to rectangle
+      put rectFromPoint(x*tWidth,y*tWidth,tWidth) into tRect
+      
+      --- vertice  for every corner of rectangle
+      put item 1 of tRect & comma & item 2 of tRect into TL
+      put item 3 of tRect & comma & item 2 of tRect into TR
+      put item 3 of tRect & comma & item 4 of tRect into BR
+      put item 1 of tRect & comma & item 4 of tRect into BL
+      
+      ---  vertices to rectangle defintiion
+      put TL & cr & TR & cr & BR & cr & BL & cr & TL into tFinalRect
+      
+      --- append rectangle to graphic point list
+      put tFinalrect & cr & cr after rectGrid
+   end repeat
+   --- close up the last grid point
+   put tFinalRect after rectGrid
+   return rectGrid
+end rectGridFromPoint
+
+function rectGridFromPoint.ExcludeNeighbors tBinaryString,tWidth
+   if tWidth is empty then put 20 into tWidth
+   filter lines of tBinaryString without empty
+   if tBinaryString is empty then return empty
+   put textToMap.ExcludeNeighbors(tBinaryString) into tXYString
+   repeat for each line L in tXYString
+      if L is empty then next Repeat
+      put item 1 of L into x
+      put item 2 of L into y
+      
+      -- convert bit to rectangle
+      put rectFromPoint(x*tWidth,y*tWidth,tWidth) into tRect
+      
+      --- vertice  for every corner of rectangle
+      put item 1 of tRect & comma & item 2 of tRect into TL
+      put item 3 of tRect & comma & item 2 of tRect into TR
+      put item 3 of tRect & comma & item 4 of tRect into BR
+      put item 1 of tRect & comma & item 4 of tRect into BL
+      
+      ---  vertices to rectangle defintiion
+      put TL & cr & TR & cr & BR & cr & BL & cr & TL into tFinalRect
+      
+      --- append rectangle to graphic point list
+      put tFinalrect & cr & cr after rectGrid
+   end repeat
+   return rectGrid
+end rectGridFromPoint.ExcludeNeighbors
+
+
+on GraphicFromBits.MinimalSize tBinaryString
+   filter lines of tBinaryString without empty
+   if tBinaryString is empty then exit GraphicFromBits.MinimalSize
+   put textToMap(tBinaryString) into tXYString
+   put 0 into lastX
+   put 0 into lastY
+   repeat for each line L in tXYString
+      if L is empty then next Repeat
+      put item 1 of L into x
+      put item 2 of L into y
+      
+      -- convert bit to rectangle
+      put rectFromPoint(x*2,y*,2) into tRect
+      
+      --- vertice  for every corner of rectangle
+      put item 1 of tRect & comma & item 2 of tRect into TL
+      put item 3 of tRect & comma & item 2 of tRect into TR
+      put item 3 of tRect & comma & item 4 of tRect into BR
+      put item 1 of tRect & comma & item 4 of tRect into BL
+      
+      ---  vertices to rectangle defintiion
+      put TL & cr & TR & cr & BR & cr & BL & cr & TL into tFinalRect
+      
+      --- append rectangle to graphic point list
+      put tFinalrect & cr & cr after tNewGrid
+   end repeat
+   Prop.appendGridHistory tNewGrid
+   Create.GeneratedGraphic tNewGrid
+end GraphicFromBits.MinimalSize
+
+
+
+on GraphicFromGrid.outline tPositiveGrid,tInverseGrid
+   --Prop.appendGridHistory tPositiveGrid
+   --Prop.appendGridHistory tInverseGrid
+   
+   if tPositiveGrid is empty then exit GraphicFromGrid.outline
+   put "" into Outline
+   put item 2 of line 1 of tPositiveGrid into lastPointY
+   repeat with i  =1 to number of lines of tPositiveGrid
+      put line i of tPositiveGrid into tPoint
+      if tPoint is empty then next repeat
+      if tPoint is   among the lines of tInverseGrid then
+         if item 2 of tPoint is not lastPointy then 
+            put item 2 of tPoint into lastPointY
+            put line -2 of Outline & cr after Outline
+            put cr  after OutLine
+         end if
+         
+         put tPoint & cr after Outline
+         
+         
+      end if
+   end repeat
+   --put number of lines of tPositiveGrid  & cr &  number of lines of Outline
+   Create.GeneratedGraphic Outline
+   Prop.appendGridHistory Outline
+end GraphicFromGrid.outline 
+
+
+on drawPoints tPoints
+   repeat for each line L in tPoints
+      if L is empty then next Repeat
+      put item 1 of L into x
+      put item 2 of L into y
+      -- convert bit to rectangle
+      put rectFromPoint(x*20,y*20,20) into tRect
+      
+      --- vertice  for every corner of rectangle
+      put item 1 of tRect & comma & item 2 of tRect into TL
+      put item 3 of tRect & comma & item 2 of tRect into TR
+      put item 3 of tRect & comma & item 4 of tRect into BR
+      put item 1 of tRect & comma & item 4 of tRect into BL
+      
+      ---  vertices to rectangle defintiion
+      put TL & cr & TR & cr & BR & cr & BL & cr & TL into tFinalRect
+      
+      --- append rectangle to graphic point list
+      put tFinalrect & cr & cr after tPositiveGridPoints
+   end repeat
+end drawPoints
+
+on Create.GeneratedGraphic tPoints
+   lock screen
+   set the style of the templateGraphic to "polygon"
+   set the opaque of the templateGraphic  to bGraphicOpaque
+   set the backgroundColor the templateGraphic to black
+   
+   put the width of this card/2 into WH
+   put the height of this card/2 into HH
+   
+   --   --- pad the image with topleft and bottom right points to maintain rectangle
+   put gGridWidth,1 & cr &cr & (WH+gGridWidth), 1 & cr & cr  into tPadTop
+   put cr &cr & gGridWidth,HH & cr & cr & (WH+gGridWidth), HH into tPadBottom
+   put number of lines of tPadTop into tPadTopOffset
+   put number of lines of tPadBottom+1 into tPadBottomOffset
+   
+   put tPadTop before tPoints -- hold top corners
+   put tPadBottom after tPoints --- hold bottom corners
+   set the points of the templateGraphic to tPoints
+   
+   if there is a grc 1 then delete grc 1
+   create grc
+   set the layer of grc 1 to "bottom"
+   put the loc of it into tLoc
+   add WH to item 1 of tLoc
+   set the loc of it to tLoc
+   
+   set the points of the templateGraphic to tPoints
+   set the width of graphic 1 of this card to WH+(gGridWidth*2)
+   set the height of graphic 1 of this card to HH+(gGridHeight*2)
+   
+   set the originalWidth of grc 1 to the width of grc 1
+   set the originalHeight of grc 1 to the height of grc 1
+   
+   put the points of grc 1 into tPoints
+   --- remove the border points
+   put line tPadTopOffset to -tPadBottomOffset-1 of tPoints into originalPoints
+   --- set the graphic to borderless version
+   set the points of grc 1 to originalPoints
+   put 95 into gGridScale
+   set the thumbPos of scrollBar "GridScale" to gGridScale
+   unlock screen
+end Create.GeneratedGraphic
+
+
+
+on enterInField.SourceField tData
+   put the grids of this Card into myGridArray
+   put the keys of myGridArray into myKeylist
+   put the number of lines of myKeylist into tKeyCount
+   put line 1 to -1 of  tData into myGrid
+   put myGrid into  myGridArray["grid_" &tKeyCount+1]
+   set the grids of fld "Source" to myGridArray
+   set the currentGrid  of this Card to myGrid
+end enterInField.SourceField
+
+on mouseUP.ScriptedButton
+   --   repeat with i = number of graphics of this card down to 1
+   --      delete graphic 1
+   --   end repeat
+   
+   put the currentGrid of this Card into tBinaryString
+   replace "#" with "1" in tBinaryString
+   --put tBinaryString into fld "thegrid" 
+   put Binary.Binary.GetFieldFilledDynamic(tBinaryString) into tExclusionGrid
+   --put tExclusionGrid into fld "TheGrid"
+   
+   repeat with y = 1 to number of lines of tBinaryString
+      put  line y of tBinaryString into scanLine
+      put  line y of tExclusionGrid into tKnockouts
+      repeat with x = 1 to number of chars of scanLine
+         if char x of tKnockouts =0 then put char x of tKnockOuts into char x of scanLine
+      end repeat
+      put scanLine & cr after tScannedInput
+   end repeat
+   
+   filter lines of tScannedInput without empty
+   --put tScannedInput into fld "exclusions"
+   GraphicFromBits tScannedInput
+end mouseUP.ScriptedButton
+
+
+function Digitize.Sequence tStep,tBinaryString
+   if tStep is  empty then put the Seqeuence_step of this card into tStep
+   add 1 to tStep
+   set the Sequence_step of this card to tStep
+   if tBinaryString is not empty then set the currentGrid of this card to tBinaryString
+   put the currentGrid of this Card into tBinaryString
+   replace "#" with "1" in tBinaryString 
+   -- get a grid that excludes the image rectangles
+   put Binary.GetFieldFilledDynamic(tStep,tBinaryString) into tExclusionGrid
+   
+   repeat with y = 1 to number of lines of tBinaryString
+      put  line y of tBinaryString into scanLine
+      put  line y of tExclusionGrid into tKnockouts
+      repeat with x = 1 to number of chars of scanLine
+         if char x of tKnockouts =0 then put char x of tKnockOuts into char x of scanLine
+      end repeat
+      put scanLine & cr after tScannedInput
+   end repeat
+   
+   filter lines of tScannedInput without empty
+   
+   return tScannedInput
+   
+end  Digitize.Sequence
+
+function Digitize.SequenceInversion tStep
+   if tStep is  empty then put the Seqeuence_step of this card into tStep
+   add 1 to tStep
+   set the Sequence_step of this card to tStep
+   
+   put the currentGrid of this Card into tBinaryString
+   replace "0" with "E" in tBinaryString
+   replace "1" with "0" in tBinaryString
+   replace "E" with "1" in tBinaryString
+   put Binary.GetFieldFilledDynamic(tStep,tBinaryString) into tExclusionGrid
+   --put tExclusionGrid into fld "TheGrid"
+   repeat with y = 0 to number of lines of tBinaryString
+      put  line y of tBinaryString into scanLine
+      put  line y of tExclusionGrid into tKnockouts
+      repeat with x = 1 to number of chars of scanLine
+         if char x of tKnockouts <> "0" then put char x of tKnockOuts into char x of scanLine
+      end repeat
+      put scanLine & cr after tScannedInput
+   end repeat
+   filter lines of tScannedInput without empty
+   --put tScannedInput into fld "exclusions"
+   return tScannedInput
+end Digitize.SequenceInversion
+
+
+function Digitize.DeresolveHorizontal tStep,tSide
+   if tStep is  empty then put the Seqeuence_step of this card into tStep
+   add 1 to tStep
+   set the Sequence_step of this card to tStep
+   
+   put the currentGrid of this Card into tBinaryString
+   
+   put Binary.GetFieldFilledDynamic(tStep,tBinaryString) into tExclusionGrid
+   --put tExclusionGrid into fld "TheGrid"
+   repeat with y = 0 to number of lines of tBinaryString
+      put  line y of tBinaryString into scanLine
+      put  line y of tExclusionGrid into tKnockouts
+      switch tSide  
+         case "left"
+            repeat with x = 1 to number of chars of scanLine
+               if char x of tKnockouts = "0" and char x+tStep of tKnockouts <> "1" then put char x of tKnockOuts into char x of scanLine
+            end repeat
+            break
+         case "right"
+            repeat with x = 1 to number of chars of scanLine
+               if char x of tKnockouts = "0" and char x+tStep of tKnockouts <> "0" then put char x of tKnockOuts into char x of scanLine
+            end repeat
+            break
+      end switch 
+      put scanLine & cr after tScannedInput
+   end repeat
+   filter lines of tScannedInput without empty
+   --put tScannedInput into fld "exclusions"
+   return tScannedInput
+end Digitize.DeresolveHorizontal
+
+
+
+
+
+
+
+on Graphics.SortHorizontal
+   put the number of graphics of this card into NGraphics
+   --   put the width of this card /NGraphics into W
+   --   if W > width of this card/8 then put width of this card /8 into W
+   --   put W into H
+   put 0 into x
+   put bottom of this card into Btm
+   --put math.GridScale(11) into tScale
+   put 0.188 into tScale
+   repeat with i = 1 to NGraphics
+      put the points of graphic i of this card into iPoints
+      if "," is not among the chars of iPoints then next repeat
+      put the originalwidth of graphic i * tScale into tNewWidth
+      put the originalheight of graphic i * tScale into tNewHeight
+      set the width of graphic i to tNewWidth
+      set the height of  graphic i to tNewHeight
+      if x+(tNewWidth*1.2) > right of this card then
+         put 0 into x
+         subtract tNewHeight from Btm
+      end if
+      
+      set the bottom of graphic i to Btm
+      set the left of graphic i to  x
+      put right of graphic i into x
+      
+   end repeat
+end Graphics.SortHorizontal
+
+
+on translate.luaToaDegree
+   put field "Lua" into tLua
+   replace tab with empty in tLua
+   replace space & space with space in tLua
+   put tLua into fld "lua"
+   set the OGLua of me to tLua
+   replace cr & space with cr in tLua
+   -- replace x = 1 with put 1 into x
+   repeat with i = 1 to number of lines of tLua
+      put line i of tLua into L
+      set itemDel to "="
+      if "=" is among the chars of L then
+         if word 1 of item 1 of L is not "if" then
+            if word 1 of item 2 of L = "{}" then put "empty "&"-"&"-Array" before  of item 2 of L
+            put "put" && word 1 of item 2  of L && "into" && item 1 of L  into tFix
+            
+            if number of words  of item 2  of L > 1 then  put tab  & word 2  to -1 of L after tFix
+            put tFix into line i of tLua
+         end if
+      end if
+   end repeat
+   --- replace tables as arrays
+   repeat with i = 1 to number of lines of tLua
+      put line i of tLua into L
+      set itemDel to "("
+      if item 1 of L = "table.insert" then 
+         put   item 2 of L into tArrayPart
+         put item 3 to -1 of tArrayPart into tValues
+         set itemDel to comma
+         put word 1  of item 2 of L into tArray
+         
+         replace "{" with empty in tValues
+         replace "}" with empty in tValues
+         replace ")" with empty in tValues
+         put "put" && tValues &&"into" && tArray into tNewLine
+         put tNewLine into line 1 of tLua
+      end if
+   end repeat
+   replace "#" with space & "the number of lines of the keys of" & space in tLua
+   replace ", into" with " into" in tLua
+   replace "==" with "=" in tLua
+   put tLua
+   --put tLua into fld 1
+end translate.luaToaDegree
+
+
+on UI.ClearGraphics
+   repeat with i = number of graphics of this card down to 1
+      delete graphic i of this card
+   end repeat
+end UI.ClearGraphics
+
+on UI.ClearImages
+   repeat with i = number of images of this card down to 1
+      delete image i of this card  
+   end repeat
+end UI.ClearImages
+
+on Binary.Deresolution tStep
+   put the number of graphics of this card into nGraphics
+   lock screen
+   --   mouseUP.ScriptedButton
+   put -1 into iClicked
+   add 1 to iClicked
+   if iClicked is empty or iClicked > 8 then put -1 into iClicked
+   if iClicked > 8 then put -1 into iClicked
+   --  set the label of clickedButton to "Deresolution" -- "Step:" && iClicked
+   put Digitize.Sequence(iClicked) into tScannedInput
+   GraphicFromBits tScannedInput
+   --Graphics.SortHorizontal
+   add 1 to iClicked
+   Graphics.SortHorizontal
+   unlock screen
+   put the points of graphic (nGraphics+1) of this card into tPoints
+   
+   repeat with i =  number of lines in tPoints down to 1
+      put line i of tPoints & cr after tNewPoints
+   end repeat
+   set the points of graphic (nGraphics+1) of this card to tNewPoints
+   
+   repeat with i =  number of lines in tNewPoints down to 1
+      delete line i of tNewPoints
+      Prop.appendGridHistory tNewPoints
+      set the points of graphic (ngraphics+1) of this card to tNewPoints
+      wait 1 milliseconds
+   end repeat
+   delete graphic (ngraphics+1) of this card
+end Binary.Deresolution
+
+
+
+on Scrollbar.PlayHistory myPos
+   put false into bPlaying
+   if number of graphics of this card < 1  then init.Graphic1
+   put the number of lines of the keys of  (the gridHistory of this card) into GridHistoryLength
+   
+   if GridHistoryLength < 1 then
+      set the gridHistoryFrame of this card to 1
+      exit Scrollbar.PlayHistory
+   end if
+   
+   set the gridHistoryFrame of this card to myPos
+   if myPos is empty then put 1 into myPos
+   
+   put the gridHistory of this card into tGridPropertyArray
+   put the keys of tGridPropertyArray into tKeyList
+   put line myPos of tKeyList into tArrayLabel
+   
+   
+   
+   put tGridPropertyArray[tArrayLabel] into tGrid
+   put the number of graphics of this card into tNumGraphics
+   
+   lock screen
+   put 0,0 &cr& cr before tGrid -- hold top corner
+   put cr & cr & L,B after tGrid --- hold bottom corner
+   set the points of grc tNumGraphics to tGrid
+   
+   set the layer of grc (tNumGraphics) to bottom
+   set the height of grc (tNumGraphics) to width of this card/2
+   set the width of grc (tNumGraphics) to height of this card/2
+   set the left of grc (tNumGraphics) to the right of image 1
+   set the bottom of grc (tNumGraphics) to the bottom of image 1
+   set the left of grc (tNumGraphics) to the right of image 1
+   set the bottom of grc (tNumGraphics) to the bottom of image 1
+   
+   put Prop.getBinaryHistory(myPos) into gImagePBMBinaryData
+   BinaryDataToPBMImage gImagePBMBinaryData
+   unlock screen
+   if the tool is "browse tool" then send display.GridHistory to this stack in gPlayHistorySpeed milliseconds
+   
+end Scrollbar.PlayHistory
+
+on Display.GridHistory tBool,tStart,tEnd,tCommand
+   if tBool is not empty then put tBool into bPlaying
+   
+   put the gridHistory of this card into tGridPropertyArray
+   put number of lines of  the Keys of tGridPropertyArray into tKeyNumber
+   --- escape with no grids stored
+   if tKeyNumber <= 0 then put false into bPlaying
+   
+   
+   if bPlaying = false then 
+      set the label of button "Play History" to "Play History"
+      exit display.GridHistory
+   end if
+   
+   if tStart < 0  then put tKeyNumber+tStart into tStart
+   if tKeyNumber <= tEnd then 
+      put false into bPlaying
+      exit Display.GridHistory
+   end if
+   ----
+   
+   add 1 to tKeyNumber
+   --- only one graphic on screen at this time
+   if number of graphics of this card < 1  then init.Graphic1
+   
+   put the gridHistoryFrame of this card into myPos
+   if myPos is empty then put 0 into myPos
+   if myPos > tKeyNumber then put 0 into myPos
+   if  the altKey is down then put 0 into myPos
+   
+   add 1 to myPos
+   set the gridHistoryFrame of this card to myPos
+   
+   
+   put tGridPropertyArray["grid_"&padnumber(myPos,4)] into tGrid
+   
+   put the number of graphics of this card into tNumGraphics
+   
+   if tCommand is "Delete" then
+      delete variable tGridPropertyArray["grid_"&myPos] 
+      set the gridHistory of this card to tGridPropertyArray
+   end if
+   
+   lock screen
+   put 0,0 &cr& cr before tGrid -- hold top corner
+   put cr & cr & L,B after tGrid --- hold bottom corner
+   set the points of grc tNumGraphics to tGrid
+   set the layer of grc (tNumGraphics) to bottom
+   set the height of grc (tNumGraphics) to width of this card/2
+   set the width of grc (tNumGraphics) to height of this card/2
+   set the left of grc (tNumGraphics) to the right of image 1
+   set the bottom of grc (tNumGraphics) to the bottom of image 1
+   set the left of grc (tNumGraphics) to the right of image 1
+   set the bottom of grc (tNumGraphics) to the bottom of image 1
+   put Prop.getBinaryHistory(myPos) into gImagePBMBinaryData
+   BinaryDataToPBMImage gImagePBMBinaryData
+   unlock screen
+   if the tool is "browse tool" then send display.GridHistory to this stack in gPlayHistorySpeed milliseconds
+end Display.GridHistory
+
+
+on  mouseUp.Zeros
+   answer "Are you sure?"  with "Yes" and "NO!"
+   if it is not "Yes" then exit mouseUp.Zeros
+   put zeros() into tData  
+   set the currentGrid of this card to tData
+end  mouseUp.Zeros
+
+on MouseuP.ClearHistoryButton
+   put the number of lines of the keys of  (the gridHistory of this card) into GridHistoryLength
+   if GridHistoryLength < 1 then  exit MouseuP.ClearHistoryButton
+   answer "Clear" && GridHistoryLength &&"recordings?"  with "Yes" and "No"
+   if it is not "Yes" then exit MouseuP.ClearHistoryButton
+   set the gridHistory of this card to empty
+   set the binaryHistory of this card to empty
+   set the traceHistory of this card to empty
+end MouseuP.ClearHistoryButton
+
+function zeros
+   repeat with r  = 1 to 16
+      repeat with c = 1 to 16
+         put "0" after tString
+      end repeat
+      put cr after tString
+   end repeat
+   return tString
+end zeros
+
+
+
+function emptyPuts
+   put the script of stack (the mainStack of this stack) into tScript
+   put tScript into tSubScript
+   filter lines of tSubScript with "*put*"
+   Filter lines of tScript with "put*"
+   put tSubScript & cr & tScript into tScript
+   filter lines of tScript without "*into*"
+   filter lines of tScript without "*after*"
+   filter lines of tScript without "*before*"
+   filter lines of tScript without "--put*"
+   filter lines of tScript without "*--put*"
+   return tScript
+end emptyPuts
+
+
+on mouseUp.TraceCurrentImage 
+   mouseUp.MakeTransparent
+   mouseUp.TraceTransparentImage
+   UI.ResetImageAfterTransparency
+   --BinaryDataToPBMImage  (line 1 to gGridRows  of gImagePBMBinaryData)
+   Graphics.1UpOnRight 1,1,"bottom"
+end mouseUp.TraceCurrentImage
+
+on mouseUp.ToVectorButton
+   lock screen
+   put Digitize.Sequence(iClicked,gImagePBMBinaryData) into tScannedInput
+   GraphicFromBits tScannedInput
+   --Graphics.1UpOnRight 1,1,"bottom" --- set the graphic in place
+   --Graphics.SortHorizontal
+   unlock screen
+end mouseUp.ToVectorButton
+
+on Scrollbar.GridScale tVal
+   put tval*0.01 into gGridScale
+   set the label of this stack to gGridScale
+   set the showName of grc 1 to true
+   Graphics.1UpOnRight 1,gGridScale,"bottom"
+end Scrollbar.GridScale
+
+on Graphic.Opaque n,tBool
+   set the opaque of graphic n of this card to tBool
+   put tBool into bGraphicOpaque
+end Graphic.Opaque
+
+on Graphics.1UpOnRight N,tScale,tLayer
+   --   lock screen
+   if tScale is empty   then put 1 into tScale
+   put tscale  into gGridScale
+   put the width of this card/2 into tWidth
+   put the height of this card/2 into tHeight
+   put twidth+(twidth/2) into x
+   put tHeight-(tHeight/2) into y
+   --put the loc of grc 1 into tLoc
+   put the originalWidth of grc 1 into ogWidth
+   put the originalHeight of grc 1 into ogHeight
+   set the width of graphic 1 of this card to ogWidth*gGridScale
+   set the height of graphic 1 of this card to ogHeight*gGridScale
+   set the loc of grc 1 to x,y
+   if tLayer is  empty then put "bottom" into tLayer
+   if tLayer is a number and tLayer > the number of layers of this card then put the number of layers of this card into tLayer
+   set the layer of graphic n of this card to tLayer
+   unlock screen
+end Graphics.1UpOnRight
+
+on Binary.HorizontalScanButton tStep
+   --  set the label of clickedButton to "Horizontal Step:" && iClicked
+   put Digitize.Sequence(iClicked) into tPositiveString
+   put Digitize.SequenceInversion(iClicked) into tInverseString
+   put rectGridFromPoint(tPositiveString,2) into tPositiveGrid
+   put rectGridFromPoint(tInverseString,2) into tInverseGrid
+   GraphicFromGrid.Outline tPositiveGrid,tInverseGrid
+   Graphics.SortHorizontal
+end Binary.HorizontalScanButton
+
+
+on Binary.HorizontaLExclusion tStep,tSide
+   --  set the label of clickedButton to " left x+" && iClicked && "<>0" && iClicked
+   
+   put Digitize.Sequence(iClicked) into tPositiveString
+   --put Digitize.SequenceInversion(iClicked) into tInverseString
+   
+   put Digitize.DeresolveHorizontal(iClicked,tSide) into tInverseString
+   put rectGridFromPoint(tPositiveString,2) into tPositiveGrid
+   --put rectGridFromPoint(tInverseString,2) into tInverseGrid
+   GraphicFromBits tInverseString
+   -- GraphicFromGrid.Outline tPositiveGrid,tInverseGrid
+   Graphics.SortHorizontal
+end Binary.HorizontaLExclusion
+
+
+on mouseUp.CollapseToUpperRight
+   if iClicked is empty or iClicked > 8 then put -1 into iClicked
+   if the altkey is down then put -1 into iClicked
+   add 1 to iClicked
+   put zeros() into tGridData
+   put the currentGrid of this card into tData
+   if "0" is not among the chars of tData  then put the binaryMan of this card into tData
+   repeat with R =1 to number of lines of tGridData
+      repeat with C = 1 to number of chars of line R  of tGridData
+         
+         if char c+1 of line r-1 of tData <> 0 then
+            put "1" into char c of line r of tGridData
+            
+         end if
+      end repeat
+   end repeat
+   
+   --put tGridData into field "Source"
+   set the currentGrid of this card to tGridData
+   
+   
+   put 1 into iClicked
+   if iClicked > 8 then put -1 into iClicked
+   --  set the label of clickedButton to "Descend1"  && iClicked
+   put Digitize.Sequence(iClicked) into tScannedInput
+   GraphicFromBits tScannedInput
+   
+   add 1 to iClicked
+   Graphics.SortHorizontal
+   unlock screen
+end mouseUp.CollapseToUpperRight
+
+
+on mouseUP.CollapseToUpperLeft
+   if iClicked is empty or iClicked > 8 then put -1 into iClicked
+   if the altkey is down then put -1 into iClicked
+   add 1 to iClicked
+   put zeros() into tGridData
+   put the currentGrid of this card into tData
+   if "#" is not among the chars of tData  then put the binaryMan of this card into tData
+   repeat with R =1 to number of lines of tGridData-1
+      repeat with C = 1 to number of chars of line R-1  of tGridData
+         
+         if char c of line r-1 of tData <> 0 then
+            put "1" into char c+1 of line r of tGridData
+            
+         end if
+      end repeat
+   end repeat
+   
+   --put tGridData into field "Source"
+   set the currentGrid of this card to tGridData
+   
+   
+   put 1 into iClicked
+   if iClicked > 8 then put -1 into iClicked
+   --  set the label of clickedButton to "Mag2"  && iClicked
+   put Digitize.Sequence(iClicked) into tScannedInput
+   GraphicFromBits tScannedInput
+   
+   add 1 to iClicked
+   Graphics.SortHorizontal
+   unlock screen
+end mouseUP.CollapseToUpperLeft
+
+
+
+on mouseUP.CollapseToUpperLeft2
+   if iClicked is empty or iClicked > 8 then put -1 into iClicked
+   if the altkey is down then put -1 into iClicked
+   add 1 to iClicked
+   put zeros() into tGridData
+   put the currentGrid of this card into tData
+   if "0" is not among the chars of tData  then put the binaryMan of this card into tData
+   repeat with R =1 to number of lines of tGridData
+      repeat with C = 1 to number of chars of line R  of tGridData
+         
+         if char c-1 of line r-1 of tData <> 0 then
+            put "1" into char c of line r of tGridData
+            
+         end if
+      end repeat
+   end repeat
+   
+   put tGridData into field "Source"
+   set the currentGrid of this card to tGridData
+   
+   
+   put 1 into iClicked
+   if iClicked > 8 then put -1 into iClicked
+   --  set the label of clickedButton to "Mag1"  && iClicked
+   put Digitize.Sequence(iClicked) into tScannedInput
+   GraphicFromBits tScannedInput
+   
+   add 1 to iClicked
+   Graphics.SortHorizontal
+   unlock screen
+end mouseUP.CollapseToUpperLeft2
+
+
+on mouseUP.Box1Button
+   put zeros() into tData
+   repeat with R =3 to number of lines of tData
+      repeat with C = 2 to number of lines of tData
+         if char c of line R-iClicked of tData = 0 then
+            if char c of line r of tData = 0 then
+               if char c+1 of line r of tData = 0 then
+                  put "1" into char c of line r-1 of tData
+               end if
+            end if
+         end if
+      end repeat
+   end repeat
+   
+   --put tData into field "Source"
+   set the currentGrid of this card to tData
+   
+   if the altKey is down then  put -1 into iClicked
+   add 1 to iClicked
+   if iClicked is empty or iClicked > 8 then put -1 into iClicked
+   
+   --  set the label of clickedButton to "BOX1"  && iClicked
+   put Digitize.Sequence(iClicked) into tScannedInput
+   GraphicFromBits tScannedInput
+   --Graphics.SortHorizontal
+   add 1 to iClicked
+   Graphics.SortHorizontal
+   unlock screen
+end mouseUP.Box1Button
+
+on MouseUp.PlayHistoryButton
+   put not bPlaying into bPlaying
+   
+   if bPlaying is true then 
+      set the label of button "Play History"  of this card  to "Click to Stop"
+      display.GridHistory bPlaying
+   else
+      
+      set the label of button "Play History" of this card to "Play History"
+   end if
+end MouseUp.PlayHistoryButton
+
+on scrollBar.PlayHIstorySpeed tval
+   put tval into gPlayHistorySpeed
+end scrollBar.PlayHistorySpeed
+
+
+on File.setMassimportList
+   put "" into massImportFilePathList
+   answer folder "Choose Source Folder Full of Folders Filled With Images"
+   if it is empty then exit File.setMassimportList
+   put it into tRootFolder
+   set the defaultFolder to tRootFolder
+   put the folders into tFolderList
+   replace ".." with empty in tFolderList
+   if number of lines of tFolderList < 1 then exit File.setMassimportList
+   repeat for each line Fo in tFolderList
+      set the cursor to busy
+      put tRootFolder &"/" & Fo into tCurDir
+      set the defaultFolder to tCurDir
+      put the files into tFileList
+      repeat for each line Fi in tFileList
+         set the cursor to busy
+         put tCurDir & "/" & Fi  & cr after massImportFilePathList
+      end repeat
+   end repeat
+   filter lines of massImportFilePathList without empty
+   put number of lines of massImportFilePathList into gNumberOfFilesToImport
+end File.setMassimportList
+
+--- import all files from folders into arrays: binary, grid, trace
+on Prop.AutoBuildHistory
+   put true into  bStartedMassImport
+   put  false into bFinishedTask
+   File.setMassimportList
+   File.MassImportAndDigitize
+end Prop.AutoBuildHistory
+
+on File.MassImportAndDigitize 
+   hide fld 1
+   filter lines of massImportFilePathList without empty
+   set the cursor to busy
+   if bStartedMassImport is true and bFinishedTask is false then
+      set the cursor to busy
+      put line 1 of massImportFilePathList into tFilePath
+      delete line 1 of massImportFilePathList
+      subtract 1 from gNumberOfFilesToImport
+      set the label of this stack to "Importing_Files:" && gNumberOfFilesToImport
+      File.Digitize tFilePath
+   end if
+end File.MassImportAndDigitize
+
+on File.ValidateMassImport
+   if the tool is not "browse Tool" then exit File.ValidateMassImport
+   if gNumberOfFilesToImport < 1  or gNumberOfFilesToImport is empty then 
+   put false into bStartedMassImport
+   put true into bFinishedTask
+   exit File.ValidateMassImport
+end if
+
+if bStartedMassImport is true then
+   if  bFinishedTask is true then
+      put  false into bFinishedTask
+      --- loop back to to check on tasks
+      send File.MassImportAndDigitize to this stack in 100 milliseconds
+   else
+      send File.ValidateMassImport to this stack in 10 milliseconds
+   end if
+end if
+end File.ValidateMassImport
+
+on File.Digitize tFilePath
+   put the rect of image 1 into trect
+   set the fileName of image 1 to tFilePath
+   set the rect of image 1 to tRect
+   Digitize.CurrentImage
+end File.Digitize
+
+on Digitize.CurrentImage
+   lock screen
+   put dissectImageIntoGrids(gGridColumns,gGridRows,"16x16") into gImagePBMBinaryData
+   BinaryDataToPBMImage  (line 1 to gGridRows  of gImagePBMBinaryData)
+   put Digitize.Sequence(-2,gImagePBMBinaryData) into tScannedBits
+   GraphicFromBits tScannedBits
+   unlock screen
+   --wait 20 milliseconds
+   File.MassDigitizeTrace
+end Digitize.CurrentImage
+
+on File.MassDigitizeTrace
+   mouseUp.TraceCurrentImage
+   --wait 20 milliseconds
+   put true into bFinishedTask
+   File.ValidateMassImport
+end File.MassDigitizeTrace
+
+
+on File.ExportGridHistory tDirectory
+   set itemDel to "/"
+   put item 1 to -2 of (char 2 to -2 of word 2 of the long name of this stack)  into gStackDirectory
+   if tDirectory is empty then 
+      put gStackDirectory &"/GridHistory_"&& the seconds into tFolder
+   else
+      put tDirectory &"/GridHistory_"&& the seconds into tFolder
+   end if
+   if there is not a folder tFolder then create folder tFolder
+   put the gridHistory of this card into tGridArray
+   put the keys of tGridArray into ArrayKeys
+   put the number of lines of ArrayKeys into N
+   repeat for each line tKey in ArrayKeys
+      put tGridArray[tKey] into tGridData
+      put "file:" & tFolder &"/" & tKey &".txt" into tFilePath
+      put tGridData into URL tFilePath
+   end repeat
+end File.ExportGridHistory
+
+on File.ExportBinaryHistory tDirectory
+   set itemDel to "/"
+   put item 1 to -2 of (char 2 to -2 of word 2 of the long name of this stack)  into gStackDirectory
+   if tDirectory is empty then 
+      put gStackDirectory &"/BinaryHistory_"&& the seconds into tFolder
+   else
+      put tDirectory &"/BinaryHistory_"&& the seconds into tFolder
+   end if
+   if there is not a folder tFolder then create folder tFolder
+   put the BinaryHistory of this card into tBinaryArray
+   put the keys of tBinaryArray into ArrayKeys
+   put the number of lines of ArrayKeys into N
+   repeat for each line tKey in ArrayKeys
+      put tBinaryArray[tKey] into tBinaryData
+      put "file:" & tFolder &"/" & tKey &".txt" into tFilePath
+      put tBinaryData into URL tFilePath
+   end repeat
+end File.ExportBinaryHistory
+
+on File.ExportTraceHistory tDirectory
+   set itemDel to "/"
+   put item 1 to -2 of (char 2 to -2 of word 2 of the long name of this stack)  into gStackDirectory
+   if tDirectory is empty then 
+      put gStackDirectory &"/TraceHistory_"&& the seconds into tFolder
+   else
+      put tDirectory &"/TraceHistory_"&& the seconds into tFolder
+   end if
+   if there is not a folder tFolder then create folder tFolder
+   put the TraceHistory of this card into tTraceArray
+   put the keys of tTraceArray into ArrayKeys
+   put the number of lines of ArrayKeys into N
+   repeat for each line tKey in ArrayKeys
+      put tTraceArray[tKey] into tTraceData
+      put "file:" & tFolder &"/" & tKey &".txt" into tFilePath
+      put tTraceData into URL tFilePath
+   end repeat
+end File.ExportTraceHistory
+
+
+
+
+--- BITFONTMAKER2LIKE CODE BELOW
+-- dissectImageIntoGrids
+--This script dissects the large image into 16x16 grids, and for each grid,
+--it generates a binary string representing white and non-white pixels. 
+--The resulting binary strings are stored in the variable gBinaryStrings. 
+--Adjust the pGridWidth and pGridHeight parameters as needed.
+-- thanks chatGPT 11/12/2023  --
+
+on mouseUp.test.DissectImage
+   lock screen
+   put dissectImageIntoGrids(gGridColumns,gGridRows,"16x16") into gImagePBMBinaryData
+   BinaryDataToPBMImage  (line 1 to gGridRows  of gImagePBMBinaryData)
+   put Digitize.Sequence(-2,gImagePBMBinaryData) into tScannedBits
+   GraphicFromBits tScannedBits
+   unlock screen
+end mouseUp.test.DissectImage
+
+--This script dissects the large image into 16x16 grids, and for each grid,
+--it generates a binary string representing white and non-white pixels. 
+--The resulting binary strings are stored in the variable gBinaryStrings. 
+--Adjust the pGridWidth and pGridHeight parameters as needed.
+-- thanks chatGPT 11/12/2023
+function dissectImageIntoGrids pGridWidth, pGridHeight, pImage
+   --put the rect of image pImage into tOldRect
+   set the name of the templateImage to pImage
+   if there is an image pImage then delete image pImage
+   
+   if the altKey is down then
+      answer file "Select Black and White Image (smaller is faster)"
+      if it is not empty then
+         set the filename of the templateImage to it
+      else
+         put the imageData of image 1 into tImageData
+         set the rect of the templateImage to rect of image 1
+         set the imageData of the templateImage to tImageData
+      end if
+   else
+      put the imageData of image 1 into tImageData
+      set the rect of the templateImage to rect of image 1
+      set the imageData of the templateImage to tImageData
+   end if
+   
+   -- shrink the image, larger image = VERY LONG WAIT
+   set the rect of the templateImage to 0,0,pGridWidth,pGridHeight
+   create image pImage
+   set itemDel to comma
+   put the width of image pImage into tImageWidth
+   put the height of image pImage into tImageHeight
+   put the imageData of image pImage into pImageData
+   put empty into gBinaryStrings
+   --set the custompropertyset of stack (The mainStack of this stack) to Fontdata
+   --put "ImageImport" into gCurrentFont
+   put 0 into gCurrentAsciiVal
+   put 0 into startX
+   put 0 into startY
+   --- this whole double Loop is redundant for bitFontMaker2 binary strings!!!
+   --repeat with startY = 1 to tImageHeight step gGridWidth
+   set the cursor to busy
+   --do "put the"&&gCurrentFont&& "of stack (The mainStack of this stack) into tFontArray"
+   --repeat with startX = 1 to tImageWidth step gGridHeight
+   -- all we need is this string
+   put getImageBinaryColor(pGridWidth, pGridHeight, pImage, startX, startY) into tBinaryString
+   
+   --- bitwise is not needed for this, it's for bitfontmaker2 data
+   --         repeat for each line L in tBinaryString
+   --            put BuildBitWise(L,16) & comma after tFontData
+   --         end repeat
+   --put tFontData into tFontArray[gCurrentAsciiVal]
+   --do "set the"&&gCurrentFont&& "of stack (The mainStack of this stack) to tFontArray"
+   put tBinaryString & return after gBinaryStrings
+   put startX,startY & cr & tBinaryString & cr after allBinStrin
+   --end repeat
+   --end repeat
+   set the cursor to arrow
+   set the custompropertyset of stack (The mainStack of this stack) to empty
+   delete image pimage
+   --put allBinStrin
+   --put line 1 to gGridRows of gBinaryStrings
+   return line 1 to gGridRows of gBinaryStrings
+end dissectImageIntoGrids
+
+
+
+-----original version
+function getImageBinaryColor pWidth,pHeight,pImage
+   set itemDel to comma
+   repeat with y = 1 to pHeight
+      put "" into tBitmapLine -- Initialize the line string
+     
+         repeat with x =  1 to pWidth
+            put getPixelRGBA("16x16",x,y) into tRGBA  --pimage was 
+            -- if there is no alpha then item 4 would be 255 on every line
+            put addallLines(4,tRGBA) into allrgba
+            if addallLines(4,tRGBA) < (the number of lines of tRGBA)*255 then
+               -- imports transparency
+               if tRGBA is "0,0,0,0" then
+                  put "0"  after tBitmapLine -- White pixel
+               else
+                  put "1" after tBitmapLine -- Non-white pixel
+               end if
+            else
+               -- imports flat image
+               if tRGBA is "255,255,255,255" then
+                  put "0"  after tBitmapLine -- White pixel
+               else
+                  put "1" after tBitmapLine -- Non-white pixel
+               end if
+            end if
+         end repeat
+         put tBitmapLine & cr after tBitmap
+      end repeat
+      --put allRGBA
+      return tBitmap
+   end getImageBinaryColor
+
+function getPixelRGBA pImg,x,y -- return R,G,B,A
+   put the width of img pImg into w
+   put 4*((y-1)*w+x) into k
+   put byte k-2 to k of the imageData of img pImg into b
+   put byteToNum(byte (y-1)*w+x of the alphaData of img pImg) into c
+   return (byteToNum(byte 1 of b),byteToNum(byte 2 of b), byteToNum(byte 3 of b), c) 
+end getPixelRGBA
+
+
+-- bitwise operation turns long 010101 style binary to compressed bitwise binary for BitFontMaker2 (and cleaner data)
+Function BuildBitWise gBinaryString
+   put "1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768" into columnValues
+   put gBinaryString into tBits
+   set itemDel to comma
+   repeat with i = 1 to gGridColumns
+      put 0 into tLineTotal
+      repeat with j = 1 to gGridRows
+         if char j of line i of tBits is not 0 then add item j of columnValues to  tLineTotal
+      end repeat
+      put tLineTotal & comma after AllTotals
+   end repeat
+   --put AllTotals
+   return char 1 to -2 of AllTotals
+end BuildBitWise
+
+
+function padNumber tNum,tDepth
+   put the number of chars of tNum into tCurrentCount
+   repeat with i = tCurrentCount to tDepth
+      put "0" before tNum
+   end repeat
+   return tNum
+end padNumber
+
+on Prop.appendBinaryHistory tBinaryString
+   if  the mouse is down and gAutoVectorCommand is not "Mouse Down" then exit Prop.appendBinaryHistory
+   if string.isEmpty(tBinaryString,"0") then exit Prop.appendBinaryHistory
+   put the BinaryHistory of this card into tBinaryArray
+   put the number of lines of the keys of tBinaryArray+1 into tCount
+   put gImagePBMBinaryData into tBinaryArray["bit_"&padNumber(tcount,4)]
+   set the BinaryHistory of this card to tBinaryArray
+end Prop.appendBinaryHistory
+
+on Prop.appendGridHistory tGrid
+   if  the mouse is down and gAutoVectorCommand is not "Mouse Down" then exit Prop.appendGridHistory
+   if string.IsEmpty(tGrid,",") then exit Prop.appendGridHistory
+   put the gridHistory of this card into tGridPropertyArray
+   put number of lines of  the Keys of tGridPropertyArray+1 into tKeyNumber
+   put tGrid into tGridPropertyArray["grid_"&padNumber(tKeyNumber,4)]
+   set the gridHistory of this card to tGridPropertyArray
+end Prop.appendGridHistory
+
+on Prop.appendTraceHistory tPoints
+   if  the mouse is down and gAutoVectorCommand is not "Mouse Down" then exit Prop.appendTraceHistory
+   if string.IsEmpty(tPoints,",") then exit Prop.appendTraceHistory
+   put the traceHistory of this card into tTracePropertyArray
+   put number of lines of  the Keys of tTracePropertyArray+1 into tKeyNumber
+   put tPoints into tTracePropertyArray["trace_"&padNumber(tKeyNumber,4)]
+   set the traceHistory of this card to tTracePropertyArray
+end Prop.appendTraceHistory
+
+
+function UnpadNumber tNum
+   repeat with i = the number of chars of tNum down to 1
+      if char 1 of tNum is "0" then put char 2 to -1 of tNum into tNum
+   end repeat
+   return tNum
+end UnpadNumber
+
+// bitfontmaker2 data processing bitwise operation find out which bit in row is lit
+function getFilledColumns inputValue
+   put "1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768" into columnValues
+   set itemDel to comma
+   put empty into filledColumns
+   repeat with i = number of items in columnValues down to 1
+      if inputValue >= item i of columnValues then
+         put i & comma after filledColumns
+         
+         subtract item i of columnValues from inputValue
+      end if
+   end repeat
+   delete the last char of filledColumns -- remove trailing comma
+   return filledColumns
+end getFilledColumns
+
+
+
+Function emptyBinaryMatrix tDepth,tWidth
+   put 0 into n
+   repeat with i = 1 to (tDepth*tWidth)
+      add 1 to n
+      put 0 after tOUt
+      if n= tWidth then
+         put 0 into n
+         put cr after tOut
+      end if
+   end repeat
+   return char 1 to -1 of tOut
+end emptyBinaryMatrix
+
+
+-- pImg is the name of the img,
+-- x is the col of the pixel, y the row of the pixel
+function getPixelRGB pImg,x,y
+   put the width of img pImg into w
+   put 4*((y-1)*w+x) into k
+   put byte k-2 to k of the imageData of img pImg into b
+   return (byteToNum(byte 1 of b),byteToNum(byte 2 of b), byteToNum(byte 3 of b))
+end getPixelRGB
+
+function getPixelRGBA pImg,x,y -- return R,G,B,A
+   
+   put the width of img pImg into w
+   put 4*((y-1)*w+x) into k
+   put byte k-2 to k of the imageData of img pImg into b
+   put byteToNum(byte (y-1)*w+x of the alphaData of img pImg) into c
+   return (byteToNum(byte 1 of b),byteToNum(byte 2 of b), byteToNum(byte 3 of b), c) 
+end getPixelRGBA
+
+-- sum a column of items of a list
+function addAllLines titemNum,tText
+   repeat for each line L in ttext
+      add item tItemNum of L to tTotal
+   end repeat
+   return tTotal
+end addAllLines
+
+
+function stackDirectory
+   set itemDel to "/"
+   put item 1 to -2 of (char 2 to -2 of word 2 of the long name of stack (the mainStack of this stack)) into gStackDirectory
+   return gStackDirectory
+end stackDirectory
+
+
+on mouseUp.TestParsePBM
+   put stackDirectory()&"/" & "tmp.pbm" into tFile
+   export snapshot from rect (rect of img "16x16") to tPPMContainer as paint -- I see no file
+   --put URL ("file:"& tPPMContainer) into tFileText
+   --put tFileText -- NOTHING
+   --put tPPMContainer ---< this holds the data
+   put tPPMContainer
+   put line 4 of tPPMContainer into tBinaryStream
+   put word 1 of line 2 of tPPMContainer into maxColumns
+   put word 2 of line 2 of tPPMContainer into maxRows
+   put word 1 of line 3 of tPPMContainer into maxColors
+   put 1 into iter
+   put "b" & 1 into tBinaryLength
+   put binaryDecode(tBinaryLength,tByte,tBinaryLine) into Whateverthisholds
+   put tBinaryLine  into tBinaryString
+   repeat with c = 1 to maxColumns
+      repeat with r = 1 to (maxRows) 
+         
+         put char r*c of tBinaryStream into tByte
+         put binaryDecode("C1",tByte,tBinaryLine) into Whateverthisholds
+         put tBinaryLine & space  after tBinaryString
+         add 1 to iter
+         if iter > maxColumns then
+            put cr after tBinaryString
+            put 1 into iter
+         end if
+      end repeat
+   end repeat
+   
+   --   replace "240" with 0 in tBinaryString
+   --   repeat with i = 1 to number of words of tBinaryString
+   --      put word i of tBinaryString into Chk
+   --      if Chk < 240 and chk <> 0  then
+   --         replace Chk with "1" in tBinaryString
+   --      else
+   --         replace Chk with "0" in tBinaryString
+   --      end if
+   --   end repeat
+   --replace "1" with "#" in tBinaryString
+   put tBinaryString
+   -- into gImagePBMBinaryData
+   --put line 1 to maxRows  of gImagePBMBinaryData
+   --BinaryDataToPBMImage  (line 1 to maxRows  of gImagePBMBinaryData)
+end mouseUp.TestParsePBM
+
+
+--- LIGHT GRID TRAINER HERE ---
+--// rotate the points of an object
+function Math.rotatePoints x, y, cx, cy, tAngle 
+   --// x,     //X coords to rotate - replaced on return
+   --// y,     //Y coords to rotate - replaced on return
+   --// cx,      //X coordinate of center of rotation
+   --// cy,      //Y coordinate of center of rotation
+   -- // angle)   //Angle of rotation (radians, counterclockwise)
+   put cos(tAngle) into tcos 
+   put sin(tAngle) into tsin  
+   put ((x-cx)*tcos - (y-cy)*tsin) + cx into Xout 
+   put ((x-cx)*tsin + (y-cy)*tcos) + cy into Yout
+   return xOut & comma & yOut
+end Math.rotatePoints
+
+
+function Math.clamp pValue, pMin, pMax
+   if pValue < pMin then
+      return pMin
+   else if pValue > pMax then
+      return pMax
+   else
+      return pValue
+   end if
+end Math.clamp
+
+function Math.rectAtPoint x,y,w,h
+   if w <1 then put 1 into w
+   if h < 1 then put 1 into h
+   if x < 1 then put 1 into x
+   if y < 1 then put 1 into y
+   return x-(w/2),y-(h/2),x+(w/2),y+(h/2)
+end Math.rectAtPoint
+
+function Math.scaleRect tPercentage,trect
+   put tPercentage*0.01 into tPercentage
+   set itemDel to comma
+   put item 1 of tRect into x1
+   put item 2 of tRect into y1
+   put item 3 of tRect into x2
+   put item 4 of trect into y2
+   
+   put (x2-x1)*tPercentage into tWidth
+   put (y2-y1)*tPercentage into tHeight
+   
+   put x1+(x2-x1)/2 into xcenter
+   put y1+(y2-y1)/2 into yCenter
+   
+   put  xCenter - (tWidth/2) into x1
+   put yCenter - (tHeight/2) into y1
+   put  xCenter + (tWidth/2) into x2
+   put yCenter +(tHeight/2) into y2
+   return x1,y1,x2,y2
+end Math.scaleRect
+
+function Math.getSign tval
+   if tVal = 0 then return 0
+   if tval < 0 then
+      return -1 
+   else
+      return 1 
+   end if
+end Math.getSign
+
+
+
+--- converts n lines of repeating vectors to vx,vy,count
+function ProcessRepeatingVectors tData
+   put "" into tNewData
+   put "" into tLastLine
+   filter lines of tData without empty
+   Replace "-10" with "-1" in tData
+   Replace "10" with "1" in tData
+   repeat for each line L in tData
+      if L is  tLastLine then
+         put L into tLastLine
+         put L & cr after tRepeatList
+         put number of lines of tRepeatList into tRepeatCount
+      else
+         put tLastLine & comma & tRepeatCount & cr after tVectorIterationData
+         put L into tLastLine
+         put 1 into tRepeatCount
+         put "" into tRepeatList
+      end if
+   end repeat
+   filter lines of tVectorIterationData without empty
+   return line 2 to -1 of tVectorIterationData
+end ProcessRepeatingVectors
+
+
+function Prop.ProcessATrailToVectors tDataSet,tProp,tKey
+   set the customPropertySet of this card to tDataSet 
+   put the TrailArray of this card  into tArray
+   set the customPropertySet of this card to empty
+   put the keys of tArray into KeyLines
+   sort lines of keyLines numeric ascending
+   filter lines of KeyLines without empty
+   if tKey is a number then put line tKey of KeyLines into tKey
+   put tArray[tKey] into tPoints
+   filter lines of tPoints without empty
+   put the number of lines of tPoints into N
+   repeat with i = N to 2 step -1
+      --- subtract start point from end  point 
+      put item 1 of line i of tPoints - item 1 of line i-1 of tPoints into vectorX
+      put item 2 of line i of tPoints - item 2 of line i-1 of tPoints into vectorY
+      if vectorX is  0 and vectorY is  0  then next repeat
+      put vectorX & comma & vectorY & cr before newPoints
+   end repeat
+   put ProcessRepeatingVectors(newPoints) into tVectorIncrementData
+   return tVectorIncrementData
+end Prop.ProcessATrailToVectors
+--- END GRID TRAINER SCRIPTS ---
+------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------
+## Bernd Niggemann, Feb 2014
+
+## free to use in non-commercial projects, contact me for commercial projects. i.e. dual-licensed.
+
+## this is based on a description of the radial sweep 
+
+-- http://www.imageprocessingplace.com/downloads_V3/root_downloads/tutorials/contour_tracing_Abeer_George_Ghuneim/ray.html
+
+
+-- this is the testvalue, a value of 0 is opaque, 255 is transparent
+-- maskData only has either transparent or opaque
+-- we are looking for transparent areas and testing for greater kThreshold
+-- if you use alphaData you could increase the threshold, for maskData it should be 0
+constant kThreshold = 0
+
+-- see at bottom content of custom property array uRadialSweepAngle
+
+local sSweepExtent -- the number of lines of tSweepArray
+local sStartSweepAt -- where the sweep starts depending on the angle of previous hit
+
+on UI.ResetImageAfterTransparency
+   init.PBM_IMAGE "redraw"
+   set the width of image 1 to width of this card /2   
+   set the height of image 1 to height of this card/2
+end UI.ResetImageAfterTransparency
+
+on mouseUp.MakeTransparent
+   ---- make transparent
+   lock screen
+   put "0,0,0" into transparentColor  -- Anything but black = transparent
+   put the id of image 1 into tempID
+   --set the filename of img id tempID to fileDir
+   
+   put the height of image id tempID into originalHeight
+   set the ogHeight of image 1 to the width of image id tempID
+   set the ogWidth  of image 1 to the width of image id tempID
+   set the ogImageData of image 1 to the imageData of image id tempID
+   --set the width of image id tempID to 100
+   --set the height of image id tempID to 100
+   put the imageData of img id tempID into iData
+   put the alphaData of img id tempID into iAlphaData
+   put length(iData) div 4 into LL 
+   --partially copying -hh in this part
+   put numToChar(255) into tBlack
+   put numToChar(0) into nBlack
+   repeat with i = 1 to LL
+      put byte 4*i-3 to 4*i of iData into k
+      put byteToNum(byte 2 of k) & "," & byteToNum(byte 3 of k) & "," & byteToNum(byte 4 of k) into f
+      if (f > transparentColor) then
+         put nBlack & nBlack & nBlack into byte 1*i-2 to 4*i of iAlphaData
+      else ---if (item 1 of f + item 2 of f + item 3 of f <= 3) then
+         put tBlack & tBlack & tBlack into byte 1*i-2 to 4*i of iAlphaData
+      end if
+   end repeat
+   set the ink of image id tempID to "blendDstOut"
+   --set the blendLevel of image id tempID to 1
+   set the alphaData of img id tempID to iAlphaData
+   set the imageData of img id tempID to iData
+   set the visible of img id tempID to  true
+   set the topLeft of image id tempID to 0,0
+   --end if
+   unlock screen
+   set the cursor to arrow
+end mouseUp.MakeTransparent
+
+
+
+on mouseUp.ImportMakeTransparent
+   answer file "please select a picture"
+   if it = "Cancel" then exit mouseUp.ImportMakeTransparent
+   if it = "" then 
+      exit mouseUp.ImportMakeTransparent
+   else
+      put it into tPath
+      set the cursor to busy
+      if not (there is an image "fff") then
+         reset the templateImage
+         set the showBorder of the templateImage to false
+         set the dontDither of the templateImage to true
+         set the loc of the templateImage to the loc of this card
+         create image "fff"
+         reset the templateImage
+         if there is a grc "TraceLine" then
+            put the layer of grc "TraceLine" into tLayer
+            set the layer of image "fff" to tLayer -- will force grc "Traceline" one layer up to be in front of image
+         end if
+         set the hilite of btn "Show image" to true
+      end if
+      global pHolder -- for undo
+      put "" into pHolder
+      
+      set the filename of image fff to tPath
+      set the itemDelimiter to "/" 
+      put last Item of it into field "imageName"
+      
+      ---- make transparent
+      put "0,0,0" into transparentColor  -- Anything but black = transparent
+      put the id of image fff into tempID
+      --set the filename of img id tempID to fileDir
+      set the width of image id tempID to 100
+      set the height of image id tempID to 100
+      put the imageData of img id tempID into iData
+      put the alphaData of img id tempID into iAlphaData
+      put length(iData) div 4 into LL 
+      --partially copying -hh in this part
+      put numToChar(255) into tBlack
+      put numToChar(0) into nBlack
+      repeat with i = 1 to LL
+         put byte 4*i-3 to 4*i of iData into k
+         put byteToNum(byte 2 of k) & "," & byteToNum(byte 3 of k) & "," & byteToNum(byte 4 of k) into f
+         if (f > transparentColor) then
+            put nBlack & nBlack & nBlack into byte 1*i-2 to 4*i of iAlphaData
+         else ---if (item 1 of f + item 2 of f + item 3 of f <= 3) then
+            put tBlack & tBlack & tBlack into byte 1*i-2 to 4*i of iAlphaData
+         end if
+      end repeat
+      set the ink of image id tempID to "blendDstOut"
+      --set the blendLevel of image id tempID to 1
+      set the alphaData of img id tempID to iAlphaData
+      set the imageData of img id tempID to iData
+      set the visible of img id tempID to  true
+   end if
+   set the cursor to arrow
+end mouseUp.ImportMakeTransparent
+
+on mouseUp.TraceTransparentImage
+   --   if not (there is an image "fff") or the imageData of image "fff" is empty then
+   --      answer "load an png image with transparency first"
+   --      exit mouseUp.TraceTransparentImage
+   --   end if
+   put the milliseconds into tTimeItTakes
+   if there is a grc 1 then 
+      set the fillrule of grc 1 to "evenodd"
+   end if
+   --- larger images take longer to trace!! maybe we have safety size?
+   --- smaller images get crap trace results
+   --set the height of image 1 to 100
+   --set the width of image 1 to 100
+   
+   if not (there is a grc 1) then
+      reset the templateGraphic
+      set the style of the templateGraphic to "polygon"
+      set the opaque of the templateGraphic to false
+      set the backgroundColor of the templateGraphic to black
+      set the fillrule of the templateGraphic to "evenOdd"
+      create grc 1
+      --      set the hilite of btn "Opaque" to false
+      --      set the hilite of btn "Show Points" to false
+      --      set the hilite of btn "reshape Points" to false
+   end if
+   
+   global pHolder
+   put "" into pHolder
+   
+   put 1 into tImageName
+   put 1 into tGraphicName
+   
+   doTrace tImageName, tGraphicName
+
+end mouseUp.TraceTransparentImage
+
+on doTrace pImageName, pGraphicName
+   put the milliseconds into tTimeItTakes
+   -- load the maskData of a png with transparency
+   -- could be adjusted to alphaData of a png with transparency
+   -- if you load a jpg/png without transparency you will get a border of the image boundaries of the dimensions of the image
+   
+   put the maskData of image pImageName into tAlpha
+   if tAlpha = "" then exit doTrace
+   
+   put the width of image pImageName into tWidth
+   put the height of image pImageName into tHeight
+   
+   set the cursor to busy
+   
+   put the left of image pImageName -1 into tLeft  -- -1 compensates for the 1 pixel border of the graphic
+   put the top of image pImageName  - 1 into tTop -- -1 compensates for the 1 pixel border of the graphic
+   
+   put "" into tAlphaArray
+   
+   -- get custom property that looks up where to start sweep depending on angle
+   -- see at bottom of script what is in uRadialSweepAngle
+   put the uRadialSweepAngle of this card into tSweepArray
+   
+   put the number of lines of the keys of tSweepArray into sSweepExtent
+   
+   --   put the maskData of the image into an array
+   --   with row number as index (=y value) and x values as comma delimited
+   --   list as values
+   --   all values relative to the image, not the card
+   
+   put the milliseconds into tStart
+   repeat with i = 0 to tHeight -1
+      repeat with j = 1 to tWidth
+         put (charToNum(char tWidth * i + j of tAlpha)) into  tValue
+         put tValue into tAlphaArray[i+1][j]
+      end repeat
+   end repeat
+   
+   put the keys of tAlphaArray into tKeys
+   sort tKeys numeric
+   
+   put 0 into tLastItemValue -- tLastItemValue is used to find transitions e.g. from transparent to non-transparent
+   
+   -- the big repeat iterating over evey pixel
+   repeat for each line aKey in tKeys -- aKey is the row number
+      
+      repeat with i = 1 to tWidth -- iterate over each item in tRow
+         
+         put tAlphaArray[aKey][i] into tItemValue
+         if tItemValue > kThreshold and tItemValue <> tLastItemValue then  -- criterion met AND border 
+            put i  & "," & aKey  into startLoc
+            put tItemValue into tLastItemValue
+         else
+            put tItemValue into tLastItemValue
+            next repeat 
+         end if
+         if (tFoundLocsArray[startLoc]) then next repeat -- it was already traced
+         
+         -- now we have found a condition to start tracing 
+         
+         -- tTerminateMinusOne is part of the termination rule
+         -- put first and second location of a trace and terminate if search finds the same sequence again = End of a trace
+         put startLoc into tTerminateMinusOne
+         put startLoc & return after tLinePoints
+         
+         -- tFoundLocsArray keeps track of all points that were found in a shape
+         put true into tFoundLocsArray[startLoc]
+         
+         put 180 into sStartSweepAt -- used by function radialSweep as starting point,  serves as memory of where to start sweep
+         
+         put item 1 of startLoc into x
+         put item 2 of startLoc into y
+         
+         -- this is first test on newly found contour pixel to test and set up the contour tracing
+         put radialSweep(x, y, tSweepArray, tAlphaArray) into tRes
+         if tRes = "nada" then 
+            -- "nada" is returned if no neighbor is found
+            
+            -- if single points are to be excluded activate this and block further down
+            -- delete last line of tLinePoints
+            
+            -- this "closes" single points and records them, if you don't want this block this line
+            put startLoc & return & return after tLinePoints
+            put true into tFoundLocsArray[startLoc]
+            
+            put kThreshold into tLastItemValue
+            
+            next repeat -- repeat with i = 1 to tWidth
+         end if
+         
+         -- we found begin of a trace
+         put tRes into startLoc
+         
+         put tRes & return after tLinePoints
+         put true into tFoundLocsArray[startLoc]
+         
+         put tRes into tTerminate
+         put "" into tBeforeLastLoc
+         
+         -- now we follow this new trace = one contour
+         repeat  -- iterate one contour
+            put item 1 of startLoc into x
+            put item 2 of startLoc into y
+            put radialSweep(x, y, tSweepArray, tAlphaArray) into tRes
+            if tRes = "nada" then 
+               put kThreshold into  tLastItemValue
+               -- no bordering pixel found -> exit repeat
+               exit repeat -- iterate one contour
+            end if
+            
+            put tRes into tLastLoc
+            put tRes & return after tLinePoints
+            put true into tFoundLocsArray[tRes]
+            
+            -- the termination algorithm, it compares if first and second pixel of current contour have been visited and if so exits
+            if tLastLoc = tTerminate and tBeforeLastLoc = tTerminateMinusOne then                
+               delete last line of tLInePoints -- part of termination algo, not needed.
+               put cr  after tLinePoints
+               exit repeat -- iterate one contour
+            end if
+            
+            put tRes into startLoc
+            put tLastLoc into tBeforeLastLoc
+         end repeat -- iterate one contour
+         
+      end repeat -- iterate content of row = column = with i = 1 to tWidth
+      
+      if aKey mod 40 = 0 then set cursor to busy -- give feedback
+      put kThreshold into tLastItemValue -- we will start at a new row
+   end repeat -- iterate number of row = height 
+   
+   put "" into tCollect
+   -- adjust image coordinates to card card coordinates
+   repeat for each line aLine in tLinePoints
+      if aLine = empty then 
+         put cr after tCollect
+         next repeat
+      end if
+      add tLeft to item 1 of aLine
+      add tTop to item 2 of aLine
+      put aLine & cr after tCollect
+   end repeat
+   
+   delete last char of tCollect -- a return
+   
+   put tCollect into tLinePoints
+   
+   lock screen
+   set the points of grc pGraphicName to tLinePoints
+   
+   set the originalWidth of graphic pGraphicName to width of graphic pGraphicName
+   set the originalHeight of graphic pGraphicName to width of graphic pGraphicName 
+   Prop.appendTraceHistory tLinePoints
+   --Put number of lines of tLinePoints into fld "NumPoints"
+   unlock screen
+   --put "that took:" && the milliseconds-tTimeItTakes && "Ms"
+end doTrace
+
+private function radialSweep @px, @py, @pSweepArray, @pAlphaArray
+   
+   put  sStartSweepAt into i
+   
+   repeat sSweepExtent 
+      put px + item 1 of pSweepArray[i] into tNewX
+      put py + item 2 of pSweepArray[i] into tNewY
+      put  pAlphaArray[tNewY][tNewX] into tTest
+      if tTest > kThreshold then
+         
+         put tNewX - px into dX
+         put tNewY - py into dY
+         
+         --  tAngleFromWhere  contains the angle in degrees from where we came to new tNewX,tNewY
+         -- i.e. if angle is 45 last x,y was at northEast, if angle is 180 last x,y was at West
+         put (round(abs (atan2(dY,dX)*180/pi-180)))  into  tAngleFromWhere  
+         put tAngleFromWhere into sStartSweepAt
+         return tNewX,tNewY
+      end if
+      
+      -- we go clockwise, hence subtract
+      subtract 45 from i
+      add 360 to i
+      put i mod 360 into i
+      
+   end repeat
+   return "nada"
+end radialSweep
+
+
+
+-- the content of the array uRadialSweepAngle (a custom property) of this card
+-- used to set the starting of the sweep depending on the angle of the previous pixel
+--270 -1,+1
+--225 -1,+0
+--180 -1,-1
+--135 -0,-1
+--90 +1,-1
+--45 +1,+0
+--0 +1,+1
+--315 +0,+1
+
+--- use these to transfer the Properties
+on setProperty.uRadialSweep
+   put -1,+1 into tArray[1]
+   put -1,+0 into tArray[2]
+   put -1,-1 into tArray[3]
+   put -0,-1 into tArray[4]
+   put +1,-1 into tArray[5]
+   put +1,+0 into tArray[6]
+   put +1,+1 into tArray[7]
+   put +0,+1 into tArray[8]
+   set the uRadialSweep of this card to tArray
+end setProperty.uRadialSweep
+
+on setProperty.uRadialSweepAngle
+   put +1,+0 into tArray[45]
+   put -0,-1 into tArray[135]
+   put +1,+1 into tArray[0]
+   put -1,+0 into tArray[225]
+   put -1,+1 into tArray[270]
+   put -1,-1 into tArray[180]
+   put +1,-1 into tArray[90]
+   put +0,+1 into tArray[315]
+   set the uRadialSweepAngle of this card to tArray
+end setProperty.uRadialSweepAngle
+
+on getProperty.uRadialSweepAngle
+   put the uRadialSweepAngle of this card into tArray
+   put the keys of tArray into tKeys
+   repeat for each line K in tKeys
+      put "put" && tArray[K] && "into tArray["&K&"]" & cr after tProperSetUp
+   end repeat
+   put tProperSetUp
+end getProperty.uRadialSweepAngle
+
+#### END OF BITMAPVECTORTRACER.Livecode STACK SCRIPT
+
+/* Template for radio control button or option menu 
+-- RADIO options are Mouse Down Mouse Up Or None 
+-- This is for Recording changes, ie, recording the actual draw history pixel by pixel (in 16x16 etc grid unit) on mouse down, when the mouse is up or only a save key/menu etc.
+on mouseUp
+   MouseUp.AutoVectorRadioButton (the label  of me)
+end mouseUp
+*/
+
+

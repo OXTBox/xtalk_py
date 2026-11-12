@@ -1,0 +1,450 @@
+{
+ "about": "Catalogue of the LiveCode scripts in xtalk_py/corpus. Edit descriptions here; run python3 tools/corpus_sync.py to refresh copies and rebuild INDEX.md and index.json.",
+ "entries": [
+  {
+   "file": "originals/GridDraw_Animation_Stack_10272026.txt",
+   "source": null,
+   "project": "GridDrawAnimation",
+   "kind": "stack script (owner original)",
+   "title": "GridDraw Animation: 1-bit font and sprite editor/animator",
+   "description": "The owner's BitFontMaker2-compatible editor (10/27/2026): draws 1-bit characters and 16x16/32x32 video game sprites on a grid of any size, stores them as binary strings and PBM images (not graphic objects), animates actors with frames, loops and ping-pong, undo/redo, Aquarius font export, PNG export. Mostly globals so values can be checked in the Message Box. Source of LIB_BIT's pure grid handlers.",
+   "tags": [
+    "1-bit",
+    "sprites",
+    "fonts",
+    "pbm",
+    "animation",
+    "editor",
+    "globals",
+    "ui"
+   ],
+   "notes": "Moved here from ~/projects/GridDrawAnimation on 2026-11-12; this is now its only copy."
+  },
+  {
+   "file": "originals/BITMAPVECTORTRACER_Livecode_Stack_Script.txt",
+   "source": null,
+   "project": "bitmap_trace_animate",
+   "kind": "stack script (owner original)",
+   "title": "Bitmap Vector Tracer: draw 1-bit, trace to vector graphics",
+   "description": "The owner's tracer stack (11/09/2026): draw with the mouse into a 1-bit grid held as a string of 1s and 0s shown as a PBM image, then turn it into LiveCode graphics: per-bit rectangles, merged runs, outlines (doTrace / radialSweep), digitize sequences, deresolution, play the drawing history back, BitFontMaker2 mass import. Source of LIB_TRACE's outline tracer and LIB_BIT.",
+   "tags": [
+    "1-bit",
+    "tracing",
+    "vector",
+    "pbm",
+    "graphics",
+    "history",
+    "globals",
+    "ui"
+   ],
+   "notes": "Moved here from ~/projects/bitmap_trace_animate on 2026-11-12; this is now its only copy."
+  },
+  {
+   "file": "engines/Vibecode3D_engine_stack_script.livecodescript",
+   "source": "Vibecode3D/livecode/VIBECODE3D_LIB_MCP_11_11_2026_647PM.livecodescript",
+   "project": "Vibecode3D",
+   "kind": "stack script (engine)",
+   "title": "Vibecode3D engine: vector 3D engine and editor in pure LiveCode",
+   "description": "The owner's 3D engine (~8000 lines): 1983 Star Wars arcade / Vectrex wireframes drawn with LiveCode line graphics. Fixed 33 ms loop (game.loop.*), a fast renderer folding camera and object rotation into one 3x3 matrix (Mat3.*, Xform.Object, RenderMeshInto with depth bands), procedural meshes (Mesh.*, MeshBox/Prism/Lathe/Loft/Grid), entities and colour batching, movement, collisions, particles, derez FX, lasers, a vector font HUD, view presets, audio, menus from templates, game cards (Play.<game>) with rebuild, picking without triangles. World axes: +X right, +Y DOWN, +Z forward.",
+   "tags": [
+    "3d",
+    "engine",
+    "vector",
+    "wireframe",
+    "game-loop",
+    "matrix",
+    "mesh",
+    "hud",
+    "collisions",
+    "particles",
+    "menus"
+   ],
+   "notes": "Snapshot of the newest saved engine script. Its API map is Vibecode3D/LiveCode_Claude_Kit/kit/docs/engine-api.md."
+  },
+  {
+   "file": "libraries/lib_bit.livecodescript",
+   "source": "LIB_BIT/livecode/lib_bit.livecodescript",
+   "project": "LIB_BIT",
+   "kind": "library (script-only stack)",
+   "title": "LIB_BIT: pure 1-bit grid handlers (Bit.*)",
+   "description": "Grids as text (one line per row, \"1\" filled): blank, size, count, invert, shift, flip, rotate, pad, to and from PBM, to and from row numbers and long strings. Every handler is pure: no globals, fields or images. Made from GridDraw and the tracer.",
+   "tags": [
+    "1-bit",
+    "grid",
+    "pure",
+    "library",
+    "pbm"
+   ]
+  },
+  {
+   "file": "libraries/lib_trace.livecodescript",
+   "source": "LIB_TRACE/livecode/lib_trace.livecodescript",
+   "project": "LIB_TRACE",
+   "kind": "library (script-only stack)",
+   "title": "LIB_TRACE: bitmap to outline polygons (Trace.*)",
+   "description": "Pure outline tracing: an image mask or 1-bit grid to contour polygons (Trace.Contours), then offset and scale the points for graphics or meshes. Made from the Bitmap Vector Tracer.",
+   "tags": [
+    "tracing",
+    "outline",
+    "polygon",
+    "pure",
+    "library"
+   ]
+  },
+  {
+   "file": "libraries/lib_map.livecodescript",
+   "source": "LIB_MAP/livecode/lib_map.livecodescript",
+   "project": "LIB_MAP",
+   "kind": "library (script-only stack)",
+   "title": "LIB_MAP: game levels from 1-bit grids (Map.*)",
+   "description": "Stitch grid sections into a world, check seams, list floors and walls, pathfinding for AI, merge open space into navigation regions, block edges and meshes for 3D (Map.Blocks, Map.BlockEdges). Pure; used by xt3d and Vibecode3D (the Face card).",
+   "tags": [
+    "levels",
+    "pathfinding",
+    "grid",
+    "3d",
+    "pure",
+    "library"
+   ]
+  },
+  {
+   "file": "libraries/lib_mcp.livecodescript",
+   "source": "LIB_MCP/livecode/lib_mcp.livecodescript",
+   "project": "LIB_MCP",
+   "kind": "library (script-only stack)",
+   "title": "LIB_MCP: a local HTTP dev server inside LiveCode (DevServer.*)",
+   "description": "Lets Claude Code, a local model or any local tool drive a running LiveCode IDE or standalone: run code, evaluate, compile-check a script, read translated errors, snapshot a stack, reload it. Plain HTTP on 127.0.0.1 with a token file; sockets, accept connections, error translation, pending-message handling.",
+   "tags": [
+    "server",
+    "sockets",
+    "http",
+    "tooling",
+    "errors",
+    "library"
+   ]
+  },
+  {
+   "file": "libraries/LIB_DEVSERVER.livecodescript",
+   "source": "Vibecode3D/LiveCode_Claude_Kit/kit/scripts/cards/LIB_DEVSERVER.livecodescript",
+   "project": "Vibecode3D",
+   "kind": "library (LIB_ card script)",
+   "title": "LIB_DEVSERVER: the dev server as a Vibecode3D LIB_ card (origin of LIB_MCP)",
+   "description": "The first version of LIB_MCP, written as a LIB_ card loaded with Lib.Load. Kept to show the card-library pattern and how the server grew.",
+   "tags": [
+    "server",
+    "sockets",
+    "http",
+    "tooling",
+    "library",
+    "history"
+   ]
+  },
+  {
+   "file": "libraries/LIB_MCP_attach.livecodescript",
+   "source": "Vibecode3D/LIB_MCP_attach.livecodescript",
+   "project": "Vibecode3D",
+   "kind": "handler to paste",
+   "title": "MCP.Attach: attach an app to LIB_MCP",
+   "description": "Walks up from the stack file to find the LIB_MCP project, loads it and starts the server on 8766 in the IDE or 8769 in a standalone. Pasted into the Vibecode3D stack script.",
+   "tags": [
+    "tooling",
+    "paths",
+    "standalone"
+   ]
+  },
+  {
+   "file": "libraries/LIB_XTJSON.livecodescript",
+   "source": "LIB_XTJSON/livecode/LIB_XTJSON.livecodescript",
+   "project": "LIB_XTJSON",
+   "kind": "library (script-only stack)",
+   "title": "LIB_XTJSON: rebuild stacks from an XTJSON harvest",
+   "description": "Reads XTJSON/manifest.json and the stack_*.json files from an LCHarvest2 export and builds the stacks again: cards, groups, controls, properties, custom property sets, scripts, images. JSON parsing in pure LiveCode.",
+   "tags": [
+    "json",
+    "rebuild",
+    "stacks",
+    "properties",
+    "library"
+   ],
+   "notes": "An older copy (669 lines) is in Vibecode3D/LIB_XTJSON.livecodescript."
+  },
+  {
+   "file": "tools/LCHarvest2.livecodescript",
+   "source": "LIB_XTJSON/livecode/LCHarvest2.livecodescript",
+   "project": "LIB_XTJSON",
+   "kind": "tool (paste into a stack or use as library)",
+   "title": "LCHarvest2: export a LiveCode stack to JSON for LLMs and GUI tools",
+   "description": "Walks every stack, card, group and control and writes XTJSON: manifest, one JSON per stack, scripts as text, blobs for large values. Pure script, no externals. Replaces the 2007/2021 iGame3D Controls Harvester.",
+   "tags": [
+    "json",
+    "export",
+    "harvest",
+    "properties",
+    "tool"
+   ]
+  },
+  {
+   "file": "tools/xtReemder_Rebuild_stack.livecodescript",
+   "source": "LIB_XTJSON/livecode/xtReemder_Rebuild_stack.livecodescript",
+   "project": "LIB_XTJSON",
+   "kind": "script-only stack (launcher)",
+   "title": "xtRedeemer: launcher for the XTJSON rebuild",
+   "description": "Open with File > Open Stack: makes its button and library cards when needed and runs LIB_XTJSON on a harvest folder.",
+   "tags": [
+    "json",
+    "rebuild",
+    "launcher",
+    "tool"
+   ]
+  },
+  {
+   "file": "tools/xt_error_capture.livecodescript",
+   "source": "LIB_XTJSON/livecode/xt_error_capture.livecodescript",
+   "project": "LIB_XTJSON",
+   "kind": "tool",
+   "title": "xt_error_capture: copy the text out of the IDE error window",
+   "description": "Reads the field inside LiveCode 9.6.3's revErrorDisplay palette so error text can be saved instead of retyped. Untested when written.",
+   "tags": [
+    "ide",
+    "errors",
+    "tool"
+   ]
+  },
+  {
+   "file": "tools/LIB_MCP_standalone_launcher.livecodescript",
+   "source": "LIB_MCP/standalone/launcher.livecodescript",
+   "project": "LIB_MCP",
+   "kind": "stack script (standalone launcher)",
+   "title": "LIB_MCP standalone launcher (xt3d_MCP.exe, port 8767)",
+   "description": "Tiny stack script for the LIB_MCP compile-check standalone: finds lib_mcp.livecodescript above its .exe and starts the server. The pattern for standalones that load their real code from files.",
+   "tags": [
+    "standalone",
+    "launcher",
+    "paths",
+    "tooling"
+   ]
+  },
+  {
+   "file": "games/vibecode3d/Vibecode3D_Play_Canyon.livecodescript",
+   "source": "LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Canyon.livecodescript",
+   "project": "LIB_GAMES",
+   "kind": "game card script (Vibecode3D)",
+   "title": "Canyon run: 3D port of the 2D game \"Defensive\"",
+   "description": "Fly an arrow ship down an endless procedural canyon; ship follows the mouse and banks, mouse down fires twin shots, 20 random 3D enemy shapes with waypoints, lives, levels, derez explosions, HUD. Card script for Play.Canyon; runs in Vibecode3D and in the xt3d games bench.",
+   "tags": [
+    "game",
+    "shooter",
+    "procedural",
+    "mouse",
+    "collisions"
+   ]
+  },
+  {
+   "file": "games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript",
+   "source": "LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Hunter.livecodescript",
+   "project": "LIB_GAMES",
+   "kind": "game card script (Vibecode3D)",
+   "title": "Gem Hunter: first-person gem hunt on rolling terrain",
+   "description": "\"Pac-Man meets Halo\": WASD and mouse look (pointer held at the centre), crack rocks to free gems, enemies dive from above, shields recharge, 12-shot clip with reload, terrain height lookup (Hunter.HeightAt). Card script for Play.Hunter; runs in Vibecode3D and in the xt3d games bench.",
+   "tags": [
+    "game",
+    "fps",
+    "terrain",
+    "mouse-look",
+    "keyboard"
+   ]
+  },
+  {
+   "file": "games/vibecode3d/Vibecode3D_Play_demo.livecodescript",
+   "source": "LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_demo.livecodescript",
+   "project": "LIB_GAMES",
+   "kind": "game card script (Vibecode3D)",
+   "title": "The sea demo: engine showcase",
+   "description": "Boat and buoy bobbing on a grid sea, drifting rocks, laser on click, 100 points per rock, rocks that hit the boat derez. Card script for Play.demo; runs in Vibecode3D and in the xt3d games bench.",
+   "tags": [
+    "game",
+    "demo",
+    "bobbing",
+    "laser"
+   ]
+  },
+  {
+   "file": "games/vibecode3d/Vibecode3D_Play_Simple_Test1.livecodescript",
+   "source": "LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Simple_Test1.livecodescript",
+   "project": "LIB_GAMES",
+   "kind": "game card script (Vibecode3D)",
+   "title": "Spinning cube: the standard first test",
+   "description": "One wireframe cube turning over a floor grid; click reverses the spin. If it runs, meshes, entities, rotation, colours, HUD and loop work. Card script for Play.Simple_Test1; runs in Vibecode3D and in the xt3d games bench.",
+   "tags": [
+    "test",
+    "cube",
+    "minimal",
+    "example"
+   ]
+  },
+  {
+   "file": "games/vibecode3d/Vibecode3D_Play_Simple_Test2.livecodescript",
+   "source": "LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Simple_Test2.livecodescript",
+   "project": "LIB_GAMES",
+   "kind": "game card script (Vibecode3D)",
+   "title": "The sea demo (older copy, with old engine variables)",
+   "description": "Same game as demo, plus an old copy of the engine card variables and keyboard handlers from before the engine moved into the stack script. Card script for Play.Simple_Test2; runs in Vibecode3D and in the xt3d games bench.",
+   "tags": [
+    "game",
+    "demo",
+    "history"
+   ]
+  },
+  {
+   "file": "games/vibecode3d/Vibecode3D_Play_Face.livecodescript",
+   "source": "LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Face.livecodescript",
+   "project": "LIB_GAMES",
+   "kind": "game card script (Vibecode3D)",
+   "title": "Claude face card: the \"LIB_MCP connected\" card",
+   "description": "LIB_MCP's 48x26 face bits through LIB_MAP Map.BlockEdges into two engine meshes of lines, swaying slowly; shows building meshes from segments and finding sibling projects. Card script for Play.Face; runs in Vibecode3D and in the xt3d games bench.",
+   "tags": [
+    "demo",
+    "1-bit",
+    "lib_map",
+    "mesh"
+   ]
+  },
+  {
+   "file": "xt3d/xt3d_testbench.livecodescript",
+   "source": "xt3D_Raylib_Livecode_Bridge/testbench/xt3d_testbench.livecodescript",
+   "project": "xt3d",
+   "kind": "script-only stack (app)",
+   "title": "xt3d test bench: raylib model viewer inside a LiveCode stack",
+   "description": "Builds its own UI, renders raylib off-screen at 2x and copies frames into a LiveCode image (imageData), orbit/zoom camera, glTF animation, wire/solid switches, crash-guard self checks, the face card, redraws only while something moves. Shows scaleFactor vs display scaling and send-in-time loops.",
+   "tags": [
+    "xt3d",
+    "raylib",
+    "3d",
+    "viewer",
+    "ui",
+    "frame-loop"
+   ]
+  },
+  {
+   "file": "xt3d/xt3d_testBench_lib_mcp.livecodescript",
+   "source": "xt3D_Raylib_Livecode_Bridge/testbench/xt3d_testBench_lib_mcp.livecodescript",
+   "project": "xt3d",
+   "kind": "script-only stack (app)",
+   "title": "xt3d games bench: plays Vibecode3D game scripts in the raylib view",
+   "description": "The test bench plus a Games list: a game script becomes the card script and runs on the engine's xt3d edition; draws engine meshes as raylib line models with camera-space matrices, HUD and particles as 2D lines.",
+   "tags": [
+    "xt3d",
+    "raylib",
+    "games",
+    "bridge",
+    "frame-loop"
+   ]
+  },
+  {
+   "file": "xt3d/vibe_xt3d_overrides.livecodescript",
+   "source": "xt3D_Raylib_Livecode_Bridge/testbench/vibe_xt3d_overrides.livecodescript",
+   "project": "xt3d",
+   "kind": "script fragment (engine overrides)",
+   "title": "Vibecode3D engine overrides for xt3d",
+   "description": "Appended to the engine by tools/make_vibe_xt3d.py: replaces the LiveCode-graphics parts (game.render, View.Apply, Game.Exit, escape) and adds Vibe.Begin/Step/Frame so a host can drive the engine and draw it elsewhere.",
+   "tags": [
+    "xt3d",
+    "engine",
+    "override",
+    "bridge"
+   ]
+  },
+  {
+   "file": "xt3d/xt3d_view_demo.livecodescript",
+   "source": "xt3D_Raylib_Livecode_Bridge/demos/xt3d_view_demo.livecodescript",
+   "project": "xt3d",
+   "kind": "script-only stack (demo)",
+   "title": "xt3d view demo: a model in a LiveCode image",
+   "description": "Load a model, fit it, play its first animation, spin and culling switches; the first render-to-image demo.",
+   "tags": [
+    "xt3d",
+    "raylib",
+    "demo"
+   ]
+  },
+  {
+   "file": "xt3d/xt3d_window_demo.livecodescript",
+   "source": "xt3D_Raylib_Livecode_Bridge/demos/xt3d_window_demo.livecodescript",
+   "project": "xt3d",
+   "kind": "script-only stack (demo)",
+   "title": "xt3d window demo: raylib in its own window",
+   "description": "The same scene in raylib's own window with 4x MSAA, for comparison.",
+   "tags": [
+    "xt3d",
+    "raylib",
+    "demo"
+   ]
+  },
+  {
+   "file": "xt3d/xt3d_diagnostic.livecodescript",
+   "source": "xt3D_Raylib_Livecode_Bridge/demos/xt3d_diagnostic.livecodescript",
+   "project": "xt3d",
+   "kind": "script-only stack (demo)",
+   "title": "xt3d diagnostic: logs each step before running it",
+   "description": "Writes every step to a log file before it runs, so after a crash the last line names the culprit. The crash-hunting method.",
+   "tags": [
+    "xt3d",
+    "raylib",
+    "demo"
+   ]
+  },
+  {
+   "file": "xt3d/xt3d_face.livecodescript",
+   "source": "xt3D_Raylib_Livecode_Bridge/demos/xt3d_face.livecodescript",
+   "project": "xt3d",
+   "kind": "script-only stack (demo)",
+   "title": "xt3d face demo: procedural wireframe face that says HI",
+   "description": "Height-field face, depth-cued wireframe, its 1-bit version and LIB_MAP blocks; produced LIB_MCP's claude_face_bits.",
+   "tags": [
+    "xt3d",
+    "raylib",
+    "demo"
+   ]
+  },
+  {
+   "file": "xt3d/launcher.livecodescript",
+   "source": "xt3D_Raylib_Livecode_Bridge/standalone/launcher.livecodescript",
+   "project": "xt3d",
+   "kind": "stack script (standalone launcher)",
+   "title": "xt3d bench standalone launcher (port 8768)",
+   "description": "Tiny stack script built into an .exe: finds the bench and LIB_MCP above itself, starts the server, opens the bench from its file; does nothing in the IDE (so the standalone builder is not disturbed).",
+   "tags": [
+    "standalone",
+    "launcher",
+    "paths"
+   ]
+  },
+  {
+   "file": "xt3d/launcher_lib_mcp.livecodescript",
+   "source": "xt3D_Raylib_Livecode_Bridge/standalone/launcher_lib_mcp.livecodescript",
+   "project": "xt3d",
+   "kind": "stack script (standalone launcher)",
+   "title": "xt3d games bench standalone launcher (port 8770)",
+   "description": "Tiny stack script built into an .exe: finds the bench and LIB_MCP above itself, starts the server, opens the bench from its file; does nothing in the IDE (so the standalone builder is not disturbed).",
+   "tags": [
+    "standalone",
+    "launcher",
+    "paths"
+   ]
+  },
+  {
+   "file": "reference/revErrorDisplay_capture_card_script.livecodescript",
+   "source": "LIB_XTJSON/reference/revErrorDisplay_capture_card_script.livecodescript",
+   "project": "LIB_XTJSON",
+   "kind": "card script (owner, test)",
+   "title": "Card script that captured the IDE's revErrorDisplay stack",
+   "description": "The owner's card script from 2026-11-11 that stores a captured stack in a custom property set; kept as a test case for xt_error_capture.",
+   "tags": [
+    "ide",
+    "errors",
+    "custom-properties",
+    "test"
+   ]
+  }
+ ]
+}
