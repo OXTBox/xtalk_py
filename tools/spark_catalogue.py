@@ -4,7 +4,7 @@
     python3 tools/spark_catalogue.py                  every script in toCorpus/ without notes yet
     python3 tools/spark_catalogue.py FILE...          just these files (anywhere)
     python3 tools/spark_catalogue.py --dry-run FILE   show how a file is split; ask nothing
-    options: --model spark-x2.6-4b  --max-lines 160  --pause 3  --force (redo existing notes)
+    options: --model spark-x2.6-4b  --max-lines 80  --pause 3  --effort none  --force (redo notes)
 
 Each script is split into parts of a few handlers (Spark is a small model), each part is
 sent with the PART prompt from prompts/spark_catalogue_prompt.md, then Spark summarises
@@ -40,8 +40,13 @@ def split(lines, max_lines):
     blocks, cur = [], []
     for line in lines:
         if START.match(line) and cur:
-            blocks.append(cur)
-            cur = []
+            # comments and blank lines just above a handler belong to that handler
+            keep = len(cur)
+            while keep > 0 and (not cur[keep - 1].strip() or cur[keep - 1].lstrip().startswith(('--', '#', '//'))):
+                keep -= 1
+            if keep > 0:
+                blocks.append(cur[:keep])
+                cur = cur[keep:]
         cur.append(line)
     if cur:
         blocks.append(cur)
@@ -60,8 +65,8 @@ def split(lines, max_lines):
     return parts
 
 
-def chat(model, system, user, max_tokens):
-    body = {'model': model, 'temperature': 0.2, 'max_tokens': max_tokens, 'reasoning_effort': 'low',
+def chat(model, system, user, max_tokens, effort):
+    body = {'model': model, 'temperature': 0.2, 'max_tokens': max_tokens, 'reasoning_effort': effort,
             'messages': [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}]}
     r = subprocess.run(['curl.exe', '-sS', '-m', '900', URL, '-H', 'Content-Type: application/json',
                         '--data-binary', '@-'], input=json.dumps(body).encode('utf-8'), capture_output=True)
@@ -107,18 +112,21 @@ def catalogue(path, a, p):
     os.makedirs(a.notes, exist_ok=True)
     notes = []
     for i, part in enumerate(parts, 1):
-        context = 'Earlier parts held: ' + ', '.join(handlers[:40]) + ('...' if len(handlers) > 40 else '') \
-            if i > 1 else 'This part is the start of the file.'
-        user = fill(p['PART'], file=name, part=i, parts=len(parts), context=context, script='\n'.join(part))
+        here = [m.group(2) for m in (START.match(l) for l in part) if m]
+        context = 'This part is the start of the file.' if i == 1 else 'It continues from earlier parts.'
+        user = fill(p['PART'], file=name, part=i, parts=len(parts), context=context, script='\n'.join(part),
+                    names=', '.join(here) or '(none: declarations and comments only)')
         print('  part %d/%d ...' % (i, len(parts)), flush=True)
-        notes.append('## Part %d of %d\n\n%s' % (i, len(parts), chat(a.model, p['SYSTEM'], user, a.max_tokens)))
+        count = sum(1 for l in part if START.match(l))
+        budget = min(a.max_tokens, 400 + 330 * max(1, count))   # about 250 tokens a handler, with room
+        notes.append('## Part %d of %d\n\n%s' % (i, len(parts), chat(a.model, p['SYSTEM'], user, budget, a.effort)))
         with open(out + '.partial', 'w', encoding='utf-8') as f:
             f.write('\n\n'.join(notes))
         time.sleep(a.pause)
     user = fill(p['SUMMARY'], file=name, lines=len(lines), handlers=len(handlers),
-                header=header_of(lines), notes='\n\n'.join(notes))
+                header=header_of(lines), notes='\n\n'.join(notes), names=', '.join(handlers))
     print('  summary ...', flush=True)
-    summary = chat(a.model, p['SYSTEM'], user, a.max_tokens * 2)
+    summary = chat(a.model, p['SYSTEM'], user, 3000, a.effort)
     with open(out, 'w', encoding='utf-8') as f:
         f.write('<!-- Spark first-look catalogue of %s (model %s, %s). DRAFT for Claude to review. -->\n\n'
                 % (name, a.model, time.strftime('%Y-%m-%d %H:%M')))
@@ -131,8 +139,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('files', nargs='*')
     ap.add_argument('--model', default='spark-x2.6-4b')
-    ap.add_argument('--max-lines', type=int, default=160)
-    ap.add_argument('--max-tokens', type=int, default=1500)
+    ap.add_argument('--max-lines', type=int, default=80)
+    ap.add_argument('--max-tokens', type=int, default=4000, help='cap per part (the budget grows with the handlers in it)')
+    ap.add_argument('--effort', default='none', help='reasoning effort; "none" (thinking off) works best: '
+                    'with thinking on, Spark spends its whole answer budget thinking')
     ap.add_argument('--pause', type=float, default=3)
     ap.add_argument('--notes', default=NOTES)
     ap.add_argument('--force', action='store_true')

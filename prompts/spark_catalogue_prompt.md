@@ -36,6 +36,8 @@ How to read LiveCode:
 
 Rules:
 - Describe only what the code shows. Never invent handlers, variables or behaviour.
+- Read loops carefully: say exactly what they step through (for example "consecutive
+  pieces of pWidth characters"), not what they might do.
 - Use the exact names from the script.
 - If you are not sure, say "unsure:" and why. A short honest note beats a long guess.
 - Plain English, short sentences. No praise, no advice about style.
@@ -45,8 +47,11 @@ Rules:
 
 Script file: {file}
 This is part {part} of {parts}. {context}
+This part holds exactly these handlers: {names}
+Write one section for each of them, in this order, and no others. Comments are not
+handlers: a comment above a handler describes that handler.
 
-Write notes for every handler in this part, in this format:
+Use this format:
 
 ### <handler name> (<command | function | event | getProp | setProp>)
 - **Does:** one or two sentences.
@@ -69,8 +74,9 @@ Script file: {file} ({lines} lines, {handlers} handlers)
 Header comment of the script:
 {header}
 
-Below are your notes on each part of the script. Write the catalogue entry for the whole
-script in this format:
+The script's handlers are exactly: {names}
+Mention no other handler names. Below are your notes on each part of the script. Write the
+catalogue entry for the whole script in this format:
 
 # <a short title: what this script is>
 
@@ -89,7 +95,8 @@ work together to do that job.
 **Library candidates:** jobs here that repeat across applications and could become a
 `LIB_<Name>` library (for example grids, JSON, file paths, animation timing, menus).
 For each: suggested name, the handlers that would go in it, what would have to change
-(remove globals, pass objects as parameters...).
+(remove globals, pass objects as parameters...). If the script already is a `LIB_`
+library, write "already a library" and suggest only what it is missing; do not split it.
 
 **Questions for Claude:** anything unclear, unusual or possibly broken.
 
