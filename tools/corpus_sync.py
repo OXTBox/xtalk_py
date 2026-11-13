@@ -14,7 +14,7 @@ written:
   corpus/INDEX.md     a table to read
   corpus/index.json   the same for programs and local models: per script its title,
                       description, kind, tags, origin, size and handler names
-Scripts waiting in xtalk_py/toCorpus/ are listed so they can be catalogued.
+Scripts waiting in ~/projects/LIB_LLMIN/xtalk_py/toCorpus/ are listed so they can be catalogued.
 """
 import hashlib, json, os, re, shutil, sys
 
@@ -80,7 +80,7 @@ def main():
         item['sha1'] = hashlib.sha1(read(dest)).hexdigest()[:12]
         index.append(item)
     listed = {e['file'] for e in cat['entries']}
-    waiting = os.path.join(ROOT, 'toCorpus')
+    waiting = os.path.join(os.path.dirname(ROOT), 'LIB_LLMIN', 'xtalk_py', 'toCorpus')
     inbox = sorted(n for n in (os.listdir(waiting) if os.path.isdir(waiting) else [])
                    if n.lower().endswith(('.livecodescript', '.txt')) and 'Zone.Identifier' not in n)
     unlisted = sorted(os.path.relpath(os.path.join(r, n), CORPUS)
@@ -96,7 +96,7 @@ def main():
     for x in unlisted:
         print('NOT IN sources.json', x)
     for x in inbox:
-        print('WAITING in toCorpus/', x)
+        print('WAITING in LIB_LLMIN/xtalk_py/toCorpus/', x)
     if check:
         return
 

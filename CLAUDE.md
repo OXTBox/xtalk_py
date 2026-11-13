@@ -35,13 +35,14 @@ All the owner's LiveCode scripts in one place: knowledge base and test bench. Re
 `corpus/INDEX.md` (or `corpus/index.json`) to find examples. `corpus/sources.json` is the
 catalogue (descriptions are written there); `tools/corpus_sync.py` refreshes the copies
 of project scripts and rebuilds the indexes. `originals/` holds scripts that live only
-here (GridDraw, the Bitmap Vector Tracer). New scripts arrive in `toCorpus/` (process in
-its README: Spark's draft in `toCorpus/_spark/` from `tools/spark_catalogue.py`, your review,
+here (GridDraw, the Bitmap Vector Tracer). New scripts arrive in the shared inbox `~/projects/LIB_LLMIN/xtalk_py/toCorpus/` (process in
+its README: Spark's draft in its `_spark/` from `tools/spark_catalogue.py`, your review,
 corrected catalogue to `corpus/notes/<file>.md` with the draft as `<file>.spark.md`, entry in
-`sources.json`, move, `tools/corpus_sync.py`, `tools/glossary_census.py`, then delete it from
-`toCorpus`). You may add comments to scripts that live only in the corpus. Whole stacks
-arrive as XTJSON harvests in `fromXJSON/`: one file per stack, every object's script under a
-banner naming the object. The owner's goal: reuse scripts and workarounds, and turn
+`sources.json`, copy into the corpus, `tools/corpus_sync.py`, `tools/glossary_census.py`, then
+MOVE the original to `~/projects/LIB_LLMOUT/xtalk_py/toCorpus/`). You may add comments to
+scripts that live only in the corpus. Whole stacks arrive as XTJSON harvests in
+`~/projects/LIB_LLMIN/xtalk_py/fromXJSON/`: one file per stack, every object's script under a
+banner naming the object; the harvest then moves to `LIB_LLMOUT/xtalk_py/fromXJSON/`. The owner's goal: reuse scripts and workarounds, and turn
 repeating requirements into `LIB_<Name>` projects.
 
 ## Working rules

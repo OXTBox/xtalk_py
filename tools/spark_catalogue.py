@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""spark_catalogue.py - Spark's first-look catalogue of the scripts waiting in toCorpus/.
+"""spark_catalogue.py - Spark's first-look catalogue of the scripts waiting in
+~/projects/LIB_LLMIN/xtalk_py/toCorpus/.
 
     python3 tools/spark_catalogue.py                  every script in toCorpus/ without notes yet
     python3 tools/spark_catalogue.py FILE...          just these files (anywhere)
@@ -8,7 +9,7 @@
 
 Each script is split into parts of a few handlers (Spark is a small model), each part is
 sent with the PART prompt from prompts/spark_catalogue_prompt.md, then Spark summarises
-its own part notes with the SUMMARY prompt. The result goes to toCorpus/_spark/<file>.md
+its own part notes with the SUMMARY prompt. The result goes to LIB_LLMIN/xtalk_py/toCorpus/_spark/<file>.md
 for Claude to review. Gentle on the GPU: one request at a time, capped answers, a pause
 between requests. LM Studio must be running with the model loaded (port 1234); it is
 reached through Windows' curl.exe, as in LIB_MCP's ask_local.py.
@@ -16,7 +17,8 @@ reached through Windows' curl.exe, as in LIB_MCP's ask_local.py.
 import argparse, json, os, re, subprocess, sys, time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-INBOX = os.path.join(ROOT, 'toCorpus')
+# the shared inbox (~/projects/LIB_LLMIN/<project>/...), outside every repo
+INBOX = os.path.join(os.path.dirname(ROOT), 'LIB_LLMIN', 'xtalk_py', 'toCorpus')
 NOTES = os.path.join(INBOX, '_spark')
 PROMPT = os.path.join(ROOT, 'prompts', 'spark_catalogue_prompt.md')
 URL = 'http://127.0.0.1:1234/v1/chat/completions'
@@ -152,7 +154,7 @@ def main():
                               if n.lower().endswith(('.livecodescript', '.txt'))
                               and n != 'README.md' and 'Zone.Identifier' not in n)
     if not files:
-        print('nothing waiting in toCorpus/')
+        print('nothing waiting in', INBOX)
     p = prompts()
     for f in files:
         catalogue(f, a, p)
