@@ -178,7 +178,13 @@ end Bit.Pad
 
 -- PBM text (format P1). LiveCode shows it:  set the text of image "x" to Bit.ToPBM(tGrid)
 function Bit.ToPBM pGrid
-   return "P1" & return & Bit.Width(pGrid) && Bit.Height(pGrid) & return & pGrid & return
+   local tBits
+   -- a space after every bit: LiveCode reads P1 only with spaces between the bits (without them
+   -- `set the text of image` silently makes a blank 128 x 32 image), found 11 14 2026
+   put pGrid into tBits
+   replace "1" with "1 " in tBits
+   replace "0" with "0 " in tBits
+   return "P1" & return & Bit.Width(pGrid) && Bit.Height(pGrid) & return & tBits & return
 end Bit.ToPBM
 
 -- PBM text (P1) back to a grid; comments (#) and spaces between bits are allowed
