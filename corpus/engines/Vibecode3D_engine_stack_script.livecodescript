@@ -1374,8 +1374,8 @@ end ReverseObjectRotation
 function count.stored.vertices tObj
    set the customPropertySet of stack (the mainStack of this stack) to empty
    put "xyz" &tObj & "Array" into tArrayLabel
-   Do "put the" && tArrayLabel && "of stack (the mainStack of this stack) into tArray"
-   return the number of lines of the keys of tArray["x"]
+   Do "put the" && tArrayLabel && "of stack (the mainStack of this stack) into tXYZArray"
+   return the number of lines of the keys of tXYZArray["x"]
 end count.stored.vertices
 
 
@@ -1423,8 +1423,8 @@ end BuildCubeMesh
 function getXYZArrayJSON tObj
    set the customPropertySet of stack (the mainstack of this stack) to empty
    put "xyz" & tObj & "Array" into tArrayLabel
-   do "put the" && tArrayLabel && "of stack (the mainStack of this stack) into tArray"
-   put ArrayToJSON(tArray,,true) into tJSON
+   do "put the" && tArrayLabel && "of stack (the mainStack of this stack) into tXYZArray"
+   put ArrayToJSON(tXYZArray,,true) into tJSON
    return tJSON
 end getXYZArrayJSON
 
@@ -2145,8 +2145,8 @@ on OBJ_LOOP
    put the MeshEdges of me into tEdges
    -- Retrieve its existing vertex array.
    put "XYZ"&tObject&"Array" into tArrayName
-   do "put the" && tArrayName && "of stack (the mainStack of this stack) into tArray"
-   put the number of lines of the keys of tArray["X"] into tCount
+   do "put the" && tArrayName && "of stack (the mainStack of this stack) into tXYZArray"
+   put the number of lines of the keys of tXYZArray["X"] into tCount
    BuildMeshFromXYZArray tObject,tCount,tEdges
    RenderMesh gMeshVertices,gMeshEdges,the short name of me
 end OBJ_LOOP
@@ -2211,19 +2211,19 @@ end GetObjectFaces
 on setXYZ tObject,XYZ,n,tval
    set the customPropertySet of stack (the mainStack of this stack) to empty
    put "xyz"&tObject&"Array" into tArrayName
-   put the tArrayName  of stack (the mainstack of this stack) into tArray
-   put tArray[xyz] into subArray
-   put tVal into subArray[n]
-   put subArray into tArray[xyz]
-   set the tArrayName of  stack (the mainstack of this stack) to tArray
+   put the tArrayName  of stack (the mainstack of this stack) into tXYZArray
+   put tXYZArray[xyz] into tAxisArray
+   put tVal into tAxisArray[n]
+   put tAxisArray into tXYZArray[xyz]
+   set the tArrayName of  stack (the mainstack of this stack) to tXYZArray
 end setXYZ
 
 function getXYZ tObject,xyz,n
    set the customPropertySet of stack (the mainStack of this stack) to empty
    put "xyz"&tObject&"Array" into tArrayName
-   put the tArrayName of stack (the mainstack of this stack) into tArray
-   put tArray[xyz] into subArray
-   return subArray[n]
+   put the tArrayName of stack (the mainstack of this stack) into tXYZArray
+   put tXYZArray[xyz] into tAxisArray
+   return tAxisArray[n]
 end getXYZ
 
 ----  this draws the pivot point at the center of the object
@@ -5601,9 +5601,9 @@ function GetObjectTransforms pObj, pAttribute
          break
    end switch
    repeat with i = 1 to number of items of tItems
-      put item i of tValues into tArray[item i of tItems]
+      put item i of tValues into tTransformArray[item i of tItems]
    end repeat
-   Return tArray
+   Return tTransformArray
 end GetObjectTransforms
 
 ## UpdateObjectTransforms
@@ -6068,14 +6068,14 @@ on record.scene.object.transform.states
    end repeat
 end record.scene.object.transform.states
 
-on record.object.transform.state pObj,tArray,tIndex
+on record.object.transform.state pObj,pTransformArray,tIndex
    global gObjectTransforms
    if pObj is  empty then exit record.object.transform.state
-   if tArray is empty or number of lines of the keys of tArray < 1 then put gObjectTransforms into tarray
+   if pTransformArray is empty or number of lines of the keys of pTransformArray < 1 then put gObjectTransforms into pTransformArray
    set the customPropertySet of stack (the mainStack of this stack) to Object_Transforms
    do "put the" && pObj &&"of stack (the mainStack of this stack) into tObjA"
    if tIndex is empty then put the number of lines of the keys of tObjA+1 into tIndex 
-   put tArray into tObjA[tIndex]
+   put pTransformArray into tObjA[tIndex]
    do "set the" && pObj &&"of stack (the mainStack of this stack) to tObjA"
    set the customPropertySet of of stack (the mainStack of this stack) to empty
 end record.object.transform.state

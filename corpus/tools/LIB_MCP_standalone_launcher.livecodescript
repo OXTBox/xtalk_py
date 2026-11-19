@@ -27,6 +27,12 @@ on openStack
    put tResult & return & "Server file:" && tServer & return & \
          "Errors: C:/LIB_MCP/livecode_errors.txt" & return & \
          "Close this window to stop the server." into field "status"
+   -- LIB_PORTS rule 5: the port is taken, so another copy is running; this new copy closes
+   if tResult begins with "DevServer: IN USE:" then
+      put tResult & return & return & "This copy closes in 5 seconds." into field "status"
+      send "LauncherQuit" to me in 5 seconds
+      exit openStack
+   end if
 end openStack
 
 -- walk up from this standalone's file to the folder that holds livecode/lib_mcp.livecodescript
@@ -42,3 +48,7 @@ function LibMCP.FindServer
    end repeat
    return empty
 end LibMCP.FindServer
+
+on LauncherQuit
+   quit
+end LauncherQuit

@@ -65,7 +65,7 @@ on Game.OnStop
 end Game.OnStop
 
 on Demo.ShowScore
-   HUD.Set "score","SCORE" && format("%06d", sScore),12,12,14
+   HUD.Set "score","SCORE" && format("%06d", sScore),12,112,14
 end Demo.ShowScore
 
 ## A drifting, spinning, destructible rock somewhere on the sea (not on the boat).

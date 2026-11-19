@@ -174,3 +174,108 @@ end game.render
 
 on UpdateSelectionMarker
 end UpdateSelectionMarker
+
+######################################################################################
+## EDITOR HOOKS (Opus 15 Nov 2026, TODO A-86 / A-87; the Vibecode3D editor = Play.Ig3dEditor)
+######################################################################################
+
+## A-87: a point on the screen (card coordinates, as the mouse gives them) dropped onto the
+## horizontal plane y = pFloorY (engine units, y down). Returns "x z" in world units, or empty
+## when the ray misses the plane (looking away from it). Same maths as Weapon.FireAt's hit:
+## camera = Rcam * world + T, so a camera-space ray r from the eye is world dir Rcam' r from Rcam' (-T).
+function Engine.ScreenToFloor pX, pY, pFloorY
+   local tRay, rx, ry, rz, tx, ty, tz, ox, oy, oz, dx, dy, dz, t
+   Render.FrameMatrices
+   put ScreenToCameraRay(pX, pY, CenterX, CenterY, MOVEX, MOVEY, theScale, gFocalLength) into tRay
+   if the number of words of tRay < 3 then return empty
+   put word 1 of tRay into rx
+   put word 2 of tRay into ry
+   put word 3 of tRay into rz
+   put -(word 1 of sFrameT) into tx
+   put -(word 2 of sFrameT) into ty
+   put -(word 3 of sFrameT) into tz
+   set the itemDelimiter to comma
+   put (item 1 of sCamM) * tx + (item 4 of sCamM) * ty + (item 7 of sCamM) * tz into ox
+   put (item 2 of sCamM) * tx + (item 5 of sCamM) * ty + (item 8 of sCamM) * tz into oy
+   put (item 3 of sCamM) * tx + (item 6 of sCamM) * ty + (item 9 of sCamM) * tz into oz
+   put (item 1 of sCamM) * rx + (item 4 of sCamM) * ry + (item 7 of sCamM) * rz into dx
+   put (item 2 of sCamM) * rx + (item 5 of sCamM) * ry + (item 8 of sCamM) * rz into dy
+   put (item 3 of sCamM) * rx + (item 6 of sCamM) * ry + (item 9 of sCamM) * rz into dz
+   if abs(dy) < 0.000001 then return empty
+   put (pFloorY - oy) / dy into t
+   if t <= 0 then return empty
+   return (ox + t * dx) && (oz + t * dz)
+end Engine.ScreenToFloor
+
+## A-86: SKINS. A game defines its placeholder meshes with Mesh.Define as always. When the
+## global gV3DSkin names a model for that mesh name (gV3DSkin[name] = a model file), the model's
+## wire mesh is used instead, scaled to the placeholder's size. The Game Player fills gV3DSkin
+## from LIB_GAMES/Vibecode3D_Games/Skins/<Game>/ACTIVE.txt before Game.OnStart; the editor's
+## Edit > Replace With Model... writes those skins. Models: iGame3D .wtf files for now.
+on Mesh.Define pName, pMesh
+   global gV3DSkin
+   local tModel, tR
+   if gV3DSkin[pName] is not empty and there is a file gV3DSkin[pName] then
+      put Mesh.Finalize(pMesh) into tR
+      put Skin.WTFMesh(gV3DSkin[pName], max(1, tR["radius"])) into tModel
+      if tModel["count"] > 0 then put tModel into pMesh
+   end if
+   Vibe.Orig.Mesh.Define pName, pMesh
+end Mesh.Define
+
+## An iGame3D .wtf model as a wire mesh: its #Vertices (x,y,z,bone) and #Edges (a,b from 0),
+## centred, scaled so its bounding radius is pRadius; iGame3D's y is up, the engine's is down.
+function Skin.WTFMesh pPath, pRadius
+   local tText, n, tCount, i, tLine, tM, cx, cy, cz, tR2, tD2, k, tVX, tVY, tVZ
+   put Mesh.New() into tM
+   put textDecode(url ("binfile:" & pPath), "UTF-8") into tText
+   replace numToCodepoint(13) with empty in tText
+   put lineOffset("#Vertices:", tText) into n
+   if n is 0 then return tM
+   put line n + 1 of tText into tCount
+   if tCount is not an integer then return tM
+   set the itemDelimiter to comma
+   put 0 into cx
+   put 0 into cy
+   put 0 into cz
+   repeat with i = 1 to tCount
+      put line n + 1 + i of tText into tLine
+      put item 1 of tLine + 0 into tVX[i]
+      put -(item 2 of tLine + 0) into tVY[i]
+      put item 3 of tLine + 0 into tVZ[i]
+      add tVX[i] to cx
+      add tVY[i] to cy
+      add tVZ[i] to cz
+   end repeat
+   put cx / tCount into cx
+   put cy / tCount into cy
+   put cz / tCount into cz
+   put 0 into tR2
+   repeat with i = 1 to tCount
+      put (tVX[i] - cx) ^ 2 + (tVY[i] - cy) ^ 2 + (tVZ[i] - cz) ^ 2 into tD2
+      if tD2 > tR2 then put tD2 into tR2
+   end repeat
+   put pRadius / max(0.000001, sqrt(tR2)) into k
+   repeat with i = 1 to tCount
+      Mesh.AddVertex tM, (tVX[i] - cx) * k, (tVY[i] - cy) * k, (tVZ[i] - cz) * k
+   end repeat
+   put lineOffset("#Edges:", tText) into n
+   if n > 0 then
+      put line n + 1 of tText into tCount
+      if tCount is an integer then
+         repeat with i = 1 to tCount
+            put line n + 1 + i of tText into tLine
+            put (item 1 of tLine + 1) && (item 2 of tLine + 1) & return after tM["lines"]
+         end repeat
+      end if
+   end if
+   return tM
+end Skin.WTFMesh
+
+## Vector Toss banter needs three more HUD glyphs: ? , and ' (Opus 15 Nov 2026).
+on VectorText.Init
+   Vibe.Orig.VectorText.Init
+   put "01 10 30 41 42 23 24|25 26" into sFont["?"]
+   put "25 26 16" into sFont[","]
+   put "20 21" into sFont["'"]
+end VectorText.Init

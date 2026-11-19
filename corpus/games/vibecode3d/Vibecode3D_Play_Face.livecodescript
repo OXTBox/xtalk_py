@@ -11,7 +11,6 @@
 ##           way MCP.Attach finds LIB_MCP). Without them the card says what is missing.
 ######################################################################################
 
-global gObjectTransforms, gSceneObjects
 global bPaused, bPlaying
 
 local sStepMS = 33, sTicks = 0, sFaceKey, sPanelKey
@@ -24,7 +23,7 @@ constant kFaceDist = 380    -- in front of the camera (which sits at 0,0,0 after
 
 on Game.OnStart
    local tErr
-   Engine.ResetCamera
+   Camera.Reset
    put Engine.Info("stepMS") into sStepMS
    Scene.ClearAll
    Particles.Clear
@@ -33,13 +32,13 @@ on Game.OnStart
    put 0 into sTicks
    put Face.MakeMeshes() into tErr
    if tErr is not empty then
-      HUD.Set "Face.Msg", tErr, 20, 60, 12
+      HUD.Set "Face.Msg", tErr, 20, 160, 12
       exit Game.OnStart
    end if
    put Entity.Spawn("Face.Panel", 0, 0, kFaceDist, "30,95,105") into sPanelKey
    put Entity.Spawn("Face.Bits", 0, 0, kFaceDist, "130,250,250") into sFaceKey
    Face.Turn
-   HUD.Set "Face.Title", "CLAUDE", 20, 20, 16
+   HUD.Set "Face.Title", "CLAUDE", 20, 120, 16
 end Game.OnStart
 
 on Game.OnUpdate
@@ -51,8 +50,8 @@ end Game.OnUpdate
 on Face.Turn
    local tYaw
    put kFaceYaw * sin(sTicks * sStepMS / 2400) into tYaw
-   if sFaceKey is not empty then SetObjectRotation sFaceKey, 0.18, tYaw, 0
-   if sPanelKey is not empty then SetObjectRotation sPanelKey, 0.18, tYaw, 0
+   if sFaceKey is not empty then Entity.SetRotation sFaceKey, 0.18, tYaw, 0
+   if sPanelKey is not empty then Entity.SetRotation sPanelKey, 0.18, tYaw, 0
 end Face.Turn
 
 on Game.OnClick pX,pY,pButton
@@ -79,8 +78,8 @@ end Collision.Hit
 -- Returns empty, or a message saying what is missing.
 function Face.MakeMeshes
    local tFaceFile, tMapLib, tGrid, tBlank
-   put Face.FindFile("LIB_MCP/assets/claude_face_bits.txt") into tFaceFile
-   put Face.FindFile("LIB_MAP/livecode/lib_map.livecodescript") into tMapLib
+   put Game.FindFile("LIB_MCP/assets/claude_face_bits.txt") into tFaceFile
+   put Game.FindFile("LIB_MAP/livecode/lib_map.livecodescript") into tMapLib
    if tFaceFile is empty then return "FACE: LIB_MCP NOT FOUND"
    if tMapLib is empty then return "FACE: LIB_MAP NOT FOUND"
    start using stack tMapLib
@@ -120,19 +119,3 @@ function Face.Vertex @pMesh, @pIndex, pX, pY, pZ
    return pIndex[tKey]
 end Face.Vertex
 
--- Looks for pRelPath in the folders above this stack (the same search MCP.Attach
--- uses for LIB_MCP), then in the WSL projects folder. Empty when not found.
-function Face.FindFile pRelPath
-   local tPath, tTry
-   put the effective filename of this stack into tPath
-   set the itemDel to "/"
-   repeat 6 times
-      delete item -1 of tPath
-      if tPath is empty then exit repeat
-      put tPath & "/" & pRelPath into tTry
-      if there is a file tTry then return tTry
-   end repeat
-   put "//wsl$/Ubuntu/home/igame3d/projects/" & pRelPath into tTry
-   if there is a file tTry then return tTry
-   return empty
-end Face.FindFile

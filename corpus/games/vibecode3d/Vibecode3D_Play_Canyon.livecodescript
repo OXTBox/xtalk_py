@@ -18,8 +18,6 @@
 
 global gObjectTransforms
 global gSceneObjects
-global gCameraYaw
-global gCameraPitch
 global gViewLeft,gViewTop,gViewRight,gViewBottom
 global CenterX,CenterY
 
@@ -40,7 +38,7 @@ end Canyon.Palette
 ## Start (or restart) the canyon game. The engine sends this from Game.Play.
 on Game.OnStart
    -- A plain camera: no scene spin, no pivot, looking straight down +Z.
-   Engine.ResetCamera
+   Camera.Reset
    put 0 into sCamX
    put 0 into sCamY
    Canyon.GetProjection
@@ -79,10 +77,10 @@ on Game.OnStart
       Mesh.Define tMeshName, Canyon.SegmentMesh(sLastProfile,tBack,sSegLen)
       put tBack into sLastProfile
       put "Canyon_" & i into tKey
-      SetObjectPosition tKey,0,0,(i-1)*sSegLen
-      SetObjectRotation tKey,0,0,0
-      SetObjectRotationSpeed tKey,0,0,0
-      SetObjectVelocity tKey,0,0,0
+      Entity.SetPosition tKey,0,0,(i-1)*sSegLen
+      Entity.SetRotation tKey,0,0,0
+      Entity.SetRotationSpeed tKey,0,0,0
+      Entity.SetVelocity tKey,0,0,0
       Scene.Register tMeshName,tKey,Scene.ColorGraphic("#88FF22")
    end repeat
    put sSegCount * sSegLen into sSegFarZ
@@ -169,19 +167,19 @@ on Canyon.MakeEnemyMeshes
       put (12 + random(14)) * sF into r
       switch random(4)
          case 1
-            put Mesh.Transform(MeshPrism(2 + random(6), r, r * 0.6),pi/2,0,0,0,0,0,1) into tM
+            put Mesh.Transform(Mesh.Prism(2 + random(6), r, r * 0.6),pi/2,0,0,0,0,0,1) into tM
             break
          case 2
-            put MeshPyramid(2 + random(6), r, r * 1.4) into tM
+            put Mesh.Pyramid(2 + random(6), r, r * 1.4) into tM
             break
          case 3
-            put MeshSphere(r, 2 + random(2), 3 + random(5)) into tM
+            put Mesh.Sphere(r, 2 + random(2), 3 + random(5)) into tM
             break
          default
             -- Diamond: two pyramids base to base.
             put 2 + random(5) into tSides
-            put Mesh.Transform(MeshPyramid(tSides, r, r),0,0,0,0,-r/2,0,1) into tM
-            put Mesh.Merge(tM, Mesh.Transform(MeshPyramid(tSides, r, r),pi,0,0,0,r/2,0,1)) into tM
+            put Mesh.Transform(Mesh.Pyramid(tSides, r, r),0,0,0,0,-r/2,0,1) into tM
+            put Mesh.Merge(tM, Mesh.Transform(Mesh.Pyramid(tSides, r, r),pi,0,0,0,r/2,0,1)) into tM
       end switch
       Mesh.Define "Enemy" & n, tM
    end repeat
@@ -242,8 +240,7 @@ end Canyon.SegmentMesh
 ## Every simulation step (the engine sends this from game.update).
 on Game.OnUpdate
    add 1 to sCanyonTicks
-   put 0 into gCameraYaw
-   put 0 into gCameraPitch
+   Camera.SetLook 0, 0
    if sCanyonTicks mod 30 = 0 then Canyon.GetProjection
 
    Canyon.ScrollCanyon
@@ -335,7 +332,7 @@ on Canyon.UpdateShip
    -- The camera follows a little, for parallax.
    put -(x + dx) * 0.35 into sCamX
    put -(y + dy) * 0.25 into sCamY
-   Engine.SetCam sCamX,sCamY,0
+   Camera.SetPosition -sCamX,-sCamY,0
 
    -- Fire (Defensive: mouse down = FireMissile).
    if sFireCool > 0 then subtract 1 from sFireCool
@@ -349,7 +346,7 @@ end Canyon.UpdateShip
 
 on Canyon.FireShot pX,pY
    put Entity.Spawn("Shot",pX,pY,sShipZ + 20 * sF,"#FF3030") into tId
-   SetObjectVelocity tId,0,0,sU * 0.12
+   Entity.SetVelocity tId,0,0,sU * 0.12
    put 40 into gObjectTransforms[tId]["ttl"]
    Collision.SetGroup tId,"shot",sU * 0.04
 end Canyon.FireShot
@@ -380,7 +377,7 @@ on Canyon.SpawnEnemy
    set itemDel to comma
    put item n of Canyon.Palette() into tColor
    put Entity.Spawn("Enemy" & n, Canyon.J(0.6), Canyon.J(0.4), sSegFarZ * 0.9, tColor) into tId
-   SetObjectRotationSpeed tId,(random(21)-11)/200,(random(21)-11)/200,(random(21)-11)/200
+   Entity.SetRotationSpeed tId,(random(21)-11)/200,(random(21)-11)/200,(random(21)-11)/200
    if sLevel > 4 then
       put 2 into gObjectTransforms[tId]["hp"]
    else
@@ -456,8 +453,8 @@ on Canyon.FireBullet pX,pY,pZ
    if tLen < 1 then exit Canyon.FireBullet
    put sU * (0.025 + sLevel * 0.002) into tSpd
    put Entity.Spawn("Bullet",pX,pY,pZ,"#FFDD55") into tId
-   SetObjectVelocity tId,dx / tLen * tSpd,dy / tLen * tSpd,dz / tLen * tSpd
-   SetObjectRotationSpeed tId,0.2,0.3,0
+   Entity.SetVelocity tId,dx / tLen * tSpd,dy / tLen * tSpd,dz / tLen * tSpd
+   Entity.SetRotationSpeed tId,0.2,0.3,0
    put 200 into gObjectTransforms[tId]["ttl"]
    Collision.SetGroup tId,"bullet",sU * 0.03
    Sound.Play "Bullet"
@@ -527,7 +524,7 @@ end Canyon.AddScore
 
 ## Score top-left, lives as triangles beside it (like Defensive).
 on Canyon.ShowHUD
-   HUD.Set "score",format("%06d", sScore),16,12,22
+   HUD.Set "score",format("%06d", sScore),16,112,22
    put empty into tLives
    repeat max(0, sLives) times
       put "^ " after tLives

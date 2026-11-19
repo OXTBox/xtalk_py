@@ -52,6 +52,7 @@ constant kSnapFile = "C:/LIB_MCP/snap.png"
 constant kErrorFile = "C:/LIB_MCP/livecode_errors.txt"
 constant kExecErrorList = "C:/LIB_MCP/lc_execution_errors.txt"
 constant kParseErrorList = "C:/LIB_MCP/lc_parsing_errors.txt"
+constant kInUse = "DevServer: IN USE:"   -- begins the result of DevServer.Start when the port is taken
 
 local sDev   -- ["port"], ["token"], ["target"], ["reload"], ["conn"][socket][...]
 local sLastErrorWindow   -- text of the IDE error window when last read
@@ -87,10 +88,18 @@ end DevServer.ShowStatus
 -------------------------------------------------------------------- start / stop
 
 command DevServer.Start pPort, pTarget
-   local tErr
+   local tErr, tOwners
    if pPort is empty then put 8766 into pPort
    if there is not a folder kRuntime then create folder kRuntime
    DevServer.Stop
+   -- LIB_PORTS rule 2: look before you listen. On Windows "accept connections" succeeds even when
+   -- another program listens there (18 Nov: two benches on 8770, the second overwrote the token)
+   put DevServer.PortOwners(pPort) into tOwners
+   if tOwners is not empty then
+      replace return with ", " in tOwners
+      return kInUse && "port" && pPort && "is already in use by process" && tOwners & \
+            ": another copy is running. This one did not start, and left the token file alone."
+   end if
    put pPort into sDev["port"]
    put pTarget into sDev["target"]
    put DevServer.NewToken() into sDev["token"]
@@ -114,6 +123,26 @@ command DevServer.Start pPort, pTarget
    end if
    return "DevServer listening on 127.0.0.1:" & pPort
 end DevServer.Start
+
+-- the process ids listening on pPort (Windows' netstat), one per line; empty when none
+-- (the same check as LIB_PORTS' Ports.Listeners; LIB_MCP stays free of other libraries)
+function DevServer.PortOwners pPort
+   local tOut, tLine, tAddr, tPids
+   if the platform is not "Win32" then return empty
+   set the cursor to busy
+   set the hideConsoleWindows to true
+   put shell("netstat -ano -p tcp") into tOut
+   repeat for each line tLine in tOut
+      set the cursor to busy
+      if word 4 of tLine is not "LISTENING" then next repeat
+      put word 2 of tLine into tAddr
+      set the itemDelimiter to ":"
+      if item -1 of tAddr is not pPort then next repeat
+      if word 5 of tLine is not among the lines of tPids then put word 5 of tLine & return after tPids
+   end repeat
+   if the last char of tPids is return then delete the last char of tPids
+   return tPids
+end DevServer.PortOwners
 
 command DevServer.Stop
    local tErr

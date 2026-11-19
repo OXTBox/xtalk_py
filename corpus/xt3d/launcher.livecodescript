@@ -30,6 +30,12 @@ on openStack
    put tResult & return & "Bench:" && tBench & return & \
          "Errors: C:/LIB_MCP/livecode_errors.txt" & return & \
          "Close this window to quit." into field "status"
+   -- LIB_PORTS rule 5: the port is taken, so another copy is running; this new copy closes
+   if tResult begins with "DevServer: IN USE:" then
+      put tResult & return & return & "This copy closes in 5 seconds." into field "status"
+      send "LauncherQuit" to me in 5 seconds
+      exit openStack
+   end if
    go stack tBench
 end openStack
 
@@ -52,3 +58,7 @@ function xbFindAbove pRelative
    end repeat
    return empty
 end xbFindAbove
+
+on LauncherQuit
+   quit
+end LauncherQuit

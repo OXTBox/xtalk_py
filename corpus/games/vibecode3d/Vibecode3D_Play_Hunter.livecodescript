@@ -8,6 +8,8 @@
 ##   LEFT click     grab a gem (or crack a rock you're standing next to)
 ##   RIGHT click    shoot, one shot per click, 12 per clip
 ##   R              reload        Escape  pause menu (again: Developer card)
+##   In the Game Player these can be changed (... > Controls...): the actions are in
+##   Vibecode3D_Play_Hunter.input.txt and read through LIB_INPUT (Input.Axis, Input.Down).
 ##
 ## RULES
 ##   Every rock hides a gem. Shoot it (2 hits) or crack it up close with left clicks:
@@ -28,6 +30,7 @@ global gCameraPitch
 global gViewLeft,gViewTop,gViewRight,gViewBottom
 global CenterX,CenterY
 global bPaused,bPlaying -- engine flags (globals, so the card can set them)
+global gNoMouse        -- true while an AI tests: never grab or move the owner's mouse
 
 constant kMaxAmmo = 12
 constant kReloadTicks = 45 -- 1.5 s
@@ -40,6 +43,7 @@ local sGridN = 8, sGridS = 170, sHalf, sH, sPh1, sPh2, sPh3
 local sPX = 0, sPZ = 0, sFootY = 0, sVY = 0, sOnGround = true, sMouseReady = false
 local sShield = 100, sShieldDelay = 0, sInvuln = 0, sLives = 3
 local sAmmo = 12, sReloadTicks = 0
+local sUseInput = false   -- true when the player loaded LIB_INPUT with this game's actions
 -- Game
 local sStepMS = 33, sTicks = 0, sLevel = 1, sGems = 0, sValue = 0, sKills = 0
 local sRocks, sRockGem, sRockPos, sAirGems, sGroundGems, sEnemies
@@ -49,7 +53,9 @@ local sMsgTicks = 0, sGameOverTicks = 0, sHudAmmo, sHudShield, sHudGems
 ## ---------------------------------------------------------------- START / STOP
 
 on Game.OnStart
-   Engine.ResetCamera
+   focus on nothing          -- arrow keys belong to the game, never to a menu or a field
+   Hunter.FindInput
+   Camera.Reset
    put Engine.Info("stepMS") into sStepMS
    Scene.ClearAll
    Particles.Clear
@@ -79,7 +85,7 @@ on Game.OnStart
    Collision.SetGroup "Player","player",28
 
    -- The pointer becomes the crosshair and is held at the centre.
-   set the lockCursor to true
+   if gNoMouse is not true then set the lockCursor to true
    set the cursor to cross
    put false into sMouseReady
    Hunter.CenterMouse
@@ -103,7 +109,7 @@ on Game.OnPause
 end Game.OnPause
 
 on Game.OnResume
-   set the lockCursor to true
+   if gNoMouse is not true then set the lockCursor to true
    set the cursor to cross
    put false into sMouseReady
 end Game.OnResume
@@ -124,8 +130,7 @@ on Hunter.Respawn
    put Hunter.HeightAt(sPX,sPZ) into sFootY
    put 0 into sVY
    put true into sOnGround
-   put 0 into gCameraYaw
-   put 0 into gCameraPitch
+   Camera.SetLook 0, 0
    put 100 into sShield
    put 0 into sShieldDelay
    put 60 into sInvuln
@@ -137,21 +142,21 @@ end Hunter.Respawn
 ## ---------------------------------------------------------------- MESHES
 
 on Hunter.MakeMeshes
-   Mesh.Define "Rock", MeshPyramid(5,30,50)
-   Mesh.Define "Rock4", MeshPyramid(4,36,40)
+   Mesh.Define "Rock", Mesh.Pyramid(5,30,50)
+   Mesh.Define "Rock4", Mesh.Pyramid(4,36,40)
    Mesh.Define "HBullet", Hunter.BulletMesh()
    -- Gems (about 25 units across so they read at a distance).
    -- Diamond: short crown on top, tall pavilion below.
-   put Mesh.Transform(MeshPyramid(8,13,7),0,0,0,0,-3.5,0,1) into tM
-   Mesh.Define "Gem.Diamond", Mesh.Merge(tM, Mesh.Transform(MeshPyramid(8,13,17),pi,0,0,0,8.5,0,1))
-   Mesh.Define "Gem.Sapphire", MeshSphere(12,2,6)
-   put Mesh.Transform(MeshPyramid(6,9,8),0,0,0,0,-13,0,1) into tM
-   put Mesh.Merge(tM, MeshPrism(6,9,18)) into tM
-   Mesh.Define "Gem.Ruby", Mesh.Merge(tM, Mesh.Transform(MeshPyramid(6,9,8),pi,0,0,0,13,0,1))
-   Mesh.Define "Gem.Emerald", MeshPrism(8,13,9)
-   put Mesh.Transform(MeshPyramid(4,10,14),0,0,0,0,-7,0,1) into tM
-   Mesh.Define "Gem.Amethyst", Mesh.Merge(tM, Mesh.Transform(MeshPyramid(4,10,14),pi,0,0,0,7,0,1))
-   Mesh.Define "Gem.Topaz", MeshSphere(11,3,5)
+   put Mesh.Transform(Mesh.Pyramid(8,13,7),0,0,0,0,-3.5,0,1) into tM
+   Mesh.Define "Gem.Diamond", Mesh.Merge(tM, Mesh.Transform(Mesh.Pyramid(8,13,17),pi,0,0,0,8.5,0,1))
+   Mesh.Define "Gem.Sapphire", Mesh.Sphere(12,2,6)
+   put Mesh.Transform(Mesh.Pyramid(6,9,8),0,0,0,0,-13,0,1) into tM
+   put Mesh.Merge(tM, Mesh.Prism(6,9,18)) into tM
+   Mesh.Define "Gem.Ruby", Mesh.Merge(tM, Mesh.Transform(Mesh.Pyramid(6,9,8),pi,0,0,0,13,0,1))
+   Mesh.Define "Gem.Emerald", Mesh.Prism(8,13,9)
+   put Mesh.Transform(Mesh.Pyramid(4,10,14),0,0,0,0,-7,0,1) into tM
+   Mesh.Define "Gem.Amethyst", Mesh.Merge(tM, Mesh.Transform(Mesh.Pyramid(4,10,14),pi,0,0,0,7,0,1))
+   Mesh.Define "Gem.Topaz", Mesh.Sphere(11,3,5)
    Hunter.MakeEnemyMeshes
 end Hunter.MakeMeshes
 
@@ -202,18 +207,18 @@ on Hunter.MakeEnemyMeshes
       put (12 + random(14)) * 1.4 into r
       switch random(4)
          case 1
-            put Mesh.Transform(MeshPrism(2 + random(6), r, r * 0.6),pi/2,0,0,0,0,0,1) into tM
+            put Mesh.Transform(Mesh.Prism(2 + random(6), r, r * 0.6),pi/2,0,0,0,0,0,1) into tM
             break
          case 2
-            put MeshPyramid(2 + random(6), r, r * 1.4) into tM
+            put Mesh.Pyramid(2 + random(6), r, r * 1.4) into tM
             break
          case 3
-            put MeshSphere(r, 2 + random(2), 3 + random(5)) into tM
+            put Mesh.Sphere(r, 2 + random(2), 3 + random(5)) into tM
             break
          default
             put 2 + random(5) into tSides
-            put Mesh.Transform(MeshPyramid(tSides, r, r),0,0,0,0,-r/2,0,1) into tM
-            put Mesh.Merge(tM, Mesh.Transform(MeshPyramid(tSides, r, r),pi,0,0,0,r/2,0,1)) into tM
+            put Mesh.Transform(Mesh.Pyramid(tSides, r, r),0,0,0,0,-r/2,0,1) into tM
+            put Mesh.Merge(tM, Mesh.Transform(Mesh.Pyramid(tSides, r, r),pi,0,0,0,r/2,0,1)) into tM
       end switch
       Mesh.Define "HEnemy" & n, tM
    end repeat
@@ -234,7 +239,7 @@ on Hunter.MakeTerrain
    put random(628) / 100 into sPh1
    put random(628) / 100 into sPh2
    put random(628) / 100 into sPh3
-   put MeshGrid(sGridN,sGridN,sGridS) into tM
+   put Mesh.Grid(sGridN,sGridN,sGridS) into tM
    put empty into sH
    repeat with i = 1 to tM["count"]
       put tM["vx"][i] into x
@@ -284,7 +289,7 @@ on Hunter.SpawnRocks
          put 20 into tHalfH
       end if
       put Entity.Spawn(tMesh, x, Hunter.HeightAt(x,z) - tHalfH + 4, z, "orange") into tId
-      SetObjectRotation tId,0,random(628)/100,0
+      Entity.SetRotation tId,0,random(628)/100,0
       put 2 into gObjectTransforms[tId]["hp"]
       put Hunter.RandomGem() into sRockGem[tId]
       put x & comma & z into sRockPos[tId]
@@ -301,7 +306,7 @@ on Hunter.PopGem pRock
    put item 2 of tPos into z
    put Hunter.GemInfo(tName) into tInfo
    put Entity.Spawn("Gem." & tName, x, Hunter.HeightAt(x,z) - 30, z, item 2 of tInfo) into tId
-   SetObjectRotationSpeed tId,0,0.08,0
+   Entity.SetRotationSpeed tId,0,0.08,0
    put item 3 of tInfo into gObjectTransforms[tId]["value"]
    put tName into gObjectTransforms[tId]["gemName"]
    -- Pop: up, and out in a random direction.
@@ -332,7 +337,7 @@ on Hunter.UpdateGems
       put z into gObjectTransforms[tId]["z"]
       if y >= tGround and gObjectTransforms[tId]["gvy"] > 0 then
          put tGround into gObjectTransforms[tId]["y"]
-         Scene.SetBob tId,3,0.12,0.08
+         Entity.SetBob tId,3,0.12,0.08
          put tId & cr after sGroundGems
       else
          put y into gObjectTransforms[tId]["y"]
@@ -382,6 +387,7 @@ end Game.OnUpdate
 ## Only while this stack is the front window: an error dialog or the IDE taking
 ## focus must never have its pointer dragged back to the game.
 on Hunter.Look
+   if gNoMouse is true then exit Hunter.Look
    if the short name of the topStack is not the short name of this stack then
       put false into sMouseReady
       exit Hunter.Look
@@ -396,7 +402,7 @@ on Hunter.Look
          put 0 into dy
       end if
       add dx * kMouseSens to gCameraYaw
-      put max(-1.35, min(1.35, gCameraPitch - dy * kMouseSens)) into gCameraPitch
+      Camera.SetLook empty, max(-1.35, min(1.35, gCameraPitch - dy * kMouseSens))
    end if
    Hunter.CenterMouse
    put true into sMouseReady
@@ -406,8 +412,20 @@ on Hunter.CenterMouse
    set the screenMouseLoc to globalLoc(round(CenterX) & comma & round(CenterY))
 end Hunter.CenterMouse
 
+## Did the player load LIB_INPUT with this game's actions? (Without it: the key codes below.)
+on Hunter.FindInput
+   local tErr
+   put false into sUseInput
+   try
+      put ("move_x" is among the lines of Input.Actions()) into sUseInput
+   catch tErr
+      put false into sUseInput
+   end try
+end Hunter.FindInput
+
 ## WASD / arrows, sprint, jump, reload, and staying out of the rocks.
 on Hunter.Move
+   local tRun, tJump, tReload
    put the keysDown into tKeys
    put 0 into tF
    put 0 into tS
@@ -423,12 +441,24 @@ on Hunter.Move
       send "Reselect.browse" to me in 600 milliseconds
       exit Hunter.Move
    end if
-   if 119 is among the items of tKeys or 87 is among the items of tKeys or 65362 is among the items of tKeys then add 1 to tF
-   if 115 is among the items of tKeys or 83 is among the items of tKeys or 65364 is among the items of tKeys then subtract 1 from tF
-   if 100 is among the items of tKeys or 68 is among the items of tKeys or 65363 is among the items of tKeys then add 1 to tS
-   if 97 is among the items of tKeys or 65 is among the items of tKeys or 65361 is among the items of tKeys then subtract 1 from tS
+   if sUseInput then
+      -- the actions (LIB_INPUT): a stick gives part of the way, a key the whole way
+      put Input.Axis("move_y") into tF
+      put Input.Axis("move_x") into tS
+      put Input.Down("run") into tRun
+      put Input.Down("jump") into tJump
+      put Input.Down("reload") into tReload
+   else
+      if 119 is among the items of tKeys or 87 is among the items of tKeys or 65362 is among the items of tKeys then add 1 to tF
+      if 115 is among the items of tKeys or 83 is among the items of tKeys or 65364 is among the items of tKeys then subtract 1 from tF
+      if 100 is among the items of tKeys or 68 is among the items of tKeys or 65363 is among the items of tKeys then add 1 to tS
+      if 97 is among the items of tKeys or 65 is among the items of tKeys or 65361 is among the items of tKeys then subtract 1 from tS
+      put (65505 is among the items of tKeys or 65506 is among the items of tKeys) into tRun
+      put (32 is among the items of tKeys) into tJump
+      put (114 is among the items of tKeys or 82 is among the items of tKeys) into tReload
+   end if
    put 5.5 into tSpeed
-   if 65505 is among the items of tKeys or 65506 is among the items of tKeys then put 9 into tSpeed
+   if tRun then put 9 into tSpeed
    if tF is not 0 and tS is not 0 then multiply tSpeed by 0.7071
 
    -- Forward and right on the ground, from the yaw.
@@ -456,7 +486,7 @@ on Hunter.Move
    put Hunter.HeightAt(sPX,sPZ) into tGround
    if sOnGround then
       put tGround into sFootY
-      if 32 is among the items of tKeys then
+      if tJump then
          put -9 into sVY
          put false into sOnGround
       end if
@@ -471,7 +501,7 @@ on Hunter.Move
    end if
 
    -- Reload.
-   if (114 is among the items of tKeys or 82 is among the items of tKeys) and sReloadTicks = 0 and sAmmo < kMaxAmmo then
+   if tReload and sReloadTicks = 0 and sAmmo < kMaxAmmo then
       put kReloadTicks into sReloadTicks
       Sound.Play "Bullet"
       Hunter.ShowHUD
@@ -479,7 +509,7 @@ on Hunter.Move
 
    -- The camera is the player's eyes; the "Player" collision sphere follows.
    put sFootY - kEyeHeight into tEyeY
-   Engine.SetCam -sPX, -tEyeY, -sPZ
+   Camera.SetPosition sPX, tEyeY, sPZ
    put sPX into gObjectTransforms["Player"]["x"]
    put tEyeY + 25 into gObjectTransforms["Player"]["y"]
    put sPZ into gObjectTransforms["Player"]["z"]
@@ -622,7 +652,7 @@ on Hunter.SpawnEnemy
    put Hunter.HeightAt(x,z) - (350 + random(250)) into y
    put item n of Hunter.Palette() into tColor
    put Entity.Spawn("HEnemy" & n, x, y, z, tColor) into tId
-   SetObjectRotationSpeed tId,(random(21)-11)/200,(random(21)-11)/200,(random(21)-11)/200
+   Entity.SetRotationSpeed tId,(random(21)-11)/200,(random(21)-11)/200,(random(21)-11)/200
    put 2 into gObjectTransforms[tId]["hp"]
    put 3 + random(3) + sLevel * 0.5 into gObjectTransforms[tId]["spd"]
    put 4 + random(6) into gObjectTransforms[tId]["dests"]
@@ -734,8 +764,8 @@ on Hunter.FireBullet pX,pY,pZ
    if tLen < 1 then exit Hunter.FireBullet
    put 9 + sLevel into tSpd
    put Entity.Spawn("HBullet",pX,pY,pZ,"#FF5050") into tId
-   SetObjectVelocity tId,dx / tLen * tSpd,dy / tLen * tSpd,dz / tLen * tSpd
-   SetObjectRotationSpeed tId,0.2,0.3,0
+   Entity.SetVelocity tId,dx / tLen * tSpd,dy / tLen * tSpd,dz / tLen * tSpd
+   Entity.SetRotationSpeed tId,0.2,0.3,0
    put 160 into gObjectTransforms[tId]["ttl"]
    Collision.SetGroup tId,"bullet",9
    Sound.Play "Bullet"
@@ -797,7 +827,7 @@ end Hunter.CheckLevel
 on Hunter.ShowHUD
    put "GEMS" && sGems && " $" & sValue into tGems
    if tGems is not sHudGems then
-      HUD.Set "gems",tGems,16,12,16
+      HUD.Set "gems",tGems,16,112,16
       put tGems into sHudGems
    end if
    put empty into tLives
@@ -806,7 +836,7 @@ on Hunter.ShowHUD
    end repeat
    put "SHIELD" && sShield && " " & tLives into tShield
    if tShield is not sHudShield then
-      HUD.Set "shield",tShield,16,36,14
+      HUD.Set "shield",tShield,16,136,14
       put tShield into sHudShield
    end if
    if sReloadTicks > 0 then
@@ -852,3 +882,7 @@ on rawKeyUp pKey
    end if
    pass rawKeyUp
 end rawKeyUp
+
+-- the arrows move you; a focused menu or field must never get them
+on arrowKey pKey
+end arrowKey

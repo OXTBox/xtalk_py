@@ -1,20 +1,24 @@
 {
  "sources": [
   {
+   "file": "/home/igame3d/projects/xtalk_py/corpus/games/vibecode3d/Vibecode3D_Play_Antack.livecodescript",
+   "lines": 627
+  },
+  {
    "file": "/home/igame3d/projects/xtalk_py/corpus/games/vibecode3d/Vibecode3D_Play_Canyon.livecodescript",
-   "lines": 438
+   "lines": 435
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/games/vibecode3d/Vibecode3D_Play_Face.livecodescript",
-   "lines": 101
+   "lines": 86
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript",
-   "lines": 690
+   "lines": 717
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/games/vibecode3d/Vibecode3D_Play_Simple_Test1.livecodescript",
-   "lines": 46
+   "lines": 45
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/games/vibecode3d/Vibecode3D_Play_Simple_Test2.livecodescript",
@@ -27,6 +31,10 @@
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/engines/Vibecode3D_engine_stack_script.livecodescript",
    "lines": 5610
+  },
+  {
+   "file": "/home/igame3d/projects/xtalk_py/corpus/reference/Epicenterizer_draw_from_centre_Scott_Rossi_2008.livecodescript",
+   "lines": 32
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/reference/revErrorDisplay_capture_card_script.livecodescript",
@@ -46,7 +54,7 @@
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/libraries/lib_bit.livecodescript",
-   "lines": 179
+   "lines": 248
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/libraries/lib_map.livecodescript",
@@ -54,7 +62,7 @@
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/libraries/lib_mcp.livecodescript",
-   "lines": 369
+   "lines": 393
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/libraries/lib_trace.livecodescript",
@@ -70,15 +78,15 @@
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/xt3d/launcher.livecodescript",
-   "lines": 38
+   "lines": 46
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/xt3d/launcher_lib_mcp.livecodescript",
-   "lines": 38
+   "lines": 46
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/xt3d/vibe_xt3d_overrides.livecodescript",
-   "lines": 127
+   "lines": 212
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/xt3d/xt3d_diagnostic.livecodescript",
@@ -90,7 +98,7 @@
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/xt3d/xt3d_testBench_lib_mcp.livecodescript",
-   "lines": 1012
+   "lines": 1033
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/xt3d/xt3d_testbench.livecodescript",
@@ -110,7 +118,7 @@
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/tools/LIB_MCP_standalone_launcher.livecodescript",
-   "lines": 31
+   "lines": 39
   },
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/tools/xtReemder_Rebuild_stack.livecodescript",
@@ -119,293 +127,139 @@
   {
    "file": "/home/igame3d/projects/xtalk_py/corpus/tools/xt_error_capture.livecodescript",
    "lines": 28
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_2245_Sidebar.livecodescript",
-   "lines": 13
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3220_Edit_Stack_Script.livecodescript",
-   "lines": 3
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3221_Edit_Card_Script.livecodescript",
-   "lines": 3
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3230_PlayOfTitle.livecodescript",
-   "lines": 9
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3429_HUD_Menu.livecodescript",
-   "lines": 3
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3488_Threedots.livecodescript",
-   "lines": 10
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3907_ApplyOptions.livecodescript",
-   "lines": 4
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3909_ScreenSizesMenu.livecodescript",
-   "lines": 6
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3919_FullScreenToggle.livecodescript",
-   "lines": 4
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3922_AntiAliasToggle.livecodescript",
-   "lines": 4
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3925_UseEffectsToggle.livecodescript",
-   "lines": 4
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3928_BackMountainsToggle.livecodescript",
-   "lines": 4
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3930_BackMountainsFXToggle.livecodescript",
-   "lines": 4
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3981_OptionsOfPlay.livecodescript",
-   "lines": 18
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3982_ExitButton.livecodescript",
-   "lines": 19
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3983_ResumeButton.livecodescript",
-   "lines": 17
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_3984_GoTitleButton.livecodescript",
-   "lines": 22
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_4979_OptionsOfPlay.livecodescript",
-   "lines": 18
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_6177_Button.livecodescript",
-   "lines": 73
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__button_6181_Button.livecodescript",
-   "lines": 47
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_1002_Developer.livecodescript",
-   "lines": 0
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_3228_Title.livecodescript",
-   "lines": 7
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_3428_Edit_HUD.livecodescript",
-   "lines": 8
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_3486_Edit_Trace.livecodescript",
-   "lines": 1745
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_5384_Play_Simple_Test1.livecodescript",
-   "lines": 260
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__card_6208_LIB_LLM.livecodescript",
-   "lines": 290
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__field_3910_ScreenSizeValueLabel.livecodescript",
-   "lines": 3
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__field_3915_MusicVolumeLabel.livecodescript",
-   "lines": 3
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__graphic_3487_ThreeDots.livecodescript",
-   "lines": 4
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__graphic_3914_VolumeSliderRectangle.livecodescript",
-   "lines": 23
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__graphic_3933_FXVolumeSliderRectangle.livecodescript",
-   "lines": 23
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3DSCENE_v111092026d_LIB_LLM__stack.livecodescript",
-   "lines": 5591
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/3D_Stack_Keyboard_Controls_Template__button_1005_Button.livecodescript",
-   "lines": 15
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/QuitStack__button_1003_NoButton.livecodescript",
-   "lines": 18
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/QuitStack__button_1004_YesButton.livecodescript",
-   "lines": 17
-  },
-  {
-   "file": "/home/igame3d/projects/Vibecode3D/XTJSON/scripts/QuitStack__stack.livecodescript",
-   "lines": 7
   }
  ],
- "script_lines": 25457,
- "handlers_defined": 935,
+ "script_lines": 18048,
+ "handlers_defined": 937,
  "vocabulary": {
   "command": [
    {
     "name": "put",
-    "uses": 8305,
-    "files": 42
+    "uses": 5677,
+    "files": 32
    },
    {
     "name": "set",
-    "uses": 1647,
-    "files": 46
+    "uses": 1046,
+    "files": 24
    },
    {
     "name": "add",
-    "uses": 322,
-    "files": 23
+    "uses": 248,
+    "files": 21
    },
    {
     "name": "do",
-    "uses": 190,
-    "files": 7
-   },
-   {
-    "name": "filter",
-    "uses": 173,
-    "files": 8
-   },
-   {
-    "name": "delete",
-    "uses": 162,
-    "files": 23
-   },
-   {
-    "name": "replace",
-    "uses": 139,
-    "files": 17
-   },
-   {
-    "name": "unlock",
-    "uses": 123,
-    "files": 12
-   },
-   {
-    "name": "lock",
-    "uses": 106,
-    "files": 12
-   },
-   {
-    "name": "create",
-    "uses": 99,
-    "files": 17
-   },
-   {
-    "name": "go",
-    "uses": 72,
-    "files": 11
-   },
-   {
-    "name": "subtract",
-    "uses": 59,
-    "files": 10
-   },
-   {
-    "name": "send",
-    "uses": 56,
-    "files": 18
-   },
-   {
-    "name": "answer",
-    "uses": 56,
-    "files": 11
-   },
-   {
-    "name": "sort",
-    "uses": 54,
-    "files": 10
-   },
-   {
-    "name": "word",
-    "uses": 32,
-    "files": 2
-   },
-   {
-    "name": "dispatch",
-    "uses": 30,
-    "files": 8
-   },
-   {
-    "name": "hide",
-    "uses": 28,
-    "files": 13
-   },
-   {
-    "name": "reset",
-    "uses": 28,
+    "uses": 147,
     "files": 6
    },
    {
-    "name": "show",
-    "uses": 26,
-    "files": 7
+    "name": "filter",
+    "uses": 119,
+    "files": 6
    },
    {
-    "name": "choose",
-    "uses": 22,
-    "files": 5
+    "name": "delete",
+    "uses": 117,
+    "files": 19
+   },
+   {
+    "name": "replace",
+    "uses": 90,
+    "files": 14
+   },
+   {
+    "name": "unlock",
+    "uses": 75,
+    "files": 8
+   },
+   {
+    "name": "lock",
+    "uses": 67,
+    "files": 8
+   },
+   {
+    "name": "create",
+    "uses": 65,
+    "files": 14
+   },
+   {
+    "name": "subtract",
+    "uses": 50,
+    "files": 9
+   },
+   {
+    "name": "sort",
+    "uses": 45,
+    "files": 8
+   },
+   {
+    "name": "go",
+    "uses": 43,
+    "files": 9
+   },
+   {
+    "name": "send",
+    "uses": 42,
+    "files": 13
+   },
+   {
+    "name": "answer",
+    "uses": 34,
+    "files": 8
    },
    {
     "name": "get",
     "uses": 22,
-    "files": 12
-   },
-   {
-    "name": "start",
-    "uses": 20,
     "files": 10
    },
    {
-    "name": "close",
+    "name": "dispatch",
+    "uses": 21,
+    "files": 6
+   },
+   {
+    "name": "hide",
+    "uses": 20,
+    "files": 8
+   },
+   {
+    "name": "show",
     "uses": 18,
+    "files": 6
+   },
+   {
+    "name": "start",
+    "uses": 17,
     "files": 9
    },
    {
-    "name": "ask",
-    "uses": 15,
-    "files": 3
-   },
-   {
-    "name": "cancel",
-    "uses": 13,
-    "files": 5
+    "name": "word",
+    "uses": 16,
+    "files": 1
    },
    {
     "name": "item",
-    "uses": 13,
-    "files": 2
+    "uses": 14,
+    "files": 3
    },
    {
-    "name": "place",
+    "name": "close",
+    "uses": 14,
+    "files": 6
+   },
+   {
+    "name": "reset",
+    "uses": 14,
+    "files": 3
+   },
+   {
+    "name": "choose",
+    "uses": 12,
+    "files": 3
+   },
+   {
+    "name": "ask",
     "uses": 12,
     "files": 2
    },
@@ -413,21 +267,6 @@
     "name": "xt3d_setbackfaceculling",
     "uses": 12,
     "files": 4
-   },
-   {
-    "name": "multiply",
-    "uses": 11,
-    "files": 6
-   },
-   {
-    "name": "stop",
-    "uses": 11,
-    "files": 4
-   },
-   {
-    "name": "the",
-    "uses": 11,
-    "files": 3
    },
    {
     "name": "script",
@@ -455,13 +294,18 @@
     "files": 3
    },
    {
-    "name": "wait",
+    "name": "cancel",
     "uses": 10,
-    "files": 3
+    "files": 4
    },
    {
     "name": "xt3d_unloadmodel",
     "uses": 10,
+    "files": 4
+   },
+   {
+    "name": "entity.setrotationspeed",
+    "uses": 9,
     "files": 4
    },
    {
@@ -470,14 +314,14 @@
     "files": 4
    },
    {
-    "name": "relayer",
+    "name": "multiply",
     "uses": 8,
-    "files": 3
+    "files": 5
    },
    {
-    "name": "export",
+    "name": "wait",
     "uses": 8,
-    "files": 4
+    "files": 2
    },
    {
     "name": "xt3d_clearbackground",
@@ -505,9 +349,19 @@
     "files": 4
    },
    {
-    "name": "open",
+    "name": "entity.setrotation",
     "uses": 7,
-    "files": 7
+    "files": 4
+   },
+   {
+    "name": "stop",
+    "uses": 7,
+    "files": 3
+   },
+   {
+    "name": "export",
+    "uses": 7,
+    "files": 3
    },
    {
     "name": "xt3d_drawline3d",
@@ -520,9 +374,19 @@
     "files": 4
    },
    {
-    "name": "read",
+    "name": "place",
+    "uses": 6,
+    "files": 1
+   },
+   {
+    "name": "quit",
     "uses": 6,
     "files": 4
+   },
+   {
+    "name": "the",
+    "uses": 6,
+    "files": 2
    },
    {
     "name": "write",
@@ -545,9 +409,19 @@
     "files": 3
    },
    {
-    "name": "popup",
+    "name": "camera.reset",
     "uses": 5,
     "files": 5
+   },
+   {
+    "name": "open",
+    "uses": 5,
+    "files": 5
+   },
+   {
+    "name": "read",
+    "uses": 5,
+    "files": 3
    },
    {
     "name": "xt3d_drawgrid",
@@ -560,19 +434,24 @@
     "files": 5
    },
    {
-    "name": "into",
+    "name": "focus",
     "uses": 4,
-    "files": 2
+    "files": 3
    },
    {
-    "name": "or",
+    "name": "camera.setlook",
     "uses": 4,
-    "files": 2
+    "files": 3
    },
    {
-    "name": "quit",
+    "name": "camera.setposition",
     "uses": 4,
-    "files": 4
+    "files": 3
+   },
+   {
+    "name": "entity.setvelocity",
+    "uses": 4,
+    "files": 2
    },
    {
     "name": "xt3d_inithidden",
@@ -585,9 +464,14 @@
     "files": 3
    },
    {
-    "name": "group",
+    "name": "entity.setposition",
     "uses": 3,
-    "files": 3
+    "files": 2
+   },
+   {
+    "name": "relayer",
+    "uses": 3,
+    "files": 1
    },
    {
     "name": "cleangraphics",
@@ -620,59 +504,14 @@
     "files": 3
    },
    {
-    "name": "tsnetcloseconn",
-    "uses": 3,
+    "name": "into",
+    "uses": 2,
     "files": 1
    },
    {
-    "name": "gselectedlocalx",
+    "name": "or",
     "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "gselectedcamerax",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "trawy",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "trawz",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "pivx",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "pivy",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "pivz",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "clone",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "to",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "copy",
-    "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
     "name": "accept",
@@ -681,11 +520,6 @@
    },
    {
     "name": "flip",
-    "uses": 2,
-    "files": 1
-   },
-   {
-    "name": "focus",
     "uses": 2,
     "files": 1
    },
@@ -720,9 +554,89 @@
     "files": 2
    },
    {
-    "name": "edit",
-    "uses": 2,
-    "files": 2
+    "name": "entity.setmesh",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "entity.set",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "tr",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "and",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "entity.setbob",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "gselectedlocalx",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "gselectedcamerax",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "trawy",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "trawz",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "pivx",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "pivy",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "pivz",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "clone",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "popup",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "to",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "copy",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "group",
+    "uses": 1,
+    "files": 1
    },
    {
     "name": "exitcapturestacktext",
@@ -805,6 +719,21 @@
     "files": 1
    },
    {
+    "name": "vibe.orig.mesh.define",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "vibe.orig.vectortext.init",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "insert",
+    "uses": 1,
+    "files": 1
+   },
+   {
     "name": "xt3d_drawlineex",
     "uses": 1,
     "files": 1
@@ -838,116 +767,91 @@
     "name": "xt3d_enddrawing",
     "uses": 1,
     "files": 1
-   },
-   {
-    "name": "tsnetsettimeouts",
-    "uses": 1,
-    "files": 1
-   },
-   {
-    "name": "post",
-    "uses": 1,
-    "files": 1
    }
   ],
   "function": [
    {
-    "name": "cos",
-    "uses": 159,
-    "files": 8
-   },
-   {
-    "name": "sin",
-    "uses": 155,
-    "files": 8
-   },
-   {
     "name": "random",
-    "uses": 118,
+    "uses": 103,
     "files": 9
    },
    {
-    "name": "round",
-    "uses": 78,
-    "files": 13
-   },
-   {
-    "name": "max",
-    "uses": 61,
-    "files": 11
-   },
-   {
-    "name": "abs",
-    "uses": 46,
-    "files": 10
-   },
-   {
-    "name": "bytetonum",
-    "uses": 42,
-    "files": 4
-   },
-   {
-    "name": "min",
-    "uses": 41,
-    "files": 10
-   },
-   {
-    "name": "numtochar",
-    "uses": 39,
-    "files": 9
-   },
-   {
-    "name": "url",
-    "uses": 32,
-    "files": 14
-   },
-   {
-    "name": "sqrt",
-    "uses": 30,
-    "files": 6
-   },
-   {
-    "name": "trunc",
-    "uses": 14,
-    "files": 9
-   },
-   {
-    "name": "char",
-    "uses": 12,
+    "name": "cos",
+    "uses": 92,
     "files": 7
    },
    {
-    "name": "floor",
-    "uses": 12,
-    "files": 4
+    "name": "sin",
+    "uses": 88,
+    "files": 7
+   },
+   {
+    "name": "round",
+    "uses": 65,
+    "files": 12
+   },
+   {
+    "name": "max",
+    "uses": 51,
+    "files": 11
+   },
+   {
+    "name": "min",
+    "uses": 37,
+    "files": 9
+   },
+   {
+    "name": "numtochar",
+    "uses": 32,
+    "files": 6
+   },
+   {
+    "name": "url",
+    "uses": 31,
+    "files": 14
+   },
+   {
+    "name": "abs",
+    "uses": 31,
+    "files": 9
+   },
+   {
+    "name": "sqrt",
+    "uses": 26,
+    "files": 7
+   },
+   {
+    "name": "bytetonum",
+    "uses": 25,
+    "files": 3
+   },
+   {
+    "name": "mesh.pyramid",
+    "uses": 15,
+    "files": 3
    },
    {
     "name": "lineoffset",
-    "uses": 12,
+    "uses": 13,
     "files": 2
    },
    {
-    "name": "add",
+    "name": "trunc",
     "uses": 11,
+    "files": 7
+   },
+   {
+    "name": "add",
+    "uses": 10,
     "files": 6
    },
    {
     "name": "offset",
-    "uses": 11,
-    "files": 6
-   },
-   {
-    "name": "exists",
-    "uses": 11,
-    "files": 4
-   },
-   {
-    "name": "item",
     "uses": 10,
-    "files": 2
+    "files": 5
    },
    {
-    "name": "line",
+    "name": "char",
     "uses": 10,
     "files": 5
    },
@@ -957,14 +861,19 @@
     "files": 5
    },
    {
-    "name": "textdecode",
+    "name": "atan2",
     "uses": 9,
-    "files": 6
+    "files": 3
    },
    {
-    "name": "textencode",
+    "name": "line",
     "uses": 9,
-    "files": 7
+    "files": 4
+   },
+   {
+    "name": "numtocodepoint",
+    "uses": 9,
+    "files": 3
    },
    {
     "name": "xt3d_loadrendertexture",
@@ -972,19 +881,24 @@
     "files": 5
    },
    {
-    "name": "xt3d_modelanimationinfo",
-    "uses": 8,
-    "files": 3
-   },
-   {
-    "name": "numtocodepoint",
+    "name": "exists",
     "uses": 8,
     "files": 2
    },
    {
-    "name": "files",
-    "uses": 7,
-    "files": 4
+    "name": "textdecode",
+    "uses": 8,
+    "files": 6
+   },
+   {
+    "name": "textencode",
+    "uses": 8,
+    "files": 6
+   },
+   {
+    "name": "xt3d_modelanimationinfo",
+    "uses": 8,
+    "files": 3
    },
    {
     "name": "xt3d_cameracreate",
@@ -997,24 +911,24 @@
     "files": 4
    },
    {
-    "name": "baseconvert",
+    "name": "entity.getposition",
     "uses": 6,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "screenrect",
-    "uses": 6,
-    "files": 2
-   },
-   {
-    "name": "length",
-    "uses": 6,
-    "files": 4
-   },
-   {
-    "name": "chartonum",
+    "name": "files",
     "uses": 6,
     "files": 3
+   },
+   {
+    "name": "floor",
+    "uses": 6,
+    "files": 2
+   },
+   {
+    "name": "shell",
+    "uses": 6,
+    "files": 2
    },
    {
     "name": "xt3d_iswindowready",
@@ -1022,9 +936,9 @@
     "files": 3
    },
    {
-    "name": "toupper",
+    "name": "item",
     "uses": 5,
-    "files": 3
+    "files": 1
    },
    {
     "name": "matchtext",
@@ -1037,14 +951,9 @@
     "files": 3
    },
    {
-    "name": "byte",
+    "name": "chartonum",
     "uses": 5,
-    "files": 3
-   },
-   {
-    "name": "shell",
-    "uses": 5,
-    "files": 1
+    "files": 2
    },
    {
     "name": "xt3d_loadmodel",
@@ -1057,29 +966,24 @@
     "files": 3
    },
    {
+    "name": "mesh.prism",
+    "uses": 4,
+    "files": 2
+   },
+   {
+    "name": "mesh.sphere",
+    "uses": 4,
+    "files": 2
+   },
+   {
     "name": "format",
     "uses": 4,
     "files": 4
    },
    {
-    "name": "word",
+    "name": "length",
     "uses": 4,
     "files": 3
-   },
-   {
-    "name": "specialfolderpath",
-    "uses": 4,
-    "files": 2
-   },
-   {
-    "name": "jsonimport",
-    "uses": 4,
-    "files": 2
-   },
-   {
-    "name": "binarydecode",
-    "uses": 4,
-    "files": 2
    },
    {
     "name": "xt3d_checkcollisionspheres",
@@ -1092,6 +996,36 @@
     "files": 4
    },
    {
+    "name": "game.findfile",
+    "uses": 3,
+    "files": 2
+   },
+   {
+    "name": "toupper",
+    "uses": 3,
+    "files": 2
+   },
+   {
+    "name": "input.down",
+    "uses": 3,
+    "files": 1
+   },
+   {
+    "name": "word",
+    "uses": 3,
+    "files": 2
+   },
+   {
+    "name": "baseconvert",
+    "uses": 3,
+    "files": 1
+   },
+   {
+    "name": "screenrect",
+    "uses": 3,
+    "files": 1
+   },
+   {
     "name": "tolower",
     "uses": 3,
     "files": 3
@@ -1102,9 +1036,9 @@
     "files": 3
    },
    {
-    "name": "atan2",
+    "name": "byte",
     "uses": 3,
-    "files": 3
+    "files": 2
    },
    {
     "name": "xt3d_colortoint",
@@ -1137,9 +1071,14 @@
     "files": 3
    },
    {
-    "name": "jsonexport",
-    "uses": 3,
+    "name": "mesh.lathe",
+    "uses": 2,
     "files": 1
+   },
+   {
+    "name": "atan",
+    "uses": 2,
+    "files": 2
    },
    {
     "name": "div",
@@ -1147,29 +1086,24 @@
     "files": 2
    },
    {
-    "name": "arraytojson",
+    "name": "mesh.grid",
     "uses": 2,
     "files": 2
    },
    {
-    "name": "itemoffset",
+    "name": "input.axis",
     "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "folders",
+    "name": "specialfolderpath",
     "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "getobjectpositions",
+    "name": "clickloc",
     "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "getobjectrotations",
-    "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
     "name": "urldecode",
@@ -1177,14 +1111,9 @@
     "files": 2
    },
    {
-    "name": "binary.binary.getfieldfilleddynamic",
+    "name": "binarydecode",
     "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "rect",
-    "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
     "name": "xt3d_genmeshcube",
@@ -1217,12 +1146,62 @@
     "files": 2
    },
    {
-    "name": "replacetext",
-    "uses": 2,
-    "files": 2
+    "name": "entity.get",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "asin",
+    "uses": 1,
+    "files": 1
    },
    {
     "name": "globalloc",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "input.actions",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "mesh.box",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "arraytojson",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "itemoffset",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "folders",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "getobjectpositions",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "getobjectrotations",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "mouseh",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "mousev",
     "uses": 1,
     "files": 1
    },
@@ -1232,7 +1211,22 @@
     "files": 1
    },
    {
+    "name": "jsonimport",
+    "uses": 1,
+    "files": 1
+   },
+   {
     "name": "jsontoarray",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "binary.binary.getfieldfilleddynamic",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "rect",
     "uses": 1,
     "files": 1
    },
@@ -1262,11 +1256,6 @@
     "files": 1
    },
    {
-    "name": "atan",
-    "uses": 1,
-    "files": 1
-   },
-   {
     "name": "xt3d_drawlineex",
     "uses": 1,
     "files": 1
@@ -1282,22 +1271,7 @@
     "files": 1
    },
    {
-    "name": "id",
-    "uses": 1,
-    "files": 1
-   },
-   {
-    "name": "tsnetpost",
-    "uses": 1,
-    "files": 1
-   },
-   {
-    "name": "tsnetretrievedata",
-    "uses": 1,
-    "files": 1
-   },
-   {
-    "name": "tsnetretrieveerror",
+    "name": "replacetext",
     "uses": 1,
     "files": 1
    }
@@ -1305,213 +1279,168 @@
   "property": [
    {
     "name": "mainstack",
-    "uses": 502,
-    "files": 22
+    "uses": 384,
+    "files": 6
    },
    {
     "name": "custompropertyset",
-    "uses": 311,
-    "files": 7
+    "uses": 225,
+    "files": 4
    },
    {
     "name": "number",
-    "uses": 288,
-    "files": 25
+    "uses": 192,
+    "files": 21
    },
    {
     "name": "name",
-    "uses": 205,
-    "files": 20
+    "uses": 133,
+    "files": 16
    },
    {
     "name": "keys",
-    "uses": 176,
-    "files": 9
-   },
-   {
-    "name": "rect",
-    "uses": 122,
-    "files": 16
-   },
-   {
-    "name": "id",
-    "uses": 121,
-    "files": 13
-   },
-   {
-    "name": "width",
-    "uses": 94,
-    "files": 15
-   },
-   {
-    "name": "outerglow",
-    "uses": 85,
-    "files": 11
-   },
-   {
-    "name": "height",
-    "uses": 80,
-    "files": 16
-   },
-   {
-    "name": "hilite",
-    "uses": 78,
-    "files": 12
-   },
-   {
-    "name": "result",
-    "uses": 72,
-    "files": 16
-   },
-   {
-    "name": "script",
-    "uses": 59,
-    "files": 10
-   },
-   {
-    "name": "loc",
-    "uses": 57,
-    "files": 11
-   },
-   {
-    "name": "templateimage",
-    "uses": 53,
-    "files": 3
-   },
-   {
-    "name": "lines",
-    "uses": 52,
+    "uses": 116,
     "files": 7
    },
    {
-    "name": "templategraphic",
+    "name": "rect",
+    "uses": 72,
+    "files": 11
+   },
+   {
+    "name": "id",
+    "uses": 64,
+    "files": 9
+   },
+   {
+    "name": "result",
+    "uses": 62,
+    "files": 14
+   },
+   {
+    "name": "width",
+    "uses": 55,
+    "files": 12
+   },
+   {
+    "name": "hilite",
+    "uses": 54,
+    "files": 5
+   },
+   {
+    "name": "items",
     "uses": 50,
     "files": 5
    },
    {
-    "name": "last",
-    "uses": 49,
+    "name": "height",
+    "uses": 46,
     "files": 12
    },
    {
-    "name": "points",
-    "uses": 48,
-    "files": 5
-   },
-   {
-    "name": "customkeys",
-    "uses": 48,
-    "files": 3
-   },
-   {
-    "name": "label",
-    "uses": 45,
-    "files": 13
-   },
-   {
-    "name": "filename",
-    "uses": 44,
-    "files": 17
-   },
-   {
-    "name": "items",
-    "uses": 42,
-    "files": 6
-   },
-   {
-    "name": "layer",
-    "uses": 41,
-    "files": 7
-   },
-   {
-    "name": "visible",
-    "uses": 40,
-    "files": 8
-   },
-   {
-    "name": "milliseconds",
-    "uses": 40,
+    "name": "last",
+    "uses": 43,
     "files": 11
    },
    {
-    "name": "imagedata",
-    "uses": 40,
+    "name": "lines",
+    "uses": 39,
     "files": 7
    },
    {
-    "name": "text",
-    "uses": 38,
-    "files": 12
-   },
-   {
-    "name": "owner",
-    "uses": 37,
+    "name": "script",
+    "uses": 39,
     "files": 8
    },
    {
-    "name": "defaultfolder",
-    "uses": 37,
-    "files": 7
+    "name": "filename",
+    "uses": 38,
+    "files": 14
    },
    {
-    "name": "cursor",
-    "uses": 36,
-    "files": 6
-   },
-   {
-    "name": "mouseloc",
-    "uses": 32,
-    "files": 12
-   },
-   {
-    "name": "currentgrid",
-    "uses": 28,
+    "name": "customkeys",
+    "uses": 35,
     "files": 2
    },
    {
-    "name": "left",
+    "name": "defaultfolder",
+    "uses": 34,
+    "files": 5
+   },
+   {
+    "name": "templateimage",
+    "uses": 31,
+    "files": 2
+   },
+   {
+    "name": "cursor",
+    "uses": 28,
+    "files": 6
+   },
+   {
+    "name": "milliseconds",
     "uses": 27,
     "files": 8
    },
    {
-    "name": "tool",
+    "name": "text",
+    "uses": 27,
+    "files": 9
+   },
+   {
+    "name": "layer",
     "uses": 26,
-    "files": 8
-   },
-   {
-    "name": "itemdel",
-    "uses": 24,
-    "files": 10
-   },
-   {
-    "name": "defaultstack",
-    "uses": 24,
-    "files": 8
-   },
-   {
-    "name": "foregroundcolor",
-    "uses": 23,
-    "files": 3
-   },
-   {
-    "name": "bottom",
-    "uses": 22,
     "files": 4
    },
    {
-    "name": "style",
-    "uses": 22,
-    "files": 8
+    "name": "itemdel",
+    "uses": 25,
+    "files": 10
    },
    {
-    "name": "seconds",
-    "uses": 22,
+    "name": "points",
+    "uses": 25,
+    "files": 3
+   },
+   {
+    "name": "loc",
+    "uses": 25,
     "files": 5
    },
    {
-    "name": "customproperties",
+    "name": "imagedata",
+    "uses": 25,
+    "files": 6
+   },
+   {
+    "name": "label",
+    "uses": 24,
+    "files": 8
+   },
+   {
+    "name": "visible",
+    "uses": 23,
+    "files": 6
+   },
+   {
+    "name": "templategraphic",
+    "uses": 22,
+    "files": 2
+   },
+   {
+    "name": "defaultstack",
+    "uses": 22,
+    "files": 7
+   },
+   {
+    "name": "mouseloc",
     "uses": 20,
-    "files": 3
+    "files": 7
+   },
+   {
+    "name": "owner",
+    "uses": 20,
+    "files": 5
    },
    {
     "name": "target",
@@ -1519,39 +1448,9 @@
     "files": 8
    },
    {
-    "name": "alphadata",
-    "uses": 19,
-    "files": 3
-   },
-   {
-    "name": "mouse",
-    "uses": 18,
-    "files": 8
-   },
-   {
-    "name": "lockloc",
-    "uses": 18,
-    "files": 11
-   },
-   {
-    "name": "backgroundcolor",
-    "uses": 18,
-    "files": 5
-   },
-   {
-    "name": "gridhistory",
-    "uses": 18,
-    "files": 2
-   },
-   {
-    "name": "hud",
+    "name": "tool",
     "uses": 17,
-    "files": 3
-   },
-   {
-    "name": "showname",
-    "uses": 16,
-    "files": 7
+    "files": 5
    },
    {
     "name": "hilitedline",
@@ -1559,24 +1458,19 @@
     "files": 1
    },
    {
-    "name": "opaque",
+    "name": "left",
     "uses": 15,
-    "files": 6
+    "files": 4
    },
    {
-    "name": "folder",
+    "name": "style",
     "uses": 14,
-    "files": 2
+    "files": 5
    },
    {
-    "name": "title",
+    "name": "currentgrid",
     "uses": 14,
-    "files": 10
-   },
-   {
-    "name": "altkey",
-    "uses": 14,
-    "files": 2
+    "files": 1
    },
    {
     "name": "spells",
@@ -1584,19 +1478,14 @@
     "files": 1
    },
    {
-    "name": "linesize",
+    "name": "outerglow",
     "uses": 13,
-    "files": 3
+    "files": 1
    },
    {
-    "name": "backgroundbehavior",
+    "name": "title",
     "uses": 13,
-    "files": 3
-   },
-   {
-    "name": "topleft",
-    "uses": 13,
-    "files": 3
+    "files": 9
    },
    {
     "name": "windows",
@@ -1604,34 +1493,14 @@
     "files": 1
    },
    {
-    "name": "top",
-    "uses": 12,
-    "files": 7
-   },
-   {
-    "name": "templategroup",
-    "uses": 12,
-    "files": 5
-   },
-   {
-    "name": "playloudness",
+    "name": "foregroundcolor",
     "uses": 12,
     "files": 2
    },
    {
-    "name": "right",
+    "name": "seconds",
     "uses": 12,
-    "files": 6
-   },
-   {
-    "name": "environment",
-    "uses": 12,
-    "files": 9
-   },
-   {
-    "name": "binaryhistory",
-    "uses": 12,
-    "files": 2
+    "files": 3
    },
    {
     "name": "lastselectedline",
@@ -1639,99 +1508,79 @@
     "files": 1
    },
    {
-    "name": "length",
+    "name": "mouse",
     "uses": 11,
-    "files": 4
+    "files": 5
+   },
+   {
+    "name": "bottom",
+    "uses": 11,
+    "files": 2
+   },
+   {
+    "name": "lockloc",
+    "uses": 11,
+    "files": 7
+   },
+   {
+    "name": "backgroundcolor",
+    "uses": 11,
+    "files": 3
+   },
+   {
+    "name": "customproperties",
+    "uses": 11,
+    "files": 2
+   },
+   {
+    "name": "environment",
+    "uses": 11,
+    "files": 8
+   },
+   {
+    "name": "alphadata",
+    "uses": 10,
+    "files": 2
    },
    {
     "name": "files",
-    "uses": 11,
-    "files": 5
-   },
-   {
-    "name": "mouseh",
     "uses": 10,
-    "files": 5
+    "files": 4
    },
    {
-    "name": "mousev",
-    "uses": 10,
-    "files": 5
-   },
-   {
-    "name": "custompropertysets",
-    "uses": 10,
-    "files": 3
-   },
-   {
-    "name": "templatestack",
-    "uses": 10,
-    "files": 3
-   },
-   {
-    "name": "originalwidth",
-    "uses": 10,
-    "files": 2
-   },
-   {
-    "name": "chars",
-    "uses": 10,
-    "files": 2
-   },
-   {
-    "name": "showborder",
+    "name": "showname",
     "uses": 9,
-    "files": 5
+    "files": 4
    },
    {
-    "name": "pendingmessages",
+    "name": "gridhistory",
     "uses": 9,
-    "files": 5
+    "files": 1
    },
    {
-    "name": "cantdelete",
-    "uses": 9,
-    "files": 3
-   },
-   {
-    "name": "meshedges",
-    "uses": 8,
-    "files": 2
-   },
-   {
-    "name": "margins",
+    "name": "top",
     "uses": 8,
     "files": 4
    },
    {
-    "name": "blendlevel",
+    "name": "opaque",
     "uses": 8,
-    "files": 2
+    "files": 3
    },
    {
-    "name": "currenttime",
+    "name": "templategroup",
     "uses": 8,
-    "files": 2
+    "files": 3
    },
    {
-    "name": "ink",
+    "name": "hud",
     "uses": 8,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "originalheight",
+    "name": "itemdelimiter",
     "uses": 8,
-    "files": 2
-   },
-   {
-    "name": "gridhistoryframe",
-    "uses": 8,
-    "files": 2
-   },
-   {
-    "name": "tracehistory",
-    "uses": 8,
-    "files": 2
+    "files": 6
    },
    {
     "name": "textsize",
@@ -1739,14 +1588,34 @@
     "files": 2
    },
    {
-    "name": "entity",
+    "name": "mouseh",
+    "uses": 7,
+    "files": 4
+   },
+   {
+    "name": "mousev",
+    "uses": 7,
+    "files": 4
+   },
+   {
+    "name": "length",
     "uses": 7,
     "files": 3
    },
    {
-    "name": "templatebutton",
+    "name": "folder",
     "uses": 7,
-    "files": 4
+    "files": 1
+   },
+   {
+    "name": "topleft",
+    "uses": 7,
+    "files": 2
+   },
+   {
+    "name": "altkey",
+    "uses": 7,
+    "files": 1
    },
    {
     "name": "words",
@@ -1764,64 +1633,44 @@
     "files": 3
    },
    {
-    "name": "meshvertices",
+    "name": "linesize",
     "uses": 6,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "tfacelabel",
+    "name": "backgroundbehavior",
     "uses": 6,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "tarrayname",
-    "uses": 6,
-    "files": 2
-   },
-   {
-    "name": "viewcurrentpreset",
-    "uses": 6,
-    "files": 2
-   },
-   {
-    "name": "htmltext",
-    "uses": 6,
-    "files": 2
-   },
-   {
-    "name": "dashes",
-    "uses": 6,
-    "files": 2
-   },
-   {
-    "name": "itemdelimiter",
-    "uses": 6,
-    "files": 5
-   },
-   {
-    "name": "thumbposition",
+    "name": "pendingmessages",
     "uses": 6,
     "files": 4
    },
    {
-    "name": "seqeuence_step",
+    "name": "templatebutton",
+    "uses": 6,
+    "files": 3
+   },
+   {
+    "name": "playloudness",
+    "uses": 6,
+    "files": 1
+   },
+   {
+    "name": "custompropertysets",
     "uses": 6,
     "files": 2
    },
    {
-    "name": "sequence_step",
+    "name": "templatestack",
     "uses": 6,
     "files": 2
    },
    {
-    "name": "binaryman",
+    "name": "binaryhistory",
     "uses": 6,
-    "files": 2
-   },
-   {
-    "name": "uradialsweepangle",
-    "uses": 6,
-    "files": 2
+    "files": 1
    },
    {
     "name": "vscrollbar",
@@ -1829,9 +1678,24 @@
     "files": 2
    },
    {
-    "name": "behavior",
+    "name": "right",
+    "uses": 5,
+    "files": 2
+   },
+   {
+    "name": "thumbposition",
     "uses": 5,
     "files": 3
+   },
+   {
+    "name": "originalwidth",
+    "uses": 5,
+    "files": 1
+   },
+   {
+    "name": "chars",
+    "uses": 5,
+    "files": 1
    },
    {
     "name": "undolist",
@@ -1874,74 +1738,34 @@
     "files": 1
    },
    {
-    "name": "tedgelabel",
+    "name": "meshedges",
+    "uses": 4,
+    "files": 1
+   },
+   {
+    "name": "margins",
     "uses": 4,
     "files": 2
    },
    {
-    "name": "capslockkey",
+    "name": "showborder",
     "uses": 4,
     "files": 2
    },
    {
-    "name": "currentgame",
+    "name": "blendlevel",
     "uses": 4,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "menumode",
+    "name": "currenttime",
     "uses": 4,
-    "files": 4
+    "files": 1
    },
    {
-    "name": "hudowners",
+    "name": "cantdelete",
     "uses": 4,
-    "files": 2
-   },
-   {
-    "name": "looping",
-    "uses": 4,
-    "files": 2
-   },
-   {
-    "name": "glowinc",
-    "uses": 4,
-    "files": 2
-   },
-   {
-    "name": "cone_base",
-    "uses": 4,
-    "files": 2
-   },
-   {
-    "name": "conefaces",
-    "uses": 4,
-    "files": 2
-   },
-   {
-    "name": "cubefaces",
-    "uses": 4,
-    "files": 2
-   },
-   {
-    "name": "cylinderfaces",
-    "uses": 4,
-    "files": 2
-   },
-   {
-    "name": "controltype",
-    "uses": 4,
-    "files": 2
-   },
-   {
-    "name": "openstacks",
-    "uses": 4,
-    "files": 2
-   },
-   {
-    "name": "destroystack",
-    "uses": 4,
-    "files": 4
+    "files": 1
    },
    {
     "name": "version",
@@ -1954,34 +1778,24 @@
     "files": 4
    },
    {
-    "name": "vscroll",
+    "name": "ink",
     "uses": 4,
-    "files": 4
+    "files": 1
    },
    {
-    "name": "walls3d",
+    "name": "originalheight",
     "uses": 4,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "floorsandceilings",
+    "name": "gridhistoryframe",
     "uses": 4,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "grids",
+    "name": "tracehistory",
     "uses": 4,
-    "files": 2
-   },
-   {
-    "name": "dontdither",
-    "uses": 4,
-    "files": 3
-   },
-   {
-    "name": "fillrule",
-    "uses": 4,
-    "files": 2
+    "files": 1
    },
    {
     "name": "mousedowns",
@@ -1989,57 +1803,67 @@
     "files": 1
    },
    {
-    "name": "sockettimeoutinterval",
-    "uses": 4,
+    "name": "keysdown",
+    "uses": 3,
+    "files": 2
+   },
+   {
+    "name": "meshvertices",
+    "uses": 3,
     "files": 1
    },
    {
-    "name": "topstack",
+    "name": "tfacelabel",
+    "uses": 3,
+    "files": 1
+   },
+   {
+    "name": "entity",
+    "uses": 3,
+    "files": 1
+   },
+   {
+    "name": "tarrayname",
+    "uses": 3,
+    "files": 1
+   },
+   {
+    "name": "viewcurrentpreset",
+    "uses": 3,
+    "files": 1
+   },
+   {
+    "name": "menumode",
     "uses": 3,
     "files": 3
    },
    {
-    "name": "shiftkey",
+    "name": "htmltext",
+    "uses": 3,
+    "files": 1
+   },
+   {
+    "name": "dashes",
+    "uses": 3,
+    "files": 1
+   },
+   {
+    "name": "behavior",
+    "uses": 3,
+    "files": 2
+   },
+   {
+    "name": "destroystack",
     "uses": 3,
     "files": 3
    },
    {
-    "name": "optionsnewvolume",
+    "name": "screenloc",
     "uses": 3,
     "files": 3
    },
    {
-    "name": "optionsnewfxvolume",
-    "uses": 3,
-    "files": 3
-   },
-   {
-    "name": "optionsnewfullscreen",
-    "uses": 3,
-    "files": 3
-   },
-   {
-    "name": "newresolution",
-    "uses": 3,
-    "files": 3
-   },
-   {
-    "name": "useantialiasbool",
-    "uses": 3,
-    "files": 3
-   },
-   {
-    "name": "useeffectsbool",
-    "uses": 3,
-    "files": 3
-   },
-   {
-    "name": "usebackmountains",
-    "uses": 3,
-    "files": 3
-   },
-   {
-    "name": "usebackmountainsfx",
+    "name": "platform",
     "uses": 3,
     "files": 3
    },
@@ -2054,14 +1878,34 @@
     "files": 1
    },
    {
-    "name": "focusedobject",
+    "name": "vscroll",
     "uses": 3,
     "files": 3
    },
    {
-    "name": "folders",
+    "name": "seqeuence_step",
     "uses": 3,
-    "files": 3
+    "files": 1
+   },
+   {
+    "name": "sequence_step",
+    "uses": 3,
+    "files": 1
+   },
+   {
+    "name": "binaryman",
+    "uses": 3,
+    "files": 1
+   },
+   {
+    "name": "dontdither",
+    "uses": 3,
+    "files": 2
+   },
+   {
+    "name": "uradialsweepangle",
+    "uses": 3,
+    "files": 1
    },
    {
     "name": "asciivalue",
@@ -2079,69 +1923,74 @@
     "files": 3
    },
    {
-    "name": "tarraylabel",
+    "name": "topstack",
     "uses": 2,
     "files": 2
    },
    {
-    "name": "objecttype",
+    "name": "shiftkey",
     "uses": 2,
     "files": 2
    },
    {
-    "name": "tlabel",
+    "name": "tedgelabel",
     "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "properties",
+    "name": "capslockkey",
     "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "templateplayer",
+    "name": "currentgame",
     "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "paused",
+    "name": "hudowners",
     "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "fullscreen",
+    "name": "looping",
     "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "antialiased",
+    "name": "glowinc",
     "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "coneedges",
+    "name": "cone_base",
     "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "cylinderedges",
+    "name": "conefaces",
     "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "current",
+    "name": "cubefaces",
     "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "menucopy",
+    "name": "cylinderfaces",
     "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
-    "name": "platform",
+    "name": "controltype",
     "uses": 2,
-    "files": 2
+    "files": 1
+   },
+   {
+    "name": "openstacks",
+    "uses": 2,
+    "files": 1
    },
    {
     "name": "scriptparsingerrors",
@@ -2149,44 +1998,34 @@
     "files": 1
    },
    {
-    "name": "thumbpos",
+    "name": "focusedobject",
     "uses": 2,
     "files": 2
    },
    {
-    "name": "oglua",
+    "name": "walls3d",
+    "uses": 2,
+    "files": 1
+   },
+   {
+    "name": "floorsandceilings",
+    "uses": 2,
+    "files": 1
+   },
+   {
+    "name": "grids",
+    "uses": 2,
+    "files": 1
+   },
+   {
+    "name": "folders",
     "uses": 2,
     "files": 2
    },
    {
-    "name": "trailarray",
+    "name": "fillrule",
     "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "ogheight",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "ogwidth",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "ogimagedata",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "maskdata",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "uradialsweep",
-    "uses": 2,
-    "files": 2
+    "files": 1
    },
    {
     "name": "bottomleft",
@@ -2220,11 +2059,6 @@
    },
    {
     "name": "resizable",
-    "uses": 2,
-    "files": 2
-   },
-   {
-    "name": "screenloc",
     "uses": 2,
     "files": 2
    },
@@ -2274,22 +2108,162 @@
     "files": 1
    },
    {
-    "name": "httpheaders",
-    "uses": 2,
-    "files": 1
-   },
-   {
     "name": "screenmouseloc",
     "uses": 1,
     "files": 1
    },
    {
-    "name": "keysdown",
+    "name": "tarraylabel",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "objecttype",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "tlabel",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "properties",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "templateplayer",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "paused",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "optionsnewvolume",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "optionsnewfxvolume",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "optionsnewfullscreen",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "newresolution",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "fullscreen",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "useantialiasbool",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "antialiased",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "useeffectsbool",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "usebackmountains",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "usebackmountainsfx",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "coneedges",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "cylinderedges",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "current",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "menucopy",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "hilitedbutton",
     "uses": 1,
     "files": 1
    },
    {
     "name": "savedstack",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "hideconsolewindows",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "thumbpos",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "oglua",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "trailarray",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "ogheight",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "ogwidth",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "ogimagedata",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "maskdata",
+    "uses": 1,
+    "files": 1
+   },
+   {
+    "name": "uradialsweep",
     "uses": 1,
     "files": 1
    },
@@ -2334,22 +2308,7 @@
     "files": 1
    },
    {
-    "name": "keycontrolstext",
-    "uses": 1,
-    "files": 1
-   },
-   {
-    "name": "clipstorect",
-    "uses": 1,
-    "files": 1
-   },
-   {
-    "name": "formattedrect",
-    "uses": 1,
-    "files": 1
-   },
-   {
-    "name": "dropshadow",
+    "name": "frontscripts",
     "uses": 1,
     "files": 1
    }
@@ -2357,28 +2316,28 @@
   "chunk": [
    {
     "name": "item",
-    "uses": 901,
-    "files": 29
+    "uses": 704,
+    "files": 25
    },
    {
     "name": "word",
-    "uses": 500,
-    "files": 19
+    "uses": 312,
+    "files": 16
    },
    {
     "name": "line",
-    "uses": 301,
-    "files": 17
+    "uses": 216,
+    "files": 14
    },
    {
     "name": "char",
-    "uses": 237,
-    "files": 15
+    "uses": 155,
+    "files": 12
    },
    {
     "name": "byte",
-    "uses": 61,
-    "files": 3
+    "uses": 35,
+    "files": 2
    }
   ]
  }

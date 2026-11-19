@@ -6,7 +6,6 @@
 ## CONTROLS  click: reverse the spin    Escape: back to Developer
 ######################################################################################
 
-global gObjectTransforms, gSceneObjects
 global bPaused, bPlaying
 
 local sStepMS = 33, sCubeKey, sFloorKey, sDir = 1, sTicks = 0
@@ -17,7 +16,7 @@ constant kSpinX = 0.011    -- radians per 33 ms step
 constant kSpinY = 0.023
 
 on Game.OnStart
-   Engine.ResetCamera
+   Camera.Reset
    put Engine.Info("stepMS") into sStepMS
    Scene.ClearAll
    Particles.Clear
@@ -25,14 +24,14 @@ on Game.OnStart
    Collision.ClearRules
    put 0 into sTicks
    put 1 into sDir
-   Mesh.Define "Cube.Box", MeshBox(kCubeSize, kCubeSize, kCubeSize)
-   Mesh.Define "Cube.Floor", MeshGrid(10, 10, 60)
+   Mesh.Define "Cube.Box", Mesh.Box(kCubeSize, kCubeSize, kCubeSize)
+   Mesh.Define "Cube.Floor", Mesh.Grid(10, 10, 60)
    -- +Y is down: the floor sits below the cube
    put Entity.Spawn("Cube.Floor", 0, kCubeSize, kCubeDist, "#2E6F8E") into sFloorKey
    put Entity.Spawn("Cube.Box", 0, 0, kCubeDist, "cyan") into sCubeKey
    Cube.Spin
-   HUD.Set "Cube.Title", "SPINNING CUBE", 20, 20, 14
-   HUD.Set "Cube.Help", "CLICK TO REVERSE", 20, 44, 10
+   HUD.Set "Cube.Title", "SPINNING CUBE", 20, 120, 14
+   HUD.Set "Cube.Help", "CLICK TO REVERSE", 20, 144, 10
 end Game.OnStart
 
 on Game.OnUpdate
@@ -45,7 +44,7 @@ on Game.OnClick pX,pY,pButton
 end Game.OnClick
 
 on Cube.Spin
-   if sCubeKey is not empty then SetObjectRotationSpeed sCubeKey, kSpinX * sDir, kSpinY * sDir, 0
+   if sCubeKey is not empty then Entity.SetRotationSpeed sCubeKey, kSpinX * sDir, kSpinY * sDir, 0
 end Cube.Spin
 
 on Game.OnKill pKey,pX,pY,pZ

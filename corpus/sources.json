@@ -463,6 +463,24 @@
     "data-file",
     "picking"
    ]
+  },
+  {
+   "file": "reference/Epicenterizer_draw_from_centre_Scott_Rossi_2008.livecodescript",
+   "source": null,
+   "project": "Scott Rossi (Tactile Media)",
+   "kind": "card script (third party, credited)",
+   "title": "Epicenterizer: draw a circle, rectangle or triangle from its centre",
+   "description": "From Scott Rossi's \"Epicenterizer\" stack, 8 Oct 2008. Click and drag sizes a shape out from the click point instead of from a corner: the radius is the larger of the x and y drag distances, so the shape stays square around the centre. mouseDown shows the graphic picked by a radio group at the mouse; mouseMove grows its rect around its loc; mouseUp/mouseRelease hide it and shrink it back to one pixel. Uses a script-local flag (uAllowScale) rather than polling the mouse. Scott Rossi was iGame3D's only patron.",
+   "tags": [
+    "drawing",
+    "graphics",
+    "mouse",
+    "drag",
+    "centre",
+    "editor",
+    "ui"
+   ],
+   "notes": "For the GUI Builder (LIB_GUI, later stage) and editor tools: drawing a control or shape from its centre. Credit Scott Rossi & Tactile Media wherever it is used. Arrived via LIB_LLMIN/LIB_SCRIPT 18 Nov 2026."
   }
  ]
 }

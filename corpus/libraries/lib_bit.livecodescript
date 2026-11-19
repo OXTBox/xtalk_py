@@ -12,7 +12,7 @@ script "LIB_BIT"
 -- Taken from the owner's GridDraw animator and bitmap tracer (2023-2026), made pure.
 -- Handlers: Bit.Blank, Bit.Width, Bit.Height, Bit.Count, Bit.Invert, Bit.Shift,
 -- Bit.FlipHorizontal, Bit.FlipVertical, Bit.Rotate, Bit.Pad, Bit.FromLongString,
--- Bit.ToPBM, Bit.FromPBM, Bit.ToRows, Bit.FromRows
+-- Bit.ToPBM, Bit.FromPBM, Bit.ToRows, Bit.FromRows, Bit.Maze
 
 -------------------------------------------------------------------- making and measuring
 
@@ -233,3 +233,78 @@ function Bit.FromRows pRows, pWidth
    delete the last char of tOut
    return tOut
 end Bit.FromRows
+
+-------------------------------------------------------------------- generating
+
+-- A perfect maze (one path between any two places) of pCols x pRows rooms, as a grid of
+-- (2 * pCols + 1) x (2 * pRows + 1): "1" wall, "0" open. Room c,r (1-based) is at grid
+-- column 2c, row 2r; the outer edge is all wall. Depth-first carving, so corridors are
+-- long and winding. The same pSeed (any whole number; empty = 1) always gives the same
+-- maze, here and in any other engine: it uses its own Park-Miller random numbers
+-- (x = x * 16807 mod 2147483647), not LiveCode's random().
+function Bit.Maze pCols, pRows, pSeed
+   local tW, tH, tGrid, tRow, tR, tC, tSeen, tStack, tTop, tX, tY, tDirs, tN, tPick, tNX, tNY, tSteps, tD, tLine
+   if pRows is empty then put pCols into pRows
+   if pCols < 1 or pRows < 1 then return empty
+   if pSeed is not an integer then put 1 into pSeed
+   put abs(pSeed) mod 2147483647 into tX
+   if tX = 0 then put 1 into tX
+   put 2 * pCols + 1 into tW
+   put 2 * pRows + 1 into tH
+   put 1 into tR
+   repeat while tR <= tH
+      put 1 into tC
+      repeat while tC <= tW
+         put "1" into tGrid[tR][tC]
+         add 1 to tC
+      end repeat
+      add 1 to tR
+   end repeat
+   -- carve from room 1,1 with an explicit stack of rooms ("c,r" lines)
+   put 1 into tSeen["1,1"]
+   put "0" into tGrid[2][2]
+   put "1,1" into tStack
+   put 0 into tSteps
+   repeat while tStack is not empty and tSteps < 4 * pCols * pRows + 10
+      add 1 to tSteps
+      put line -1 of tStack into tTop
+      put item 1 of tTop into tC
+      put item 2 of tTop into tR
+      put empty into tDirs
+      repeat for each line tD in "0,-1" & return & "1,0" & return & "0,1" & return & "-1,0"
+         put tC + item 1 of tD into tNX
+         put tR + item 2 of tD into tNY
+         if tNX >= 1 and tNX <= pCols and tNY >= 1 and tNY <= pRows and tSeen[tNX & "," & tNY] is empty then
+            put tNX & "," & tNY & return after tDirs
+         end if
+      end repeat
+      if tDirs is empty then
+         delete line -1 of tStack
+         next repeat
+      end if
+      delete the last char of tDirs
+      put (tX * 16807) mod 2147483647 into tX
+      put the number of lines of tDirs into tN
+      put line (tX mod tN) + 1 of tDirs into tPick
+      put item 1 of tPick into tNX
+      put item 2 of tPick into tNY
+      put 1 into tSeen[tPick]
+      put "0" into tGrid[tR + tNY][tC + tNX]     -- the wall between: rows 2r and 2ny meet at r+ny
+      put "0" into tGrid[2 * tNY][2 * tNX]
+      put return & tPick after tStack
+   end repeat
+   put empty into tRow
+   put 1 into tR
+   repeat while tR <= tH
+      put empty into tLine
+      put 1 into tC
+      repeat while tC <= tW
+         put tGrid[tR][tC] after tLine
+         add 1 to tC
+      end repeat
+      put tLine & return after tRow
+      add 1 to tR
+   end repeat
+   delete the last char of tRow
+   return tRow
+end Bit.Maze

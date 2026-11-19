@@ -18,7 +18,6 @@
 ##           are procedural placeholders.
 ######################################################################################
 
-global gObjectTransforms, gSceneObjects
 global gCameraYaw, gCameraPitch
 global gViewLeft, gViewTop, gViewRight, gViewBottom
 global bPaused, bPlaying
@@ -48,6 +47,7 @@ local sKeyWas, sNextAI, sNextRegen, sHover, sMenu, sEndAt
 -------------------------------------------------------------------- engine hooks
 
 on Game.OnStart
+   focus on nothing          -- arrow keys belong to the game, never to a menu or a field
    put Engine.Info("stepMS") into sStepMS
    if sStepMS is not a number then put 33 into sStepMS
    put 0 into sTicks
@@ -109,7 +109,7 @@ end Antack.Now
 
 -- start a screen with nothing in it
 on Antack.Clear
-   Engine.ResetCamera
+   Camera.Reset
    Scene.ClearAll
    Particles.Clear
    HUD.Clear
@@ -121,14 +121,11 @@ end Antack.Clear
 
 -- swap the mesh an object is drawn with (the hills shrink with their lives)
 on Antack.SetMesh pKey, pMesh
-   local tOut, tLine
-   repeat for each line tLine in gSceneObjects
-      if word 2 of tLine is pKey then put pMesh into word 1 of tLine
-      put tLine & cr after tOut
-   end repeat
-   delete the last char of tOut
-   put tOut into gSceneObjects
-   put pMesh into gObjectTransforms[pKey]["mesh"]
+   local tRadius
+   -- Entity.SetMesh takes the new mesh's radius; this game keeps the old one
+   put Entity.Get(pKey, "radius") into tRadius
+   Entity.SetMesh pKey, pMesh
+   if tRadius is a number then Entity.Set pKey, "radius", tRadius
 end Antack.SetMesh
 
 -- engine rotation angles (applied Z, then Y, then X) for a heading and a nose pitch:
@@ -145,7 +142,7 @@ end Antack.Euler
 on Antack.Turn pKey, pYaw, pPitch
    local tE
    put Antack.Euler(pYaw, pPitch) into tE
-   SetObjectRotation pKey, item 1 of tE, item 2 of tE, item 3 of tE
+   Entity.SetRotation pKey, item 1 of tE, item 2 of tE, item 3 of tE
 end Antack.Turn
 
 -- where an object is on screen: "x,y", or empty when it is behind the camera
@@ -164,7 +161,7 @@ end Antack.ScreenOf
 on Antack.LoadData
    local tFile, tText, tLine, tSection, tName, tKind
    if sData is an array then exit Antack.LoadData
-   put Antack.FindFile("LIB_GAMES/Vibecode3D_Games/Antack/antack_data.txt") into tFile
+   put Game.FindFile("LIB_GAMES/Vibecode3D_Games/Antack/antack_data.txt") into tFile
    if tFile is empty then
       put "ANTACK DATA NOT FOUND" into sDataError
       exit Antack.LoadData
@@ -192,35 +189,20 @@ on Antack.LoadData
    end repeat
 end Antack.LoadData
 
-function Antack.FindFile pRelPath
-   local tPath, tTry
-   put the effective filename of this stack into tPath
-   set the itemDel to "/"
-   repeat 8 times
-      delete item -1 of tPath
-      if tPath is empty then exit repeat
-      put tPath & "/" & pRelPath into tTry
-      if there is a file tTry then return tTry
-   end repeat
-   put "//wsl$/Ubuntu/home/igame3d/projects/" & pRelPath into tTry
-   if there is a file tTry then return tTry
-   return empty
-end Antack.FindFile
-
 on Antack.MakeMeshes
    local n, tName, tM, tLine, tR, tH
    -- hills: a mound per number of lives, and a flat ring when destroyed
    repeat with n = 1 to 5
       put 24 + 8 * n into tR
       put 10 + 7 * n into tH
-      Mesh.Define "Antack.Hill" & n, MeshLathe("0," & -tH & "|" & tR * 0.3 & "," & -tH * 0.85 & "|" & \
+      Mesh.Define "Antack.Hill" & n, Mesh.Lathe("0," & -tH & "|" & tR * 0.3 & "," & -tH * 0.85 & "|" & \
             tR * 0.7 & "," & -tH * 0.35 & "|" & tR & ",0", 8)
    end repeat
-   Mesh.Define "Antack.HillDead", MeshLathe("30,0|18,-3", 8)
+   Mesh.Define "Antack.HillDead", Mesh.Lathe("30,0|18,-3", 8)
    -- an ant missile: one ant; one anti-ant missile destroys it
    Mesh.Define "Antack.Missile", Antack.AntMesh(0, 0, 2.6)
    Mesh.Define "Antack.Ant", Antack.AntMesh(0, 0, 9)
-   Mesh.Define "Antack.Shot", MeshPyramid(3, 4, 14)
+   Mesh.Define "Antack.Shot", Mesh.Pyramid(3, 4, 14)
    Mesh.Define "Antack.Ring", Antack.RingMesh(210, 32)
    Mesh.Define "Antack.Ring2", Antack.RingMesh(190, 32)
    repeat for each key tName in sData["meshes"]
@@ -327,8 +309,8 @@ on Antack.Emblem
    put Entity.Spawn("Antack.Ring2", 110, 20, 480, "cyan") into tKey
    put Entity.Spawn("Antack.Ant", 110, 20, 480, kEnemyColor) into tKey
    -- seen from above (lying in X-Z, turned to face the camera), turning slowly
-   SetObjectRotation tKey, -pi / 2, 0, 0
-   SetObjectRotationSpeed tKey, 0, 0.012, 0
+   Entity.SetRotation tKey, -pi / 2, 0, 0
+   Entity.SetRotationSpeed tKey, 0, 0.012, 0
 end Antack.Emblem
 
 on Antack.MenuHover
@@ -384,8 +366,8 @@ on Antack.EndScreen pWon
    get Entity.Spawn("Antack.Ring", 0, 0, 480, "cyan")
    get Entity.Spawn("Antack.Ring2", 0, 0, 480, "#8080FF")
    get Entity.Spawn("Antack.Ant", 0, 0, 480, "#FF8040")
-   SetObjectRotation it, -pi / 2, 0, 0
-   SetObjectRotationSpeed it, 0, 0.015, 0
+   Entity.SetRotation it, -pi / 2, 0, 0
+   Entity.SetRotationSpeed it, 0, 0.015, 0
    put gViewRight - gViewLeft into tW
    put gViewBottom - gViewTop into tH
    put round(tW / 10) into tSize
@@ -436,9 +418,8 @@ on Antack.StartLevel pName
    put item 1 of tPos into sCX
    put item 2 of tPos into sCY
    put item 3 of tPos into sCZ
-   put atan2(tEX / 6 - sCX, tEZ / 6 - sCZ) into gCameraYaw
-   put -atan2(tEY / 6 - sCY, sqrt((tEX / 6 - sCX) ^ 2 + (tEZ / 6 - sCZ) ^ 2)) into gCameraPitch
-   Engine.SetCam -sCX, -sCY, -sCZ
+   Camera.SetLook atan2(tEX / 6 - sCX, tEZ / 6 - sCZ), -atan2(tEY / 6 - sCY, sqrt((tEX / 6 - sCX) ^ 2 + (tEZ / 6 - sCZ) ^ 2))
+   Camera.SetPosition sCX, sCY, sCZ
    put Antack.Now() + item 1 of tLevel["ai"] + 2 into sNextAI
    put Antack.Now() + kRegenSecs into sNextRegen
    put empty into sNextAt
@@ -573,7 +554,7 @@ on Antack.MovePlayer
    add (fx * tF + fz * tS) * kMoveSpeed to sCX
    add (fz * tF - fx * tS) * kMoveSpeed to sCZ
    add tU * kMoveSpeed to sCY
-   Engine.SetCam -sCX, -sCY, -sCZ
+   Camera.SetPosition sCX, sCY, sCZ
 end Antack.MovePlayer
 
 -------------------------------------------------------------------- armies
@@ -651,7 +632,7 @@ on Antack.MoveArmies pNow
       put sArmy[tArmy]["x0"] + (sArmy[tArmy]["x1"] - sArmy[tArmy]["x0"]) * u into x
       put sArmy[tArmy]["y0"] + (sArmy[tArmy]["y1"] - sArmy[tArmy]["y0"]) * u - tUp into y
       put sArmy[tArmy]["z0"] + (sArmy[tArmy]["z1"] - sArmy[tArmy]["z0"]) * u into z
-      SetObjectPosition tArmy, x, y, z
+      Entity.SetPosition tArmy, x, y, z
       -- nose up on the way up, down on the way down
       put sArmy[tArmy]["arc"] * 4 * (1 - 2 * u) / 300 into tSlope
       Antack.Turn tArmy, sArmy[tArmy]["yaw"], atan(tSlope)
@@ -725,12 +706,12 @@ on Antack.MoveShots pNow
          Entity.Kill tShot
          next repeat
       end if
-      put GetObjectPosition(tArmy, "x") - sShot[tShot]["x"] into dx
-      put GetObjectPosition(tArmy, "y") - sShot[tShot]["y"] into dy
-      put GetObjectPosition(tArmy, "z") - sShot[tShot]["z"] into dz
+      put Entity.GetPosition(tArmy, "x") - sShot[tShot]["x"] into dx
+      put Entity.GetPosition(tArmy, "y") - sShot[tShot]["y"] into dy
+      put Entity.GetPosition(tArmy, "z") - sShot[tShot]["z"] into dz
       put sqrt(dx * dx + dy * dy + dz * dz) into d
       if d <= kShotSpeed + 20 then
-         FX.Sparks GetObjectPosition(tArmy, "x"), GetObjectPosition(tArmy, "y"), GetObjectPosition(tArmy, "z"), 20, "yellow"
+         FX.Sparks Entity.GetPosition(tArmy, "x"), Entity.GetPosition(tArmy, "y"), Entity.GetPosition(tArmy, "z"), 20, "yellow"
          Antack.EndArmy tArmy
          delete variable sShot[tShot]
          Entity.Kill tShot
@@ -739,7 +720,11 @@ on Antack.MoveShots pNow
       add dx / d * kShotSpeed to sShot[tShot]["x"]
       add dy / d * kShotSpeed to sShot[tShot]["y"]
       add dz / d * kShotSpeed to sShot[tShot]["z"]
-      SetObjectPosition tShot, sShot[tShot]["x"], sShot[tShot]["y"], sShot[tShot]["z"]
+      Entity.SetPosition tShot, sShot[tShot]["x"], sShot[tShot]["y"], sShot[tShot]["z"]
       Antack.Turn tShot, atan2(dx, dz), atan2(-dy, sqrt(dx * dx + dz * dz)) - pi / 2
    end repeat
 end Antack.MoveShots
+
+-- the arrows move you; a focused menu or field must never get them
+on arrowKey pKey
+end arrowKey

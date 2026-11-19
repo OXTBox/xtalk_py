@@ -402,7 +402,7 @@
    "notes": "Snapshot of the newest saved engine script. Its API map is Vibecode3D/LiveCode_Claude_Kit/kit/docs/engine-api.md.",
    "origin": "copy of ~/projects/Vibecode3D/livecode/VIBECODE3D_LIB_MCP_11_11_2026_647PM.livecodescript",
    "lines": 8018,
-   "bytes": 294855,
+   "bytes": 294964,
    "handlers": [
     "PreOpenStack",
     "APP.init",
@@ -751,7 +751,7 @@
     "BEGIN DAILY DEVELOPER NOTES NOTEs TO CLAUDE AI 11/10/2026:"
    ],
    "script_only_stack": false,
-   "sha1": "64f48dd35b6e"
+   "sha1": "dedf03c806e8"
   },
   {
    "file": "libraries/lib_bit.livecodescript",
@@ -768,8 +768,8 @@
     "pbm"
    ],
    "origin": "copy of ~/projects/LIB_BIT/livecode/lib_bit.livecodescript",
-   "lines": 230,
-   "bytes": 7745,
+   "lines": 311,
+   "bytes": 10928,
    "handlers": [
     "Bit.Blank",
     "Bit.Width",
@@ -785,7 +785,8 @@
     "Bit.ToPBM",
     "Bit.FromPBM",
     "Bit.ToRows",
-    "Bit.FromRows"
+    "Bit.FromRows",
+    "Bit.Maze"
    ],
    "header": [
     "LIB_BIT: 1-bit grids for sprites, fonts and maps.",
@@ -796,7 +797,7 @@
     "start using stack \"<path>/LIB_BIT/livecode/lib_bit.livecodescript\""
    ],
    "script_only_stack": true,
-   "sha1": "04c729fd44d2"
+   "sha1": "54495c1fcf22"
   },
   {
    "file": "libraries/lib_trace.livecodescript",
@@ -898,12 +899,13 @@
     "library"
    ],
    "origin": "copy of ~/projects/LIB_MCP/livecode/lib_mcp.livecodescript",
-   "lines": 478,
-   "bytes": 19545,
+   "lines": 507,
+   "bytes": 21070,
    "handlers": [
     "openStack",
     "DevServer.ShowStatus",
     "DevServer.Start",
+    "DevServer.PortOwners",
     "DevServer.Stop",
     "DevServer.Running",
     "DevServer.NewToken",
@@ -933,7 +935,7 @@
     "DevServer.Start 8766, \"<name of the stack /run should talk to>\""
    ],
    "script_only_stack": true,
-   "sha1": "e891c5ca403d"
+   "sha1": "ad508a330cf3"
   },
   {
    "file": "libraries/LIB_DEVSERVER.livecodescript",
@@ -1233,11 +1235,12 @@
     "tooling"
    ],
    "origin": "copy of ~/projects/LIB_MCP/standalone/launcher.livecodescript",
-   "lines": 45,
-   "bytes": 2093,
+   "lines": 55,
+   "bytes": 2446,
    "handlers": [
     "openStack",
-    "LibMCP.FindServer"
+    "LibMCP.FindServer",
+    "LauncherQuit"
    ],
    "header": [
     "Stack script for LIB_MCP/standalone/xt3d_MCP.livecode, the standalone LIB_MCP server.",
@@ -1248,7 +1251,7 @@
     "file therefore need no rebuild; only changes to this script do."
    ],
    "script_only_stack": false,
-   "sha1": "c8d30168fa0b"
+   "sha1": "8c122822ea27"
   },
   {
    "file": "games/vibecode3d/Vibecode3D_Play_Canyon.livecodescript",
@@ -1265,8 +1268,8 @@
     "collisions"
    ],
    "origin": "copy of ~/projects/LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Canyon.livecodescript",
-   "lines": 563,
-   "bytes": 19991,
+   "lines": 560,
+   "bytes": 19939,
    "handlers": [
     "Canyon.Palette",
     "Game.OnStart",
@@ -1306,7 +1309,7 @@
     "Start: Game.Select \"Canyon\" then Game.Play (or the Title card PLAY button)."
    ],
    "script_only_stack": false,
-   "sha1": "61e924b9c9df"
+   "sha1": "67fc5c0e0a12"
   },
   {
    "file": "games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript",
@@ -1323,8 +1326,8 @@
     "keyboard"
    ],
    "origin": "copy of ~/projects/LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Hunter.livecodescript",
-   "lines": 855,
-   "bytes": 29508,
+   "lines": 889,
+   "bytes": 30936,
    "handlers": [
     "Game.OnStart",
     "Game.OnStop",
@@ -1349,6 +1352,7 @@
     "Game.OnUpdate",
     "Hunter.Look",
     "Hunter.CenterMouse",
+    "Hunter.FindInput",
     "Hunter.Move",
     "Hunter.UpdatePlayerState",
     "Game.OnClick",
@@ -1370,7 +1374,8 @@
     "Hunter.Message",
     "Hunter.EndGame",
     "opencard",
-    "rawKeyUp"
+    "rawKeyUp",
+    "arrowKey"
    ],
    "header": [
     "CARD SCRIPT: \"Play.Hunter\"   GEM HUNTER (first person)  (11 09 2026)",
@@ -1381,7 +1386,7 @@
     "W A S D/arrows move        Shift  sprint        Space  jump"
    ],
    "script_only_stack": false,
-   "sha1": "f99849d6666f"
+   "sha1": "aafc929bc10c"
   },
   {
    "file": "games/vibecode3d/Vibecode3D_Play_demo.livecodescript",
@@ -1398,7 +1403,7 @@
    ],
    "origin": "copy of ~/projects/LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_demo.livecodescript",
    "lines": 498,
-   "bytes": 14038,
+   "bytes": 14039,
    "handlers": [
     "Game.OnStart",
     "Game.OnUpdate",
@@ -1425,7 +1430,7 @@
     "Game.OnStart  Game.OnUpdate  Game.OnClick x,y  Game.OnKill key  Game.OnStop"
    ],
    "script_only_stack": false,
-   "sha1": "fc54afbf1703"
+   "sha1": "83c03c445fba"
   },
   {
    "file": "games/vibecode3d/Vibecode3D_Play_Simple_Test1.livecodescript",
@@ -1441,8 +1446,8 @@
     "example"
    ],
    "origin": "copy of ~/projects/LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Simple_Test1.livecodescript",
-   "lines": 67,
-   "bytes": 2063,
+   "lines": 66,
+   "bytes": 2022,
    "handlers": [
     "Game.OnStart",
     "Game.OnUpdate",
@@ -1462,7 +1467,7 @@
     "CONTROLS  click: reverse the spin    Escape: back to Developer"
    ],
    "script_only_stack": false,
-   "sha1": "d99725bb078e"
+   "sha1": "e55de3697e03"
   },
   {
    "file": "games/vibecode3d/Vibecode3D_Play_Simple_Test2.livecodescript",
@@ -1478,7 +1483,7 @@
    ],
    "origin": "copy of ~/projects/LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Simple_Test2.livecodescript",
    "lines": 466,
-   "bytes": 12883,
+   "bytes": 12884,
    "handlers": [
     "Game.OnStart",
     "Game.OnUpdate",
@@ -1503,7 +1508,7 @@
     "Game.OnStart  Game.OnUpdate  Game.OnClick x,y  Game.OnKill key  Game.OnStop"
    ],
    "script_only_stack": false,
-   "sha1": "9600456eb53c"
+   "sha1": "e840afce0308"
   },
   {
    "file": "games/vibecode3d/Vibecode3D_Play_Face.livecodescript",
@@ -1519,8 +1524,8 @@
     "mesh"
    ],
    "origin": "copy of ~/projects/LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Face.livecodescript",
-   "lines": 139,
-   "bytes": 5277,
+   "lines": 122,
+   "bytes": 4604,
    "handlers": [
     "Game.OnStart",
     "Game.OnUpdate",
@@ -1533,8 +1538,7 @@
     "Collision.Hit",
     "Face.MakeMeshes",
     "Face.SegmentsToMesh",
-    "Face.Vertex",
-    "Face.FindFile"
+    "Face.Vertex"
    ],
    "header": [
     "CARD SCRIPT: \"Play.Face\"   CLAUDE FACE  (11 12 2026)",
@@ -1545,7 +1549,7 @@
     "The face sways slowly from side to side. Nothing else happens: Escape leaves."
    ],
    "script_only_stack": false,
-   "sha1": "1a302d166282"
+   "sha1": "1d8c2cbf2cb3"
   },
   {
    "file": "xt3d/xt3d_testbench.livecodescript",
@@ -1632,8 +1636,8 @@
     "frame-loop"
    ],
    "origin": "copy of ~/projects/xt3D_Raylib_Livecode_Bridge/testbench/xt3d_testBench_lib_mcp.livecodescript",
-   "lines": 1205,
-   "bytes": 46876,
+   "lines": 1230,
+   "bytes": 47862,
    "handlers": [
     "preOpenStack",
     "xbPlaceWindow",
@@ -1677,6 +1681,7 @@
     "xbFindAbove",
     "xbListGames",
     "xbVibeReady",
+    "xbGameNotes",
     "xbPlayGame",
     "xbGameTick",
     "xbGameEnded",
@@ -1694,7 +1699,7 @@
     "(testbench/vibe_engine_xt3d.livecodescript, made by"
    ],
    "script_only_stack": true,
-   "sha1": "2ef02d8dbfbe"
+   "sha1": "93b83ecf3363"
   },
   {
    "file": "xt3d/vibe_xt3d_overrides.livecodescript",
@@ -1710,8 +1715,8 @@
     "bridge"
    ],
    "origin": "copy of ~/projects/xt3D_Raylib_Livecode_Bridge/testbench/vibe_xt3d_overrides.livecodescript",
-   "lines": 177,
-   "bytes": 6438,
+   "lines": 282,
+   "bytes": 11227,
    "handlers": [
     "Vibe.Begin",
     "Vibe.Go",
@@ -1726,7 +1731,11 @@
     "escapekeyDown",
     "View.Apply",
     "game.render",
-    "UpdateSelectionMarker"
+    "UpdateSelectionMarker",
+    "Engine.ScreenToFloor",
+    "Mesh.Define",
+    "Skin.WTFMesh",
+    "VectorText.Init"
    ],
    "header": [
     "XT3D EDITION OVERRIDES  (11 12 2026)",
@@ -1737,7 +1746,7 @@
     "The host (xt3d_testBench_lib_mcp) owns the timer and the drawing:"
    ],
    "script_only_stack": false,
-   "sha1": "0c337c486aa6"
+   "sha1": "70c32c680295"
   },
   {
    "file": "xt3d/xt3d_view_demo.livecodescript",
@@ -1878,12 +1887,13 @@
     "paths"
    ],
    "origin": "copy of ~/projects/xt3D_Raylib_Livecode_Bridge/standalone/launcher.livecodescript",
-   "lines": 55,
-   "bytes": 2535,
+   "lines": 65,
+   "bytes": 2888,
    "handlers": [
     "openStack",
     "closeStack",
-    "xbFindAbove"
+    "xbFindAbove",
+    "LauncherQuit"
    ],
    "header": [
     "Stack script for xt3d/standalone/xt3d_Bench.livecode: the xt3d test bench as a",
@@ -1894,7 +1904,7 @@
     "LIB_MCP server on port 8768 (the IDE uses 8766, the plain LIB_MCP standalone 8767),"
    ],
    "script_only_stack": false,
-   "sha1": "f4ca794d88d0"
+   "sha1": "146bbfa1458b"
   },
   {
    "file": "xt3d/launcher_lib_mcp.livecodescript",
@@ -1909,12 +1919,13 @@
     "paths"
    ],
    "origin": "copy of ~/projects/xt3D_Raylib_Livecode_Bridge/standalone/launcher_lib_mcp.livecodescript",
-   "lines": 57,
-   "bytes": 2669,
+   "lines": 67,
+   "bytes": 3022,
    "handlers": [
     "openStack",
     "closeStack",
-    "xbFindAbove"
+    "xbFindAbove",
+    "LauncherQuit"
    ],
    "header": [
     "Stack script for xt3d/standalone/xt3d_Bench_LibMCP.livecode: the bench with games",
@@ -1925,7 +1936,7 @@
     "(testbench/xt3d_testBench_lib_mcp.livecodescript) and the sibling LIB_MCP project, starts"
    ],
    "script_only_stack": false,
-   "sha1": "498690802bb6"
+   "sha1": "63a005c9fd36"
   },
   {
    "file": "reference/revErrorDisplay_capture_card_script.livecodescript",
@@ -1976,8 +1987,8 @@
     "picking"
    ],
    "origin": "copy of ~/projects/LIB_GAMES/Vibecode3D_Games/Vibecode3D_Play_Antack.livecodescript",
-   "lines": 746,
-   "bytes": 29444,
+   "lines": 731,
+   "bytes": 29041,
    "handlers": [
     "Game.OnStart",
     "Game.OnUpdate",
@@ -1994,7 +2005,6 @@
     "Antack.Turn",
     "Antack.ScreenOf",
     "Antack.LoadData",
-    "Antack.FindFile",
     "Antack.MakeMeshes",
     "Antack.AntMesh",
     "Antack.AddDiamond",
@@ -2017,7 +2027,8 @@
     "Antack.Land",
     "Antack.EndArmy",
     "Antack.Fire",
-    "Antack.MoveShots"
+    "Antack.MoveShots",
+    "arrowKey"
    ],
    "header": [
     "CARD SCRIPT: \"Play.Antack\"   ANTACK  (11 12 2026)",
@@ -2028,7 +2039,41 @@
     "the level; lose all six of yours and the game is lost."
    ],
    "script_only_stack": false,
-   "sha1": "0e4c1544687b"
+   "sha1": "cbfa0013d807"
+  },
+  {
+   "file": "reference/Epicenterizer_draw_from_centre_Scott_Rossi_2008.livecodescript",
+   "source": null,
+   "project": "Scott Rossi (Tactile Media)",
+   "kind": "card script (third party, credited)",
+   "title": "Epicenterizer: draw a circle, rectangle or triangle from its centre",
+   "description": "From Scott Rossi's \"Epicenterizer\" stack, 8 Oct 2008. Click and drag sizes a shape out from the click point instead of from a corner: the radius is the larger of the x and y drag distances, so the shape stays square around the centre. mouseDown shows the graphic picked by a radio group at the mouse; mouseMove grows its rect around its loc; mouseUp/mouseRelease hide it and shrink it back to one pixel. Uses a script-local flag (uAllowScale) rather than polling the mouse. Scott Rossi was iGame3D's only patron.",
+   "tags": [
+    "drawing",
+    "graphics",
+    "mouse",
+    "drag",
+    "centre",
+    "editor",
+    "ui"
+   ],
+   "notes": "For the GUI Builder (LIB_GUI, later stage) and editor tools: drawing a control or shape from its centre. Credit Scott Rossi & Tactile Media wherever it is used. Arrived via LIB_LLMIN/LIB_SCRIPT 18 Nov 2026.",
+   "origin": "lives only here",
+   "lines": 46,
+   "bytes": 1186,
+   "handlers": [
+    "mouseDown",
+    "mouseMove",
+    "mouseUp",
+    "mouseRelease",
+    "preOpenStack"
+   ],
+   "header": [
+    "From Scott Rossi's \"Epicenterizer\" stack  Oct. 8, 2008.",
+    "Click and drag produces circle, rectangle or Triangle from their center instead of from their lower right edge."
+   ],
+   "script_only_stack": false,
+   "sha1": "4f54d0b26073"
   }
  ]
 }

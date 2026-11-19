@@ -1011,6 +1011,26 @@ end xbVibeReady
 
 -- the game's script becomes this card's script; the engine sends it Game.OnStart and
 -- Game.OnUpdate as on a Play.<game> card in Vibecode3D
+-- game notes (LIB_GAMES/tools/GameNotes): ` or F2 in a game opens a note box; notes go to
+-- LIB_LLMIN/LIB_GAMES/GAME_NOTES.txt. Loaded once, as a front script.
+command xbGameNotes
+   local tFile, tErr
+   if there is a stack "GameNotes" and "GameNotes" is in the frontScripts then exit xbGameNotes
+   put sGamesFolder into tFile
+   if tFile is empty then put xbFindAbove(kGamesRel) into tFile
+   set the itemDel to "/"
+   put item 1 to -2 of tFile & "/tools/GameNotes.livecodescript" into tFile    -- LIB_GAMES/tools
+   set the itemDel to comma
+   if there is not a file tFile then return "no file" && tFile
+   try
+      start using stack tFile
+      insert script of stack "GameNotes" into front
+   catch tErr
+      return "notes failed:" && tErr
+   end try
+   return "notes on"
+end xbGameNotes
+
 command xbPlayGame pName
    local tFile, tScript, tErr, tHeader, tLine
    xbStopGame
@@ -1030,6 +1050,11 @@ command xbPlayGame pName
       exit xbPlayGame
    end if
    put pName into sGameName
+   xbGameNotes
+   -- the engine contract: Engine.Info("edition") and Engine.Has() answer from these
+   global gV3DEdition, gV3DHas
+   put "xRay" into gV3DEdition
+   put empty into gV3DHas
    try
       Vibe.Begin the rect of image "view"
       dispatch "Game.OnStart" to this card
