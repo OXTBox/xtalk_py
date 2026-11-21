@@ -11,7 +11,7 @@ not useful to him.
 
 ## Decisions already made (do not reopen without the owner)
 
-- Interpreter first; translator to Python maybe later.
+- Interpreter first (reads xTalk text and runs it: package `xtalk/`, tests `tests/test_interp.py` against `tests/golden.json`); the translator to Python comes second, after thorough testing (owner, 21 Nov).
 - GUI: raylib + Dear ImGui, for the editors, the stack runtime and 3D alike.
 - xt3d, Vibecode3D and LIB_LLM are separate tools in their own projects. They meet
   through shared formats (harvest JSON, 0/1 sprite frames, models, raylib-named calls).
