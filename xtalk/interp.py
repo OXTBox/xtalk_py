@@ -820,7 +820,7 @@ BUILTINS = {
     'trunc': f_trunc,
     'min': f_min, 'max': f_max,
     'sin': f_matheq(math.sin), 'cos': f_matheq(math.cos), 'tan': f_matheq(math.tan),
-    'atan': f_matheq(math.atan), 'atan2': f_matheq(math.atan2), 'exp': f_matheq(math.exp),
+    'atan': f_matheq(math.atan), 'asin': f_matheq(math.asin), 'acos': f_matheq(math.acos), 'atan2': f_matheq(math.atan2), 'exp': f_matheq(math.exp),
     'ln': f_matheq(math.log), 'log10': f_matheq(math.log10),
     'toupper': lambda it, fr, x: _t(x).upper(),
     'tolower': lambda it, fr, x: _t(x).lower(),

@@ -55,13 +55,16 @@ def lib_text(spec):
         parts.append(t)
     return '\n'.join(parts)
 
-def lib_file(spec):
-    """the joined library as a real file (LiveCode loads it by path)"""
+def lib_files(spec):
+    """'engine|game+wrapper' -> one real file per library (LiveCode loads each as its own stack, in order)"""
     d = os.path.join(ROOT, 'tests', '.combined')
     os.makedirs(d, exist_ok=True)
-    f = os.path.join(d, 'lib_%s.txt' % hashlib.md5(spec.encode()).hexdigest()[:10])
-    open(f, 'w', encoding='utf-8').write(lib_text(spec))
-    return f
+    out = []
+    for part in spec.split('|'):
+        f = os.path.join(d, 'lib_%s.txt' % hashlib.md5(part.encode()).hexdigest()[:10])
+        open(f, 'w', encoding='utf-8').write(lib_text(part))
+        out.append(f)
+    return out
 
 def lib_cases():
     out = {}
@@ -74,17 +77,27 @@ def lib_cases():
 
 def lc_lib(lib, exprs):
     """expressions evaluated in LiveCode with the library loaded (start using stack <file>)"""
-    path = subprocess.run(['wslpath', '-m', lib_file(lib)], capture_output=True, text=True).stdout.strip()
+    paths = [subprocess.run(['wslpath', '-m', f], capture_output=True, text=True).stdout.strip() for f in lib_files(lib)]
+    clean = '''repeat for each line tU in the stacksInUse
+  stop using stack tU
+end repeat
+repeat for each line tU in the mainStacks
+  if tU begins with "xtT" then delete stack tU
+end repeat
+'''
+    load = clean + ''.join('''put url "binfile:%s" into tLibText
+put textDecode(tLibText, "UTF-8") into tLibText
+if line 1 of tLibText begins with "script " then delete line 1 of tLibText
+create invisible stack "xtT%d"
+set the script of stack "xtT%d" to tLibText
+start using stack "xtT%d"
+''' % (p, i, i, i) for i, p in enumerate(paths))
+    unload = ''.join('stop using stack "xtT%d"\ndelete stack "xtT%d"\n' % (i, i) for i in range(len(paths)))
     enc = ','.join(b64(i) for i in exprs)
     stmts = '''repeat for each line tU in the stacksInUse
   stop using stack tU
 end repeat
-put url "binfile:%s" into tLibText
-put textDecode(tLibText, "UTF-8") into tLibText
-if line 1 of tLibText begins with "script " then delete line 1 of tLibText
-create invisible stack "xtT"
-set the script of stack "xtT" to tLibText
-start using stack "xtT"
+%s
 put "%s" into tList
 put empty into tAll
 repeat for each item tB in tList
@@ -96,9 +109,8 @@ repeat for each item tB in tList
   end try
   put base64Encode(textEncode(tOut, "UTF-8")) & "," after tAll
 end repeat
-stop using stack "xtT"
-delete stack "xtT"
-return tAll''' % (path, enc)
+%s
+return tAll''' % (load, enc, unload)
     r = subprocess.run([LCMCP, '--standalone', 'run', '--server', stmts], capture_output=True, text=True, timeout=600)
     out = r.stdout.strip()
     if not out.startswith('result:'):

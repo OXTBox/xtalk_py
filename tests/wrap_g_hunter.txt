@@ -1,0 +1,7 @@
+function T.HeightAt x, z
+   put sGridN * sGridS / 2 into sHalf
+   repeat with i = 1 to 100
+      put (i * 7) mod 23 into sH[i]
+   end repeat
+   return Hunter.HeightAt(x, z)
+end T.HeightAt

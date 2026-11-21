@@ -40,8 +40,9 @@ for kind in ('expr', 'script'):
         elif verbose:
             print('ok    ', case.replace('\n', ' / ')[:70])
 for lib, d in gold.get('lib', {}).items():
-    text = lib_text(lib)
-    lib_it = Interp(text)              # loaded once, as LiveCode loads a library
+    lib_it = Interp()                  # each library loaded once, in order, as LiveCode loads them
+    for part in lib.split('|'):
+        lib_it.load(lib_text(part))
     for case, want in d.items():
         n += 1
         try:
