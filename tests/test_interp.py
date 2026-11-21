@@ -37,6 +37,18 @@ for kind in ('expr', 'script'):
             bad.append((kind, case, want, got))
         elif verbose:
             print('ok    ', case.replace('\n', ' / ')[:70])
+for lib, d in gold.get('lib', {}).items():
+    text = open(os.path.join(ROOT, 'corpus', lib), encoding='utf-8').read()
+    for case, want in d.items():
+        n += 1
+        try:
+            got = Interp(text).eval(case)
+        except Exception as e:                       # noqa: BLE001  (any failure is a mismatch)
+            got = 'ERR' if isinstance(e, XtError) else 'CRASH %s: %s' % (type(e).__name__, e)
+        if got != want:
+            bad.append(('lib ' + os.path.basename(lib), case, want, got))
+        elif verbose:
+            print('ok    ', case[:70])
 for kind, case, want, got in bad:
     print('FAIL  [%s] %s\n        LiveCode: %r\n        ours:     %r' % (kind, case.replace('\n', ' / ')[:90], want, got))
 print('\n%d of %d match LiveCode 9.6.3' % (n - len(bad), n))

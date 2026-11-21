@@ -44,15 +44,50 @@ return tAll''' % (enc, 'put value(tCode) into tOut' if kind == 'expr' else 'do t
     parts = out[len('result:'):].strip().rstrip(',').split(',')
     return [base64.b64decode(p).decode('utf-8') if p else '' for p in parts]
 
+def lib_cases():
+    out = {}
+    for l in open(os.path.join(ROOT, 'tests/lib_cases.txt'), encoding='utf-8'):
+        l = l.rstrip('\n')
+        if l.strip() and not l.startswith('#') and '\t' in l:
+            lib, e = l.split('\t', 1)
+            out.setdefault(lib, []).append(e)
+    return out
+
+def lc_lib(lib, exprs):
+    """expressions evaluated in LiveCode with the library loaded (start using stack <file>)"""
+    path = subprocess.run(['wslpath', '-m', os.path.join(ROOT, 'corpus', lib)], capture_output=True, text=True).stdout.strip()
+    enc = ','.join(b64(i) for i in exprs)
+    stmts = '''start using stack "%s"
+put "%s" into tList
+put empty into tAll
+repeat for each item tB in tList
+  put textDecode(base64Decode(tB), "UTF-8") into tCode
+  try
+    put value(tCode) into tOut
+  catch tErr
+    put "ERR" into tOut
+  end try
+  put base64Encode(textEncode(tOut, "UTF-8")) & "," after tAll
+end repeat
+return tAll''' % (path, enc)
+    r = subprocess.run([LCMCP, '--standalone', 'run', '--server', stmts], capture_output=True, text=True, timeout=600)
+    out = r.stdout.strip()
+    if not out.startswith('result:'):
+        sys.exit('LiveCode run failed: ' + out + r.stderr)
+    parts = out[len('result:'):].strip().rstrip(',').split(',')
+    return [base64.b64decode(p).decode('utf-8') if p else '' for p in parts]
+
 def main():
     ex, sc = cases()
-    gold = {'expr': {}, 'script': {}}
+    gold = {'expr': {}, 'script': {}, 'lib': {}}
+    for lib, exprs in lib_cases().items():
+        gold['lib'][lib] = dict(zip(exprs, lc_lib(lib, exprs)))
     for case, ans in zip(ex, lc_run('expr', ex)):
         gold['expr'][case] = ans
     for case, ans in zip(sc, lc_run('script', sc)):
         gold['script'][case] = ans
     json.dump(gold, open(os.path.join(ROOT, 'tests/golden.json'), 'w'), indent=1, ensure_ascii=False)
-    print('%d expressions, %d scripts -> tests/golden.json' % (len(ex), len(sc)))
+    print('%d expressions, %d scripts, %d library calls -> tests/golden.json' % (len(ex), len(sc), sum(len(v) for v in gold['lib'].values())))
 
 if __name__ == '__main__':
     main()

@@ -2,7 +2,8 @@
 import math, random, time, base64
 from . import chunks as ch
 from .values import XtError, to_num, fmt_num, to_text, to_bool, is_numeric_text, compare, NUMBER_FORMAT
-from .parser import parse_script, parse_expr, parse_statements
+from .parser import parse_script, parse_expr, parse_statements, OBJTYPES
+from .host import Host, wildcard
 
 CONST = {'empty': '', 'true': 'true', 'false': 'false', 'space': ' ', 'comma': ',', 'return': '\n', 'cr': '\r',
          'lf': '\n', 'newline': '\n', 'quote': '"', 'tab': '\t', 'pi': fmt_num(math.pi), 'colon': ':',
@@ -39,20 +40,30 @@ def rnd_half_away(x, places=0):
 
 class Interp:
     def __init__(self, script=''):
-        self.handlers = parse_script(script) if script.strip() else {}
+        self.handlers = {}
         self.G = {}                     # global variables
+        self.S = {}                     # script-level locals and constants (shared by all handlers)
+        self.host = Host()
         self.props = {'itemdelimiter': ',', 'linedelimiter': '\n', 'numberformat': '0.######',
                       'casesensitive': 'false'}
         self.output = []                # what `put x` with no target printed
         self.result = ''
         self.depth = 0
+        self.refs = {}
+        if script.strip():
+            self.load(script)
 
     # ------------------------------------------------------------ public
     def load(self, script):
-        self.handlers.update(parse_script(script))
+        h = parse_script(script)
+        top = h.pop('#top', [])
+        self.handlers.update(h)
+        fr = Frame([])
+        for st in top:                  # script-level local / global / constant lines
+            self.exec_stmt(st, fr, script_level=True)
 
     def call(self, name, *args):
-        return self.invoke(name, [to_text(a) for a in args])
+        return to_text(self.invoke(name, [a if isinstance(a, dict) else to_text(a) for a in args]))
 
     def eval(self, text, frame=None):
         return to_text(self.ev(parse_expr(text), frame or Frame([])))
@@ -74,22 +85,25 @@ class Interp:
         h = self.handlers.get(name.lower())
         if h is None:
             raise XtError("handler: can't find handler %s" % name)
-        kind, _, params, body = h
+        kind, _, params, body, byref = h
+        self.refs = {}
         self.depth += 1
         if self.depth > 400:
             self.depth = 0
             raise XtError('handler: stack overflow')
         fr = Frame(args)
+        import copy
         for i, p in enumerate(params):
-            fr.vars[p.lower()] = args[i] if i < len(args) else ''
+            fr.vars[p.lower()] = copy.deepcopy(args[i]) if i < len(args) else ''
         try:
             self.exec_block(body, fr)
         except Return as r:
-            return to_text(r.v)
+            return r.v
         except ExitHandler:
             return ''
         finally:
             self.depth -= 1
+            self.refs = {i: fr.vars.get(params[i].lower(), '') for i in byref if i < len(params)}
         return ''
 
     # ------------------------------------------------------------ variables
@@ -99,19 +113,30 @@ class Interp:
             return self.G.get(n, '')
         if n in fr.vars:
             return fr.vars[n]
+        if n in self.S:
+            return self.S[n]
         return name                      # an unset variable is its own name
 
     def setvar(self, fr, name, v):
         n = name.lower()
-        (self.G if n in fr.globals else fr.vars)[n] = v
+        if n in fr.globals:
+            self.G[n] = v
+        elif n not in fr.vars and n in self.S:
+            self.S[n] = v
+        else:
+            fr.vars[n] = v
 
     # ------------------------------------------------------------ statements
     def exec_block(self, body, fr):
         for st in body:
             self.exec_stmt(st, fr)
 
-    def exec_stmt(self, st, fr):
+    def exec_stmt(self, st, fr, script_level=False):
         k = st[0]
+        if script_level and k == 'local':
+            for n, init in zip(st[1], st[2]):
+                self.S[n.lower()] = to_text(self.ev(init, fr)) if init is not None else ''
+            return
         m = getattr(self, 'x_' + k)
         return m(st, fr)
 
@@ -124,8 +149,11 @@ class Interp:
             self.G.setdefault(n.lower(), '')
 
     def x_local(self, st, fr):
-        for n in st[1]:
-            fr.vars.setdefault(n.lower(), '')
+        for n, init in zip(st[1], st[2]):
+            fr.vars[n.lower()] = to_text(self.ev(init, fr)) if init is not None else fr.vars.get(n.lower(), '')
+
+    def x_constant(self, st, fr):
+        self.S[st[1].lower()] = to_text(self.ev(st[2], fr))
 
     def x_put(self, st, fr):
         v = self.ev(st[1], fr)
@@ -150,7 +178,7 @@ class Interp:
 
     def undefined(self, fr, name):
         n = name.lower()
-        return n not in fr.vars and n not in fr.globals
+        return n not in fr.vars and n not in fr.globals and n not in self.S
 
     def x_delete(self, st, fr):
         t = st[1]
@@ -200,10 +228,18 @@ class Interp:
         if a != '':
             self.assign(st[3], cur.replace(a, b), 'into', fr)
 
+    ALIAS = {'itemdel': 'itemdelimiter', 'linedel': 'linedelimiter', 'itemdelim': 'itemdelimiter'}
+
     def x_setprop(self, st, fr):
-        self.props[st[1]] = to_text(self.ev(st[2], fr))
-        if st[1] == 'numberformat':
-            NUMBER_FORMAT[0] = self.props[st[1]]
+        _, name, obj, key, ex = st
+        v = to_text(self.ev(ex, fr))
+        if obj is None:
+            name = self.ALIAS.get(name, name)
+            self.props[name] = v
+            if name == 'numberformat':
+                NUMBER_FORMAT[0] = v
+            return
+        self.host.set_prop(to_text(self.ev(obj, fr)), name, v, None if key is None else to_text(self.ev(key, fr)))
 
     def x_return(self, st, fr):
         raise Return(self.ev(st[1], fr))
@@ -310,10 +346,46 @@ class Interp:
         except ExitRepeat:
             pass
 
-    def x_callcmd(self, st, fr):
-        name, args = st[1], [to_text(self.ev(a, fr)) for a in st[2]]
-        r = self.invoke(name, args)
-        self.result = r
+    def x_cmd(self, st, fr):
+        name, parts = st[1], st[2]
+        if name in self.handlers:
+            nodes = [p[1] for p in parts if p[0] == 'e']
+            r = self.invoke(name, [self.ev(n, fr) for n in nodes])
+            self.result = r if isinstance(r, str) else ''
+            for i, v in self.refs.items():
+                if i < len(nodes) and nodes[i][0] in ('var', 'idx', 'chunk'):
+                    self.assign(nodes[i], v, 'into', fr)
+            return
+        m = getattr(self, 'c_' + name, None)
+        if m:
+            return m(parts, fr)
+        vals = [(p[0], to_text(self.ev(p[1], fr)) if p[0] == 'e' else p[1]) for p in parts]
+        self.result = to_text(self.host.command(name, vals) or '')
+
+    def c_do(self, parts, fr):
+        code = to_text(self.ev(parts[0][1], fr))
+        self.exec_block(parse_statements(code), fr)
+
+    def c_filter(self, parts, fr):
+        # filter [lines|items of] <container> with|without <pattern> [into <container>]
+        i, kind = 0, 'line'
+        if parts[0][0] == 'e' and parts[0][1][0] == 'var' and parts[0][1][1].lower() in ('lines', 'items') \
+                and len(parts) > 1 and parts[1] == ('w', 'of'):
+            kind = parts[0][1][1].lower().rstrip('s')
+            i = 2
+        target = parts[i][1]
+        rest = parts[i + 1:]
+        neg = rest[0] == ('w', 'without')
+        pat = wildcard(to_text(self.ev(rest[1][1], fr)))
+        dest = rest[3][1] if len(rest) >= 4 and rest[2] == ('w', 'into') else target
+        text = to_text(self.ev(target, fr))
+        kw = self.delims()
+        d = kw['item_delim'] if kind == 'item' else kw['line_delim']
+        keep = [text[a:b] for a, b in ch.spans(text, kind, **kw) if bool(pat.match(text[a:b])) != neg]
+        self.assign(dest, d.join(keep), 'into', fr)
+
+    def c_wait(self, parts, fr):
+        pass
 
     def x_sort(self, st, fr):
         _, kind, target, desc, mode, by = st
@@ -387,6 +459,20 @@ class Interp:
             new = ch.put(cur, kind, a2, b2, to_text(value), mode, **self.delims())
             self.assign(inner, new, 'into', fr)
             return
+        if k == 'obj' or k == 'prop' or k == 'propof':
+            desc = to_text(self.ev(target, fr)) if k == 'obj' else None
+            if k == 'obj':
+                cur = self.host.get_prop(desc, 'text') if mode != 'into' else ''
+                v = to_text(value)
+                self.host.set_prop(desc, 'text', v if mode == 'into' else (cur + v if mode == 'after' else v + cur))
+                return
+            name = target[1]
+            if k == 'propof':
+                self.host.set_prop(to_text(self.ev(target[2], fr)), name, to_text(value))
+                return
+        if k == 'url':
+            self.host.write_url(target[1], to_text(self.ev(target[2], fr)), to_text(value))
+            return
         raise XtError("put: can't put into that")
 
     def range(self, a, b, fr, kind=None, text=''):
@@ -433,6 +519,9 @@ class Interp:
             return fmt_num(int(time.time() * (60 if n == 'ticks' else 1000)))
         if n == 'paramcount':
             return fmt_num(len(fr.args))
+        h = self.host.get_prop('', n)
+        if h != '':
+            return h
         raise XtError('expression: unknown property "the %s"' % n)
 
     def e_idx(self, e, fr):
@@ -446,6 +535,47 @@ class Interp:
                 return ''
             cur = cur.get(kk, '')
         return cur
+
+    def e_join(self, e, fr):
+        return ','.join(to_text(self.ev(x, fr)) for x in e[1])
+
+    def desc(self, e, fr):
+        """text naming an object node"""
+        if e[0] == 'obj':
+            _, typ, ref, parent = e
+            if ref[0] == 'this':
+                base = self.host.current.get(typ, '%s "this"' % typ)
+            elif ref[0] == 'ord':
+                base = '%s %s' % (ref[1], typ)
+            elif ref[0] == 'id':
+                base = '%s id %s' % (typ, to_text(self.ev(ref[1], fr)))
+            else:
+                v = to_text(self.ev(ref, fr))
+                base = '%s %s' % (typ, v if v.lstrip('-').isdigit() else '"%s"' % v)
+            if parent is not None:
+                base += ' of ' + (self.desc(parent, fr) if parent[0] == 'obj' else to_text(self.ev(parent[1], fr)))
+            return base
+        return to_text(self.ev(e, fr))
+
+    def e_obj(self, e, fr):
+        return self.desc(e, fr)
+
+    def e_exists(self, e, fr):
+        ok = self.host.exists(self.desc(e[1], fr))
+        return 'true' if ok != e[2] else 'false'
+
+    def e_countobj(self, e, fr):
+        return str(self.host.count(e[1], to_text(self.ev(e[2], fr))))
+
+    def e_url(self, e, fr):
+        return self.host.read_url(e[1], to_text(self.ev(e[2], fr)))
+
+    def e_propof(self, e, fr):
+        _, name, operand, key = e
+        f = BUILTINS.get(name)
+        if f is not None and operand[0] not in ('obj',):
+            return f(self, fr, self.ev(operand, fr))
+        return self.host.get_prop(self.desc(operand, fr), name, None if key is None else to_text(self.ev(key, fr)))
 
     def e_isa(self, e, fr):
         v = to_text(self.ev(e[1], fr))
@@ -501,9 +631,18 @@ class Interp:
             return 'true' if to_text(l).lower().endswith(to_text(r).lower()) else 'false'
         if op == 'in':
             return 'true' if to_text(l).lower() in to_text(r).lower() else 'false'
-        if op == 'among':
-            items = [to_text(r)[a:b] for a, b in ch.spans(to_text(r), 'item', **self.delims())]
+        if op.startswith('among'):
+            kind = {'among': 'item', 'among_lines': 'line', 'among_words': 'word', 'among_chars': 'char'}[op]
+            items = [to_text(r)[a:b] for a, b in ch.spans(to_text(r), kind, **self.delims())]
             return 'true' if any(compare(to_text(l), i) == 0 for i in items) else 'false'
+        if op == 'within':
+            pt, rc = to_text(l).split(','), to_text(r).split(',')
+            try:
+                x, y = float(pt[0]), float(pt[1])
+                x1, y1, x2, y2 = [float(v) for v in rc[:4]]
+            except (ValueError, IndexError):
+                raise XtError('expression: bad operand')
+            return 'true' if x1 <= x < x2 and y1 <= y < y2 else 'false'
         a, b = to_num(to_text(l)), to_num(to_text(r))
         if op == '+':
             return fmt_num(a + b)
@@ -535,7 +674,11 @@ class Interp:
         n = name.lower()
         args = [self.ev(a, fr) for a in e[2]]
         if n in self.handlers and self.handlers[n][0] == 'function':
-            return self.invoke(name, [to_text(a) for a in args])
+            r = self.invoke(name, args)
+            for i, v in self.refs.items():
+                if i < len(e[2]) and e[2][i][0] in ('var', 'idx'):
+                    self.assign(e[2][i], v, 'into', fr)
+            return r
         f = BUILTINS.get(n)
         if f is None:
             raise XtError("expression: can't find function %s" % name)
