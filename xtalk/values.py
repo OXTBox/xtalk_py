@@ -9,10 +9,28 @@ _NUM = re.compile(r'^\s*[+-]?(\d+\.?\d*([eE][+-]?\d+)?|\.\d+([eE][+-]?\d+)?)\s*$
 def is_number(s):
     return isinstance(s, str) and bool(_NUM.match(s)) or (isinstance(s, str) and s.strip() == '' and False)
 
+class NumStr(str):
+    """the text of a number that still remembers its full-precision value: LiveCode rounds a
+    number to numberFormat only when it is stored (put ... into x), not between operators"""
+    raw = 0.0
+
+def numstr(n):
+    if isinstance(n, bool):
+        return 'true' if n else 'false'
+    r = NumStr(fmt_num(n))
+    r.raw = float(n)
+    return r
+
+def plain(v):
+    """what gets stored: the text, without the memory of the full number"""
+    return str.__str__(v) if type(v) is NumStr else v
+
 def to_num(s, what='operand'):
     """text -> int or float; empty is 0, anything else non-numeric is an error"""
+    if type(s) is NumStr:
+        return s.raw
     if isinstance(s, (int, float)):
-        return s
+        return float(s)
     if not isinstance(s, str):
         raise XtError('expression: bad %s' % what)
     t = s.strip()
@@ -48,7 +66,7 @@ def to_text(v):
     if isinstance(v, bool):
         return 'true' if v else 'false'
     if isinstance(v, (int, float)):
-        return fmt_num(v)
+        return numstr(v)
     if isinstance(v, dict):
         raise XtError("expression: can't treat an array as text")
     return str(v)

@@ -57,7 +57,12 @@ def lc_lib(lib, exprs):
     """expressions evaluated in LiveCode with the library loaded (start using stack <file>)"""
     path = subprocess.run(['wslpath', '-m', os.path.join(ROOT, 'corpus', lib)], capture_output=True, text=True).stdout.strip()
     enc = ','.join(b64(i) for i in exprs)
-    stmts = '''start using stack "%s"
+    stmts = '''put url "binfile:%s" into tLibText
+put textDecode(tLibText, "UTF-8") into tLibText
+if line 1 of tLibText begins with "script " then delete line 1 of tLibText
+create invisible stack "xtLibTmp"
+set the script of stack "xtLibTmp" to tLibText
+start using stack "xtLibTmp"
 put "%s" into tList
 put empty into tAll
 repeat for each item tB in tList

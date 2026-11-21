@@ -39,10 +39,11 @@ for kind in ('expr', 'script'):
             print('ok    ', case.replace('\n', ' / ')[:70])
 for lib, d in gold.get('lib', {}).items():
     text = open(os.path.join(ROOT, 'corpus', lib), encoding='utf-8').read()
+    lib_it = Interp(text)              # loaded once, as LiveCode loads a library
     for case, want in d.items():
         n += 1
         try:
-            got = Interp(text).eval(case)
+            got = lib_it.eval(case)
         except Exception as e:                       # noqa: BLE001  (any failure is a mismatch)
             got = 'ERR' if isinstance(e, XtError) else 'CRASH %s: %s' % (type(e).__name__, e)
         if got != want:

@@ -124,18 +124,36 @@ class Parser:
 
     # ---- script
     def script(self):
-        handlers, top = {}, []
+        handlers, top, errors = {}, [], []
         self.skip_nl()
         while self.peek()[0] != 'eof':
+            start = self.i
+            try:
+                self.one_item(handlers, top)
+            except XtError as e:                  # a handler that doesn't parse costs that handler only
+                errors.append(str(e))
+                self.i = max(self.i, start + 1)
+                while self.peek()[0] != 'eof' and not (self.peek()[0] == 'nl' and self.peek(1)[0] == 'id'
+                                                       and self.peek(1)[1].lower() in ('on', 'command', 'function', 'private', 'getprop', 'setprop')):
+                    self.i += 1
+                self.skip_nl()
+        if top:
+            handlers['#top'] = top
+        if errors:
+            handlers['#errors'] = errors
+        return handlers
+
+    def one_item(self, handlers, top):
+        if True:
             if self.is_word('script') and self.peek(1)[0] == 'str':
                 while self.peek()[0] != 'nl':
                     self.i += 1
                 self.skip_nl()
-                continue
+                return
             if self.is_word('global') or self.is_word('local') or self.is_word('constant'):
                 top.append(self.statement())
                 self.skip_nl()
-                continue
+                return
             private = self.accept_word('private')
             kind = (self.accept_word('on', 'command', 'function', 'getprop', 'setprop'))
             if not kind:
@@ -155,9 +173,6 @@ class Parser:
             self.skip_nl()
             kind = 'function' if kind == 'function' else 'command'
             handlers[name.lower()] = (kind, name, params, body, byref)
-        if top:
-            handlers['#top'] = top
-        return handlers
 
     def block(self, stops):
         """statements until a line starting with one of the stop words"""
@@ -288,6 +303,7 @@ class Parser:
             self.expect_op(']')
         obj = None
         if self.accept_word('of'):
+            self.accept_word('of')                       # LiveCode lets a doubled "of of" through
             obj = self.p_un()
         self.expect_word('to')
         return ('setprop', ' '.join(words), obj, key, self.list_expr())
@@ -786,6 +802,7 @@ class Parser:
         if j and self.is_word('of', j):
             words = [self.peek(n)[1].lower() for n in range(j)]
             self.i += j + 1
+            self.accept_word('of')
             return ('propof', ' '.join(words), self.p_un(), None)
         self.i += 1
         key = None

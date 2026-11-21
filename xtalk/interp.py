@@ -1,12 +1,12 @@
 """The xTalk interpreter: runs the parser's tuples. Everything is text."""
 import math, random, time, base64
 from . import chunks as ch
-from .values import XtError, to_num, fmt_num, to_text, to_bool, is_numeric_text, compare, NUMBER_FORMAT
+from .values import XtError, to_num, fmt_num, numstr, plain, to_text, to_bool, is_numeric_text, compare, NUMBER_FORMAT
 from .parser import parse_script, parse_expr, parse_statements, OBJTYPES
 from .host import Host, wildcard
 
 CONST = {'empty': '', 'true': 'true', 'false': 'false', 'space': ' ', 'comma': ',', 'return': '\n', 'cr': '\r',
-         'lf': '\n', 'newline': '\n', 'quote': '"', 'tab': '\t', 'pi': fmt_num(math.pi), 'colon': ':',
+         'lf': '\n', 'newline': '\n', 'quote': '"', 'tab': '\t', 'pi': numstr(math.pi), 'colon': ':',
          'slash': '/', 'backslash': '\\', 'null': '\0', 'formfeed': '\f', 'zero': '0', 'one': '1', 'two': '2',
          'three': '3', 'four': '4', 'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10'}
 
@@ -50,6 +50,7 @@ class Interp:
         self.result = ''
         self.depth = 0
         self.refs = {}
+        self.load_errors = []
         if script.strip():
             self.load(script)
 
@@ -57,6 +58,7 @@ class Interp:
     def load(self, script):
         h = parse_script(script)
         top = h.pop('#top', [])
+        self.load_errors = h.pop('#errors', [])
         self.handlers.update(h)
         fr = Frame([])
         for st in top:                  # script-level local / global / constant lines
@@ -94,11 +96,11 @@ class Interp:
         fr = Frame(args)
         import copy
         for i, p in enumerate(params):
-            fr.vars[p.lower()] = copy.deepcopy(args[i]) if i < len(args) else ''
+            fr.vars[p.lower()] = copy.deepcopy(plain(args[i])) if i < len(args) else ''
         try:
             self.exec_block(body, fr)
         except Return as r:
-            return r.v
+            return plain(r.v)
         except ExitHandler:
             return ''
         finally:
@@ -119,6 +121,7 @@ class Interp:
 
     def setvar(self, fr, name, v):
         n = name.lower()
+        v = plain(v)
         if n in fr.globals:
             self.G[n] = v
         elif n not in fr.vars and n in self.S:
@@ -174,7 +177,7 @@ class Interp:
             if a == 0:
                 raise XtError('divide: divide by zero')
             r = b / a
-        self.assign(target, fmt_num(r), 'into', fr)
+        self.assign(target, numstr(r), 'into', fr)
 
     def undefined(self, fr, name):
         n = name.lower()
@@ -325,7 +328,7 @@ class Interp:
                 if (s >= 0) if down else (s <= 0):
                     return                         # a step that points away from the end: no passes
                 while (x > end + s) if down else (x < end + s):    # LiveCode runs one pass past the end (LIVECODE_FACTS)
-                    self.setvar(fr, v, fmt_num(x))
+                    self.setvar(fr, v, numstr(x))
                     run()
                     x += s
             elif kind == 'each':
@@ -447,7 +450,7 @@ class Interp:
                 arr = nxt
             last = keys[-1]
             if mode == 'into':
-                arr[last] = value
+                arr[last] = plain(value)
             else:
                 cur = to_text(arr.get(last, ''))
                 arr[last] = cur + to_text(value) if mode == 'after' else to_text(value) + cur
@@ -514,11 +517,11 @@ class Interp:
         if n in self.props:
             return self.props[n]
         if n in ('seconds',):
-            return fmt_num(int(time.time()))
+            return numstr(int(time.time()))
         if n in ('milliseconds', 'millisecs', 'ticks'):
-            return fmt_num(int(time.time() * (60 if n == 'ticks' else 1000)))
+            return numstr(int(time.time() * (60 if n == 'ticks' else 1000)))
         if n == 'paramcount':
-            return fmt_num(len(fr.args))
+            return numstr(len(fr.args))
         h = self.host.get_prop('', n)
         if h != '':
             return h
@@ -605,7 +608,7 @@ class Interp:
         if op == 'not':
             return 'false' if to_bool(v) else 'true'
         n = to_num(to_text(v))
-        return fmt_num(-n if op == '-' else n)
+        return numstr(-n if op == '-' else n)
 
     def e_bin(self, e, fr):
         op = e[1]
@@ -645,26 +648,26 @@ class Interp:
             return 'true' if x1 <= x < x2 and y1 <= y < y2 else 'false'
         a, b = to_num(to_text(l)), to_num(to_text(r))
         if op == '+':
-            return fmt_num(a + b)
+            return numstr(a + b)
         if op == '-':
-            return fmt_num(a - b)
+            return numstr(a - b)
         if op == '*':
-            return fmt_num(a * b)
+            return numstr(a * b)
         if op == '/':
             if b == 0:
                 raise XtError('expression: divide by zero')
-            return fmt_num(a / b)
+            return numstr(a / b)
         if op == 'div':
             if b == 0:
                 raise XtError('expression: divide by zero')
-            return fmt_num(math.trunc(a / b))
+            return numstr(math.trunc(a / b))
         if op == 'mod':
             if b == 0:
                 raise XtError('expression: divide by zero')
-            return fmt_num(math.fmod(a, b) if isinstance(a, float) or isinstance(b, float) else a - b * math.trunc(a / b))
+            return numstr(math.fmod(a, b) if isinstance(a, float) or isinstance(b, float) else a - b * math.trunc(a / b))
         if op == '^':
             try:
-                return fmt_num(float(a) ** b if not (isinstance(a, int) and isinstance(b, int) and b >= 0) else a ** b)
+                return numstr(float(a) ** b if not (isinstance(a, int) and isinstance(b, int) and b >= 0) else a ** b)
             except (OverflowError, ZeroDivisionError):
                 raise XtError('expression: bad operand')
         raise XtError('expression: unknown operator %s' % op)
@@ -687,22 +690,22 @@ class Interp:
 
 # ------------------------------------------------------------------ builtins
 def _n(x):
-    return to_num(to_text(x))
+    return to_num(x)
 
 def _t(x):
     return to_text(x)
 
 def f_round(it, fr, x, places='0'):
     p = int(_n(places))
-    return fmt_num(rnd_half_away(_n(x), p))
+    return numstr(rnd_half_away(_n(x), p))
 
 def f_min(it, fr, *a):
     vals = [_n(x) for x in (a if len(a) > 1 else [p for p in _t(a[0]).split(',')])]
-    return fmt_num(min(vals))
+    return numstr(min(vals))
 
 def f_max(it, fr, *a):
     vals = [_n(x) for x in (a if len(a) > 1 else [p for p in _t(a[0]).split(',')])]
-    return fmt_num(max(vals))
+    return numstr(max(vals))
 
 def f_offset(it, fr, needle, hay, skip='0'):
     s = int(_n(skip))
@@ -742,16 +745,31 @@ def f_chartonum(it, fr, c):
     return str(ord(c[0])) if c else '0'
 
 def f_trunc(it, fr, x):
-    return fmt_num(math.trunc(_n(x)))
+    return numstr(math.trunc(_n(x)))
 
 def f_matheq(fn):
-    return lambda it, fr, *a: fmt_num(fn(*[float(_n(x)) for x in a]))
+    return lambda it, fr, *a: numstr(fn(*[float(_n(x)) for x in a]))
+
+def f_baseconvert(it, fr, num, frm, to):
+    try:
+        n = int(_t(num), int(_n(frm)))
+    except ValueError:
+        raise XtError('expression: bad operand')
+    b = int(_n(to))
+    if n == 0:
+        return '0'
+    digits, out = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', ''
+    while n:
+        out = digits[n % b] + out
+        n //= b
+    return out
 
 BUILTINS = {
+    'baseconvert': f_baseconvert,
     'length': lambda it, fr, x: str(len(_t(x))),
     'round': f_round,
-    'abs': lambda it, fr, x: fmt_num(abs(_n(x))),
-    'sqrt': lambda it, fr, x: fmt_num(math.sqrt(_n(x))) if _n(x) >= 0 else (_ for _ in ()).throw(XtError('expression: bad operand')),
+    'abs': lambda it, fr, x: numstr(abs(_n(x))),
+    'sqrt': lambda it, fr, x: numstr(math.sqrt(_n(x))) if _n(x) >= 0 else (_ for _ in ()).throw(XtError('expression: bad operand')),
     'trunc': f_trunc,
     'min': f_min, 'max': f_max,
     'sin': f_matheq(math.sin), 'cos': f_matheq(math.cos), 'tan': f_matheq(math.tan),
@@ -766,7 +784,7 @@ BUILTINS = {
     'param': f_param, 'paramcount': lambda it, fr: str(len(fr.args)), 'value': f_value,
     'base64encode': lambda it, fr, x: base64.b64encode(_t(x).encode('utf-8')).decode(),
     'base64decode': lambda it, fr, x: base64.b64decode(_t(x)).decode('utf-8', 'replace'),
-    'sum': lambda it, fr, *a: fmt_num(sum(_n(x) for x in (a if len(a) > 1 else _t(a[0]).split(',')))),
-    'average': lambda it, fr, *a: fmt_num(sum(_n(x) for x in a) / len(a)),
+    'sum': lambda it, fr, *a: numstr(sum(_n(x) for x in (a if len(a) > 1 else _t(a[0]).split(',')))),
+    'average': lambda it, fr, *a: numstr(sum(_n(x) for x in a) / len(a)),
     'isnumber': lambda it, fr, x: 'true' if is_numeric_text(_t(x)) else 'false',
 }

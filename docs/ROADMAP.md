@@ -70,6 +70,18 @@ They agree on data, not on code.
    Vibecode3D and xt3d.
 5. **Optional translator**: xTalk to plain Python, for people who want Python output.
 
+## Where Phase 1 stands (21 Nov 2026)
+
+- Package `xtalk/` (values, chunks, parser, interpreter, host). Tests: `python3 -I tests/test_interp.py`
+  compares 245 cases with LiveCode 9.6.3's own answers (`tests/golden.json`, made by `tools/golden.py`;
+  cases in `tests/expr_cases.txt`, `script_cases.txt`, `lib_cases.txt`). All match.
+- Whole libraries run and agree with LiveCode: LIB_BIT, LIB_MAP, LIB_TRACE and the engine's maths
+  (Mat3, colours, rays, meshes) when loaded as libraries.
+- `python3 -I tools/parse_corpus.py` : 99% of the corpus's handlers parse (the rest are typos in the source).
+- Not yet: object commands do nothing (the default host only records them: `go`, `show`, `lock`, `send`,
+  `answer`), `send ... in N milliseconds`, `dispatch`, `pass`, message path, `do` of handler-local code
+  across handlers, the property catalogue (207 properties), styled text. Those need Phase 2 (stack runtime).
+
 ## Next concrete step
 
 Phase 1 begins with the value model and chunk expressions (`put`, `char/word/item/line
