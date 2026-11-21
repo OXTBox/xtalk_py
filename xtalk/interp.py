@@ -1,11 +1,11 @@
 """The xTalk interpreter: runs the parser's tuples. Everything is text."""
-import math, random, time, base64
+import math, random, time, base64, re
 from . import chunks as ch
 from .values import XtError, to_num, fmt_num, numstr, plain, to_text, to_bool, is_numeric_text, compare, NUMBER_FORMAT
 from .parser import parse_script, parse_expr, parse_statements, OBJTYPES
 from .host import Host, wildcard
 
-CONST = {'empty': '', 'true': 'true', 'false': 'false', 'space': ' ', 'comma': ',', 'return': '\n', 'cr': '\r',
+CONST = {'empty': '', 'true': 'true', 'false': 'false', 'space': ' ', 'comma': ',', 'return': '\n', 'cr': '\n',
          'lf': '\n', 'newline': '\n', 'quote': '"', 'tab': '\t', 'pi': numstr(math.pi), 'colon': ':',
          'slash': '/', 'backslash': '\\', 'null': '\0', 'formfeed': '\f', 'zero': '0', 'one': '1', 'two': '2',
          'three': '3', 'four': '4', 'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10'}
@@ -581,8 +581,13 @@ class Interp:
         return self.host.get_prop(self.desc(operand, fr), name, None if key is None else to_text(self.ev(key, fr)))
 
     def e_isa(self, e, fr):
-        v = to_text(self.ev(e[1], fr))
+        raw = self.ev(e[1], fr)
         t = e[2]
+        if t == 'array':
+            return 'true' if isinstance(raw, dict) else 'false'
+        if isinstance(raw, dict):
+            return 'false'
+        v = to_text(raw)
         if t == 'number':
             return 'true' if is_numeric_text(v) else 'false'
         if t == 'integer':
@@ -685,6 +690,12 @@ class Interp:
         f = BUILTINS.get(n)
         if f is None:
             raise XtError("expression: can't find function %s" % name)
+        if n == 'matchtext':                                   # captures go into the variables named after the pattern
+            m = _re_search(args[1], args[0])
+            if m:
+                for node, grp in zip(e[2][2:], m.groups()):
+                    self.assign(node, grp or '', 'into', fr)
+            return 'true' if m else 'false'
         return f(self, fr, *args)
 
 
@@ -750,6 +761,38 @@ def f_trunc(it, fr, x):
 def f_matheq(fn):
     return lambda it, fr, *a: numstr(fn(*[float(_n(x)) for x in a]))
 
+def _pcre(p):
+    """PCRE (LiveCode) -> Python re: \\z is the very end"""
+    return re.sub(r'(?<!\\)\\z', r'\\Z', to_text(p))
+
+def _re_search(pattern, text):
+    try:
+        return re.search(_pcre(pattern), to_text(text))
+    except re.error:
+        raise XtError('matchText: bad pattern')
+
+def f_replacetext(it, fr, text, pattern, repl):
+    try:
+        r = re.sub(r'\\(\d)', r'\\g<\1>', to_text(repl))      # \1 in the replacement
+        return re.sub(_pcre(pattern), r, to_text(text))
+    except re.error:
+        raise XtError('replaceText: bad pattern')
+
+def f_format(it, fr, fmt, *args):
+    vals = []
+    for a in args:
+        t = to_text(a)
+        try:
+            vals.append(to_num(t) if is_numeric_text(t) else t)
+        except XtError:
+            vals.append(t)
+    conv = re.findall(r'%[-+ 0#]*\d*(?:\.\d+)?([a-zA-Z])', to_text(fmt))
+    vals = [int(v) if c in 'dixXoc' and isinstance(v, float) else v for v, c in zip(vals, conv)] + vals[len(conv):]
+    try:
+        return to_text(fmt) % tuple(vals[:len(conv)])
+    except (TypeError, ValueError):
+        raise XtError('format: bad format')
+
 def f_baseconvert(it, fr, num, frm, to):
     try:
         n = int(_t(num), int(_n(frm)))
@@ -766,6 +809,10 @@ def f_baseconvert(it, fr, num, frm, to):
 
 BUILTINS = {
     'baseconvert': f_baseconvert,
+    'matchtext': lambda it, fr, s_, p_, *r: 'true' if _re_search(p_, s_) else 'false',
+    'replacetext': f_replacetext, 'format': f_format,
+    'numtocodepoint': lambda it, fr, n: chr(int(_n(n))),
+    'codepointtonum': lambda it, fr, c: str(ord(_t(c)[0])) if _t(c) else '0',
     'length': lambda it, fr, x: str(len(_t(x))),
     'round': f_round,
     'abs': lambda it, fr, x: numstr(abs(_n(x))),

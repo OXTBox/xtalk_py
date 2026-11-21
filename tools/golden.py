@@ -8,7 +8,7 @@ split by a line of ----, each ends by putting its answer into tOut). LiveCode ru
 LIB_MCP's lcmcp standalone (starts itself). The interpreter's tests (tests/test_interp.py) compare
 against this file, so the file is the referee and is committed.
 """
-import base64, json, os, subprocess, sys
+import base64, hashlib, json, os, subprocess, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LCMCP = os.path.expanduser('~/projects/LIB_MCP/tools/lcmcp')
 
@@ -44,6 +44,25 @@ return tAll''' % (enc, 'put value(tCode) into tOut' if kind == 'expr' else 'do t
     parts = out[len('result:'):].strip().rstrip(',').split(',')
     return [base64.b64decode(p).decode('utf-8') if p else '' for p in parts]
 
+def lib_text(spec):
+    """'a.livecodescript+b.txt' -> the files joined (under corpus/, or tests/... from the project root)"""
+    parts = []
+    for f in spec.split('+'):
+        base = ROOT if f.startswith('tests/') else os.path.join(ROOT, 'corpus')
+        t = open(os.path.join(base, f), encoding='utf-8', errors='replace').read()
+        if t.startswith('script '):
+            t = t.split('\n', 1)[1]
+        parts.append(t)
+    return '\n'.join(parts)
+
+def lib_file(spec):
+    """the joined library as a real file (LiveCode loads it by path)"""
+    d = os.path.join(ROOT, 'tests', '.combined')
+    os.makedirs(d, exist_ok=True)
+    f = os.path.join(d, 'lib_%s.txt' % hashlib.md5(spec.encode()).hexdigest()[:10])
+    open(f, 'w', encoding='utf-8').write(lib_text(spec))
+    return f
+
 def lib_cases():
     out = {}
     for l in open(os.path.join(ROOT, 'tests/lib_cases.txt'), encoding='utf-8'):
@@ -55,14 +74,17 @@ def lib_cases():
 
 def lc_lib(lib, exprs):
     """expressions evaluated in LiveCode with the library loaded (start using stack <file>)"""
-    path = subprocess.run(['wslpath', '-m', os.path.join(ROOT, 'corpus', lib)], capture_output=True, text=True).stdout.strip()
+    path = subprocess.run(['wslpath', '-m', lib_file(lib)], capture_output=True, text=True).stdout.strip()
     enc = ','.join(b64(i) for i in exprs)
-    stmts = '''put url "binfile:%s" into tLibText
+    stmts = '''repeat for each line tU in the stacksInUse
+  stop using stack tU
+end repeat
+put url "binfile:%s" into tLibText
 put textDecode(tLibText, "UTF-8") into tLibText
 if line 1 of tLibText begins with "script " then delete line 1 of tLibText
-create invisible stack "xtLibTmp"
-set the script of stack "xtLibTmp" to tLibText
-start using stack "xtLibTmp"
+create invisible stack "xtT"
+set the script of stack "xtT" to tLibText
+start using stack "xtT"
 put "%s" into tList
 put empty into tAll
 repeat for each item tB in tList
@@ -74,6 +96,8 @@ repeat for each item tB in tList
   end try
   put base64Encode(textEncode(tOut, "UTF-8")) & "," after tAll
 end repeat
+stop using stack "xtT"
+delete stack "xtT"
 return tAll''' % (path, enc)
     r = subprocess.run([LCMCP, '--standalone', 'run', '--server', stmts], capture_output=True, text=True, timeout=600)
     out = r.stdout.strip()

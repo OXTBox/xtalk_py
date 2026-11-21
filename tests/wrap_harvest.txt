@@ -1,0 +1,72 @@
+-- public wrappers so the tests can reach LCHarvest2's private JSON helpers (test file, not part of LCHarvest2)
+function T.jStr p
+   return jStr(p)
+end T.jStr
+function T.jPair k, j
+   return jPair(k, j)
+end T.jPair
+function T.jAdd pBody, pKey, pJSON
+   put pBody into tB
+   jAdd tB, pKey, pJSON
+   return tB
+end T.jAdd
+function T.listAdd pList, pJSON
+   put pList into tL
+   listAdd tL, pJSON
+   return tL
+end T.listAdd
+function T.jNode p
+   return jNode(p)
+end T.jNode
+function T.jList p
+   return jList(p)
+end T.jList
+function T.jScalar p
+   return jScalar(p)
+end T.jScalar
+function T.jAuto p
+   return jAuto(p)
+end T.jAuto
+function T.isBinary p
+   return isBinary(p)
+end T.isBinary
+function T.safeName p
+   return safeName(p)
+end T.safeName
+function T.nameSuffix p
+   return nameSuffix(p)
+end T.nameSuffix
+function T.pointsJSON p
+   return pointsJSON(p)
+end T.pointsJSON
+function T.handlerItems p
+   return handlerItems(p)
+end T.handlerItems
+function T.arrayList
+   put "a" into t[1]
+   put 2 into t[2]
+   put "c d" into t[3]
+   return jArray(t)
+end T.arrayList
+function T.arrayObject
+   put 1 into t["zeta"]
+   put "x" into t["alpha"]
+   put true into t["flag"]
+   return jArray(t)
+end T.arrayObject
+function T.arrayNested
+   put "p" into t["k"][1]
+   put "q" into t["k"][2]
+   put 5 into t["n"]["inner"]
+   return jArray(t)
+end T.arrayNested
+function T.arrayGap
+   put "a" into t[1]
+   put "b" into t[3]
+   return jArray(t)
+end T.arrayGap
+function T.arrayAuto
+   put "1,2,3" into t["rect"]
+   put "12" into t["n"]
+   return jAuto(t)
+end T.arrayAuto

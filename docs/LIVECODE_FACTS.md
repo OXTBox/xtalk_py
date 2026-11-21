@@ -22,3 +22,6 @@ exactly. Each line was checked in LiveCode 9.6.3; add the date and how.
 - `switch` matches cases exactly, case-sensitively: `switch "b"` does not take `case "B"`.
 - `repeat with i = 10 down to 1 step 4` (positive step with `down to`) runs zero times. `repeat with i = 1 to 10 step 4` gives 1, 5, 9, 13 and leaves `i` at 13.
 - `word`, `char` and the like, written bare, are errors (reserved words), not variables.
+- `cr` is a newline (ASCII 10), the same as `return`; not a carriage return.
+- QUIRK, unexplained: LCHarvest2's `jArray` (recursive, with `exit repeat` then `sort lines of tKeys` then a second `repeat for each line tKey`) printed the key `""` for a nested array's second key in 9.6.3, though the value was found under the right key. Small recursive loops with `exit repeat` did not reproduce it. The case is left out of tests/lib_cases.txt.
+- After a library test run, always `stop using stack` / `delete stack` the test stack: a leftover test library in the long-lived standalone made later expression runs hang (tools/golden.py now cleans up).

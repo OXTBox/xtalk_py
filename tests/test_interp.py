@@ -9,6 +9,8 @@ import json, os, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 from xtalk import Interp, XtError   # noqa: E402
+sys.path.insert(0, os.path.join(ROOT, 'tools'))
+from golden import lib_text         # noqa: E402
 
 gold = json.load(open(os.path.join(ROOT, 'tests/golden.json'), encoding='utf-8'))
 verbose = '-v' in sys.argv
@@ -38,7 +40,7 @@ for kind in ('expr', 'script'):
         elif verbose:
             print('ok    ', case.replace('\n', ' / ')[:70])
 for lib, d in gold.get('lib', {}).items():
-    text = open(os.path.join(ROOT, 'corpus', lib), encoding='utf-8').read()
+    text = lib_text(lib)
     lib_it = Interp(text)              # loaded once, as LiveCode loads a library
     for case, want in d.items():
         n += 1
