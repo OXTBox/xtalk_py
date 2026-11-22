@@ -68,7 +68,8 @@ class Interp:
         return to_text(self.invoke(name, [a if isinstance(a, dict) else to_text(a) for a in args]))
 
     def eval(self, text, frame=None):
-        return to_text(self.ev(parse_expr(text), frame or Frame([])))
+        v = self.ev(parse_expr(text), frame or Frame([]))
+        return '' if isinstance(v, dict) else to_text(v)   # LiveCode's eval shows an array as empty
 
     def run(self, text):
         """run statements as if in a handler; returns the text `return` gave, or ''"""
@@ -121,7 +122,6 @@ class Interp:
 
     def setvar(self, fr, name, v):
         n = name.lower()
-        v = plain(v)
         if n in fr.globals:
             self.G[n] = v
         elif n not in fr.vars and n in self.S:
@@ -415,7 +415,7 @@ class Interp:
 
     def getvar_arr(self, fr, name):
         n = name.lower()
-        v = (self.G if n in fr.globals else fr.vars).get(n)
+        v = (self.G if n in fr.globals else (self.S if n not in fr.vars and n in self.S else fr.vars)).get(n)
         return v if isinstance(v, dict) else None
 
     def key(self, keys, fr):
@@ -436,7 +436,7 @@ class Interp:
             return
         if k == 'idx':
             n = target[1].lower()
-            store = self.G if n in fr.globals else fr.vars
+            store = self.G if n in fr.globals else (self.S if n not in fr.vars and n in self.S else fr.vars)
             arr = store.get(n)
             if not isinstance(arr, dict):
                 arr = {}

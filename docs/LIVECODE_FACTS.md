@@ -32,3 +32,10 @@ exactly. Each line was checked in LiveCode 9.6.3; add the date and how.
 Loading engine+game (stack script, `start using stack`) works in a fresh standalone (~10 s). Loading a second one in the same
 session never returns (measured with Antack, Face, Hunter; the cases themselves pass in a fresh session). Use a fresh
 standalone per library group.
+
+## 22 Nov 2026 (golden run, 319 cases)
+- A variable keeps the full number: `put (x+680)/170 into fx` does not round to numberFormat (6 decimals) until it is
+  shown as text. Rounding at every `put` gave wrong last digits (HeightAt, Antack.Euler).
+- `eval` of an expression that returns an array (a mesh) gives empty, not an error.
+- A second engine+game library loaded in one LiveCode session hangs it: one game group per fresh copy.
+- Script locals (`local sH`) are shared by all handlers, arrays included: `put x into sH[i]` writes the script local.
