@@ -25,10 +25,10 @@ exactly. Each line was checked in LiveCode 9.6.3; add the date and how.
 - `cr` is a newline (ASCII 10), the same as `return`; not a carriage return.
 - QUIRK, unexplained: LCHarvest2's `jArray` (recursive, with `exit repeat` then `sort lines of tKeys` then a second `repeat for each line tKey`) printed the key `""` for a nested array's second key in 9.6.3, though the value was found under the right key. Small recursive loops with `exit repeat` did not reproduce it. The case is left out of tests/lib_cases.txt.
 - After a library test run, always `stop using stack` / `delete stack` the test stack: a leftover test library in the long-lived standalone made later expression runs hang (tools/golden.py now cleans up).
-- OPEN: `Hunter.GemInfo("Ruby")` (LIB_GAMES Hunter card script loaded on the engine) never returned in 9.6.3's standalone and left it busy. The same shape of code in a small test (return from inside `repeat for each line ... in f()`) returned at once, so the cause is still unknown. The game cases wait in tests/lib_cases_games.pending.txt.
+- (SOLVED 22 Nov, see below) `Hunter.GemInfo("Ruby")` (LIB_GAMES Hunter card script loaded on the engine) never returned in 9.6.3's standalone and left it busy. The same shape of code in a small test (return from inside `repeat for each line ... in f()`) returned at once, so the cause is still unknown. The game cases wait in tests/lib_cases_games.pending.txt.
 - OPEN: `asin(...)` differs from Python's in the 6th decimal for some inputs (Antack.Euler(0.5, 0.3): LiveCode 0.475758, ours 0.475759). Compare `atan2(x, sqrt(1-x*x))` once LiveCode answers again.
 
-## A second game library in one standalone session hangs it (21 Nov 2026)
+## (WRONG, see 22 Nov correction) A second game library in one standalone session hangs it (21 Nov 2026)
 Loading engine+game (stack script, `start using stack`) works in a fresh standalone (~10 s). Loading a second one in the same
 session never returns (measured with Antack, Face, Hunter; the cases themselves pass in a fresh session). Use a fresh
 standalone per library group.
@@ -37,5 +37,8 @@ standalone per library group.
 - A variable keeps the full number: `put (x+680)/170 into fx` does not round to numberFormat (6 decimals) until it is
   shown as text. Rounding at every `put` gave wrong last digits (HeightAt, Antack.Euler).
 - `eval` of an expression that returns an array (a mesh) gives empty, not an error.
-- A second engine+game library loaded in one LiveCode session hangs it: one game group per fresh copy.
+- CORRECTION (22 Nov): a second engine+game library in one copy does NOT hang. Antack, Face, Antack again in one copy all
+  answered; the first load took 10 s, later ones 32 s. The 21 Nov hangs were most likely the launcher bug (LIB_MCP `Client.standalone`
+  held pipes), not LiveCode. `golden.py` still uses a fresh copy per group (faster and safe).
+- `Hunter.GemInfo` was never a runaway loop: same cause. Its cases are now in lib_cases.txt (322 of 322 match).
 - Script locals (`local sH`) are shared by all handlers, arrays included: `put x into sH[i]` writes the script local.

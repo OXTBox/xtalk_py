@@ -156,3 +156,7 @@ engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3
 engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Antack.livecodescript	Antack.RingMesh(4, 3)
 engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_demo.livecodescript	Demo.BoatMesh()
 engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Face.livecodescript	Face.SegmentsToMesh("0,0,0,10,0,0" & return & "10,0,0,10,10,0" & return & "bad")
+#  - Hunter.GemInfo("Ruby") sent LiveCode 9.6.3's standalone into a runaway loop (cause not found; GemTypes alone is fine),
+engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	Hunter.GemInfo("Ruby")
+engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	Hunter.GemInfo("Diamond")
+engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	Hunter.GemInfo("Nothing")

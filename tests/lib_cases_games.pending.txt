@@ -1,5 +1,4 @@
 # PENDING game cases (LIB_GAMES card scripts on top of the engine). Not in lib_cases.txt yet because:
-#  - Hunter.GemInfo("Ruby") sent LiveCode 9.6.3's standalone into a runaway loop (cause not found; GemTypes alone is fine),
 #    so the standalone needs restarting (close the LIB_MCP server window / end xt3d_MCP) before tools/golden.py runs again.
 #  - Run Hunter cases ONE AT A TIME with a timeout first; leave GemInfo/RandomGem out until the loop is understood.
 #  - '|' separates libraries (engine | game+wrapper), '+' joins files into one library.
@@ -11,9 +10,6 @@ engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3
 engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Canyon.livecodescript+tests/wrap_g_canyon.txt	T.CanyonBullet(1.5)
 engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Canyon.livecodescript+tests/wrap_g_canyon.txt	Canyon.SegmentMesh("0,0" & return & "10,0" & return & "10,10", "0,0" & return & "8,0" & return & "8,8", 5)
 engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	Hunter.GemTypes()
-engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	Hunter.GemInfo("Ruby")
-engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	Hunter.GemInfo("Diamond")
-engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	Hunter.GemInfo("Nothing")
 engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	Hunter.Palette()
 engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	Hunter.BulletMesh()
 engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	T.HeightAt(0, 0)
