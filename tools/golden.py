@@ -8,9 +8,36 @@ split by a line of ----, each ends by putting its answer into tOut). LiveCode ru
 LIB_MCP's lcmcp standalone (starts itself). The interpreter's tests (tests/test_interp.py) compare
 against this file, so the file is the referee and is committed.
 """
-import base64, hashlib, json, os, subprocess, sys
+import base64, hashlib, json, os, subprocess, sys, time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LCMCP = os.path.expanduser('~/projects/LIB_MCP/tools/lcmcp')
+sys.path.insert(0, os.path.expanduser('~/projects/LIB_MCP/python'))
+from lib_mcp.client import Client
+HANG_LOG = os.path.join(ROOT, 'tools', 'golden_hangs.log')
+GROUP_TIMEOUT = 120      # seconds per engine+game group (the first load takes ~10 s)
+BULK_TIMEOUT = 300       # expression / script batches
+SLOT = [0]               # the copy in use now; engine+game groups alternate 0 / 1 (never more than two)
+
+class Hang(Exception):
+    pass
+
+def log_hang(case, lib, seconds, timeout):
+    with open(HANG_LOG, 'a', encoding='utf-8') as f:
+        f.write('%s\tcase=%s\tlibrary=%s\tseconds=%.0f\tslot=%d\ttimeout=%d\n'
+                % (time.strftime('%Y-%m-%d %H:%M:%S'), case.replace('\n', ' ')[:80], lib, seconds, SLOT[0], timeout))
+
+def lcmcp_run(stmts, timeout, case, lib):
+    """run on the current slot; on a hang: log it, end that copy, raise Hang"""
+    env = dict(os.environ, LIBMCP_SLOT=str(SLOT[0]))
+    t0 = time.time()
+    try:
+        r = subprocess.run([LCMCP, '--standalone', 'run', '--server', stmts], capture_output=True, text=True,
+                           timeout=timeout, env=env)
+    except subprocess.TimeoutExpired:
+        log_hang(case, lib, time.time() - t0, timeout)
+        Client.kill_slot(SLOT[0])
+        raise Hang()
+    return r
 
 def cases():
     ex = [l for l in open(os.path.join(ROOT, 'tests/expr_cases.txt'), encoding='utf-8').read().split('\n') if l.strip()]
@@ -37,7 +64,7 @@ repeat for each item tB in tList
   put base64Encode(textEncode(tOut, "UTF-8")) & "," after tAll
 end repeat
 return tAll''' % (enc, 'put value(tCode) into tOut' if kind == 'expr' else 'do tCode')
-    r = subprocess.run([LCMCP, '--standalone', 'run', '--server', stmts], capture_output=True, text=True, timeout=600)
+    r = lcmcp_run(stmts, BULK_TIMEOUT, '%s batch of %d, first: %s' % (kind, len(items), items[0]), '-')
     out = r.stdout.strip()
     if not out.startswith('result:'):
         sys.exit('LiveCode run failed: ' + out + r.stderr)
@@ -75,6 +102,14 @@ def lib_cases():
             out.setdefault(lib, []).append(e)
     return out
 
+def fresh_slot():
+    """A second game library loaded in the same LiveCode session hangs it (measured 21 Nov), so every
+    engine+game group gets a fresh copy: switch to the other slot (0 <-> 1), end whatever ran there, start anew.
+    Never more than two copies exist (LIB_MCP refuses a third)."""
+    SLOT[0] = 1 - SLOT[0]
+    Client.kill_slot(SLOT[0])
+    Client.standalone(slot=SLOT[0])
+
 def lc_lib(lib, exprs):
     """expressions evaluated in LiveCode with the library loaded (start using stack <file>)"""
     paths = [subprocess.run(['wslpath', '-m', f], capture_output=True, text=True).stdout.strip() for f in lib_files(lib)]
@@ -111,7 +146,7 @@ repeat for each item tB in tList
 end repeat
 %s
 return tAll''' % (load, enc, unload)
-    r = subprocess.run([LCMCP, '--standalone', 'run', '--server', stmts], capture_output=True, text=True, timeout=600)
+    r = lcmcp_run(stmts, GROUP_TIMEOUT, '%d cases, first: %s' % (len(exprs), exprs[0]), lib)
     out = r.stdout.strip()
     if not out.startswith('result:'):
         sys.exit('LiveCode run failed: ' + out + r.stderr)
@@ -122,7 +157,15 @@ def main():
     ex, sc = cases()
     gold = {'expr': {}, 'script': {}, 'lib': {}}
     for lib, exprs in lib_cases().items():
-        gold['lib'][lib] = dict(zip(exprs, lc_lib(lib, exprs)))
+        if '|' in lib:
+            fresh_slot()
+        try:
+            gold['lib'][lib] = dict(zip(exprs, lc_lib(lib, exprs)))
+        except Hang:
+            print('HANG (logged, group skipped):', lib, flush=True)
+            continue
+        print('ok', lib, len(exprs), flush=True)
+    Client.kill_slot(1 - SLOT[0])   # leave only one copy for the bulk runs
     for case, ans in zip(ex, lc_run('expr', ex)):
         gold['expr'][case] = ans
     for case, ans in zip(sc, lc_run('script', sc)):

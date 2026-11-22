@@ -315,6 +315,33 @@
    "T.handlerItems(\"-- just a comment\" & return & \"put 1 into x\")": "",
    "T.handlerItems(\"getProp cX\" & return & \"end cX\" & return & \"setProp cX v\" & return & \"end cX\")": "{\"line\": 1, \"type\": \"getprop\", \"name\": \"cX\"},\n{\"line\": 3, \"type\": \"setprop\", \"name\": \"cX\", \"params\": \"v\"}",
    "T.handlerItems(\"function f\" & return & \"function g # c\" & return & \"on\")": "{\"line\": 1, \"type\": \"function\", \"name\": \"f\"},\n{\"line\": 2, \"type\": \"function\", \"name\": \"g\"}"
+  },
+  "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Canyon.livecodescript+tests/wrap_g_canyon.txt": {
+   "Canyon.Palette()": "#D02090,#FF0000,#FF4500,#FFA500,#FFFF00,#7CFC00,#32CD32,#00FF00,#00FFFF,#6495ED,#1E90FF,#3399FF,#FF00FF,#00FF7F,#FFC0CB,#FF69B4,#00F5FF,#87CEEB,#E6E6FA,#FFFFFF"
+  },
+  "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt": {
+   "Hunter.GemTypes()": "Diamond,#E8F8FF,500,1\nSapphire,#3A7BFF,300,2\nRuby,#FF2A4A,250,3\nEmerald,#22FF88,200,3\nAmethyst,#B455FF,150,4\nTopaz,#FFC21A,100,5",
+   "Hunter.Palette()": "#D02090,#FF0000,#FF4500,#FFA500,#FFFF00,#7CFC00,#32CD32,#00FF00,#00FFFF,#6495ED,#1E90FF,#3399FF,#FF00FF,#00FF7F,#FFC0CB,#FF69B4,#00F5FF,#87CEEB,#E6E6FA,#FFFFFF",
+   "Hunter.BulletMesh()": "",
+   "T.HeightAt(0, 0)": "11",
+   "T.HeightAt(100, -50)": "12.903114",
+   "T.HeightAt(-1000, 1000)": "5.0006",
+   "T.HeightAt(33.5, 77.25)": "9.652941"
+  },
+  "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Antack.livecodescript": {
+   "Antack.Euler(0, 0)": "0,0,0",
+   "Antack.Euler(0.5, 0.3)": "0.338888,0.475758,-0.160062",
+   "Antack.Euler(-1, 0.9)": "1.165747,-0.550445,0.884158",
+   "Antack.Euler(3, -1)": "-2.137029,0.076322,3.022214",
+   "Antack.LevelTitle(\"Trainer\")": "TRAINER",
+   "Antack.LevelTitle(\"Level 3\")": "FIGHT 3",
+   "Antack.LevelTitle(\"x7\")": "FIGHT 7"
+  },
+  "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_demo.livecodescript": {
+   "Demo.BoatMesh()": ""
+  },
+  "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Face.livecodescript": {
+   "Face.SegmentsToMesh(\"0,0,0,10,0,0\" & return & \"10,0,0,10,10,0\" & return & \"bad\")": ""
   }
  }
 }
