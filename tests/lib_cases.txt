@@ -160,3 +160,4 @@ engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3
 engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	Hunter.GemInfo("Ruby")
 engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	Hunter.GemInfo("Diamond")
 engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt	Hunter.GemInfo("Nothing")
+engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Face.livecodescript	Face.SegmentsToMesh("1,2,3,4,5,6" & return & "1,2,3,7,8,9" & return & "7,8,9,4,5,6")
