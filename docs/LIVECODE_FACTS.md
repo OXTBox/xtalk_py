@@ -27,3 +27,8 @@ exactly. Each line was checked in LiveCode 9.6.3; add the date and how.
 - After a library test run, always `stop using stack` / `delete stack` the test stack: a leftover test library in the long-lived standalone made later expression runs hang (tools/golden.py now cleans up).
 - OPEN: `Hunter.GemInfo("Ruby")` (LIB_GAMES Hunter card script loaded on the engine) never returned in 9.6.3's standalone and left it busy. The same shape of code in a small test (return from inside `repeat for each line ... in f()`) returned at once, so the cause is still unknown. The game cases wait in tests/lib_cases_games.pending.txt.
 - OPEN: `asin(...)` differs from Python's in the 6th decimal for some inputs (Antack.Euler(0.5, 0.3): LiveCode 0.475758, ours 0.475759). Compare `atan2(x, sqrt(1-x*x))` once LiveCode answers again.
+
+## A second game library in one standalone session hangs it (21 Nov 2026)
+Loading engine+game (stack script, `start using stack`) works in a fresh standalone (~10 s). Loading a second one in the same
+session never returns (measured with Antack, Face, Hunter; the cases themselves pass in a fresh session). Use a fresh
+standalone per library group.
