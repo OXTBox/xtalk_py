@@ -1,4 +1,5 @@
 """The xTalk interpreter: runs the parser's tuples. Everything is text."""
+import copy
 import math, random, time, base64, re
 from . import chunks as ch
 from .values import XtError, to_num, fmt_num, numstr, plain, to_text, to_bool, is_numeric_text, compare, NUMBER_FORMAT
@@ -428,8 +429,8 @@ class Interp:
     def assign(self, target, value, mode, fr):
         k = target[0]
         if k == 'var':
-            if mode == 'into':
-                self.setvar(fr, target[1], value if isinstance(value, dict) else to_text(value))
+            if mode == 'into':                  # LiveCode copies an array on put: no sharing
+                self.setvar(fr, target[1], copy.deepcopy(value) if isinstance(value, dict) else to_text(value))
             else:
                 cur = to_text(self.getvar(fr, target[1])) if not self.undefined(fr, target[1]) else ''
                 v = to_text(value)
@@ -451,7 +452,7 @@ class Interp:
                 arr = nxt
             last = keys[-1]
             if mode == 'into':
-                arr[last] = plain(value)
+                arr[last] = copy.deepcopy(value) if isinstance(value, dict) else plain(value)
             else:
                 cur = to_text(arr.get(last, ''))
                 arr[last] = cur + to_text(value) if mode == 'after' else to_text(value) + cur
