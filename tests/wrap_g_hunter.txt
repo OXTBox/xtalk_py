@@ -5,3 +5,13 @@ function T.HeightAt x, z
    end repeat
    return Hunter.HeightAt(x, z)
 end T.HeightAt
+
+function T.RandomGemOK
+   -- RandomGem is random: check 200 picks are all one of the six gem names
+   put "Diamond,Sapphire,Ruby,Emerald,Amethyst,Topaz" into tNames
+   repeat 200 times
+      put Hunter.RandomGem() into tGem
+      if tGem is not among the items of tNames then return "bad:" & tGem
+   end repeat
+   return "ok"
+end T.RandomGemOK

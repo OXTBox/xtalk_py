@@ -14,7 +14,7 @@ LCMCP = os.path.expanduser('~/projects/LIB_MCP/tools/lcmcp')
 sys.path.insert(0, os.path.expanduser('~/projects/LIB_MCP/python'))
 from lib_mcp.client import Client
 HANG_LOG = os.path.join(ROOT, 'tools', 'golden_hangs.log')
-GROUP_TIMEOUT = 120      # seconds per engine+game group (the first load takes ~10 s)
+GROUP_TIMEOUT = 90 + int(os.environ.get('LIBMCP_WAIT', 30))   # per engine+game group; includes the copy's start (LIBMCP_WAIT), first load ~10 s
 BULK_TIMEOUT = 300       # expression / script batches
 SLOT = [0]               # the copy in use now; engine+game groups alternate 0 / 1 (never more than two)
 
