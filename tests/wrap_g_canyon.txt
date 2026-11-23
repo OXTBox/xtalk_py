@@ -1,0 +1,12 @@
+function T.CanyonShip s
+   put s into sF
+   return Canyon.ShipMesh()
+end T.CanyonShip
+function T.CanyonShot s
+   put s into sF
+   return Canyon.ShotMesh()
+end T.CanyonShot
+function T.CanyonBullet s
+   put s into sF
+   return Canyon.BulletMesh()
+end T.CanyonBullet

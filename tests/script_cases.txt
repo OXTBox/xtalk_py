@@ -1,0 +1,224 @@
+put "a,b,c" into t
+put "X" into item 2 of t
+put t into tOut
+----
+put "a,b,c" into t
+put "X" into item 5 of t
+put t into tOut
+----
+put "a,b,c" into t
+put "X" after item 2 of t
+put t into tOut
+----
+put "a,b,c" into t
+put "X" before item 2 of t
+put t into tOut
+----
+put "one two three" into t
+put "2" into word 2 of t
+put t into tOut
+----
+put "one two three" into t
+delete word 2 of t
+put t into tOut
+----
+put "a,b,c" into t
+delete item 2 of t
+put t into tOut
+----
+put "a,b,c" into t
+delete item 3 of t
+put t into tOut
+----
+put "a,b,c" into t
+delete item 1 of t
+put t into tOut
+----
+put "a" & return & "b" & return & "c" into t
+delete line 2 of t
+put t into tOut
+----
+put "hello" into t
+delete char 2 to 3 of t
+put t into tOut
+----
+put "a b,c d" into t
+put "X" into word 2 of item 2 of t
+put t into tOut
+----
+put "hello" into t
+put "XY" into char 2 to 3 of t
+put t into tOut
+----
+put 5 into x
+add 3 to x
+subtract 1 from x
+multiply x by 2
+divide x by 4
+put x into tOut
+----
+add 3 to y
+put y into tOut
+----
+put empty into t
+put "x" into char 3 of t
+put t into tOut
+----
+put 0 into s
+repeat with i = 1 to 10 step 4
+  add i to s
+end repeat
+put s & ":" & i into tOut
+----
+put empty into s
+repeat with i = 10 down to 1 step 4
+  put i & "," after s
+end repeat
+put s into tOut
+----
+put empty into s
+repeat for each char c in "abc"
+  put c & "-" after s
+end repeat
+put s into tOut
+----
+put empty into s
+repeat for each item c in "a,b,,c"
+  put "[" & c & "]" after s
+end repeat
+put s into tOut
+----
+put empty into s
+repeat for each word c in "a  b   c"
+  put "[" & c & "]" after s
+end repeat
+put s into tOut
+----
+put 0 into n
+repeat 5 times
+  add 2 to n
+end repeat
+put n into tOut
+----
+put 0 into n
+repeat while n < 5
+  add 1 to n
+  if n = 3 then exit repeat
+end repeat
+put n into tOut
+----
+put empty into s
+repeat with i = 1 to 5
+  if i mod 2 = 0 then next repeat
+  put i after s
+end repeat
+put s into tOut
+----
+put 3 into x
+switch x
+case 1
+  put "one" into tOut
+  break
+case 3
+  put "three" into tOut
+  break
+default
+  put "other" into tOut
+end switch
+----
+put "b" into x
+switch x
+case "a"
+  put "A" into tOut
+case "B", "c"
+  put "B or c" into tOut
+default
+  put "other" into tOut
+end switch
+----
+put 5 into x
+if x > 3 then
+  put "big" into tOut
+else
+  put "small" into tOut
+end if
+----
+put 2 into x
+if x > 3 then put "big" into tOut else put "small" into tOut
+----
+put 2 into x
+if x > 3 then
+  put "a" into tOut
+else if x > 1 then
+  put "b" into tOut
+else
+  put "c" into tOut
+end if
+----
+put "a" into x[1]
+put "b" into x[2]
+put the keys of x into tOut
+----
+put "p" into x["k"]
+put x["k"] & x["z"] into tOut
+----
+put "c,a,b" into t
+sort items of t
+put t into tOut
+----
+put "10,9,100" into t
+sort items of t numeric
+put t into tOut
+----
+put "10,9,100" into t
+sort items of t
+put t into tOut
+----
+put "b,a,c" into t
+sort items of t descending
+put t into tOut
+----
+put "a-b-a" into t
+replace "a" with "X" in t
+put t into tOut
+----
+set the itemDelimiter to "-"
+put item 2 of "a-b-c" into tOut
+----
+put "x" into tOut
+try
+  put 1/0 into y
+catch e
+  put "caught" into tOut
+end try
+----
+put 1 + "abc" into tOut
+----
+put word 1 to -1 of "a b c" into tOut
+----
+get "hello"
+put it into tOut
+----
+put "a" into x
+put "b" after x
+put "c" before x
+put x into tOut
+----
+put 1 into x
+put x + 1 into x
+put x & "!" into tOut
+----
+put "5" into x
+put x is a number into tOut
+----
+put "abc" into tOut
+put 7 into char 2 of tOut
+----
+put the number of items in "a,b,c" + 1 into tOut
+----
+put empty into tOut
+put "q" into line 3 of tOut
+----
+put "a" & return & "b" into t
+put "X" into line 2 of t
+put t into tOut
