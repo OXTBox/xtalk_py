@@ -333,8 +333,9 @@ class Interp:
                     x += s
             elif kind == 'each':
                 ck, v, e = p
-                text = to_text(self.ev(e, fr))
                 kind2 = ck.rstrip('s') if ck not in ('chars',) else 'char'
+                if kind2 not in ('key',):
+                    text = to_text(self.ev(e, fr))      # an array can't be text; keys loops read it below
                 if kind2 in ('key',):
                     arr = self.ev(e, fr)
                     for key in list(arr):
