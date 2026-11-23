@@ -68,7 +68,7 @@ return tAll''' % (enc, 'put value(tCode) into tOut' if kind == 'expr' else 'do t
     out = r.stdout.strip()
     if not out.startswith('result:'):
         sys.exit('LiveCode run failed: ' + out + r.stderr)
-    parts = out[len('result:'):].strip().rstrip(',').split(',')
+    parts = out[len('result:'):].strip()[:-1].split(',')   # drop the one closing comma only: rstrip ate empty last answers
     return [base64.b64decode(p).decode('utf-8') if p else '' for p in parts]
 
 def lib_text(spec):
@@ -150,7 +150,7 @@ return tAll''' % (load, enc, unload)
     out = r.stdout.strip()
     if not out.startswith('result:'):
         sys.exit('LiveCode run failed: ' + out + r.stderr)
-    parts = out[len('result:'):].strip().rstrip(',').split(',')
+    parts = out[len('result:'):].strip()[:-1].split(',')   # drop the one closing comma only: rstrip ate empty last answers
     return [base64.b64decode(p).decode('utf-8') if p else '' for p in parts]
 
 def main():
@@ -160,7 +160,10 @@ def main():
         if '|' in lib:
             fresh_slot()
         try:
-            gold['lib'][lib] = dict(zip(exprs, lc_lib(lib, exprs)))
+            ans = lc_lib(lib, exprs)
+            if len(ans) != len(exprs):
+                sys.exit('%s: %d answers for %d cases' % (lib, len(ans), len(exprs)))
+            gold['lib'][lib] = dict(zip(exprs, ans))
         except Hang:
             print('HANG (logged, group skipped):', lib, flush=True)
             continue
