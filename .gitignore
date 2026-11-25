@@ -4,3 +4,4 @@
 __pycache__/
 tests/.combined/
 imgui.ini
+run_files/

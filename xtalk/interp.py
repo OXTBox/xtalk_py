@@ -19,6 +19,7 @@ class Return(Exception):
 class ExitRepeat(Exception): pass
 class NextRepeat(Exception): pass
 class ExitHandler(Exception): pass
+class Pass(ExitHandler): pass       # `pass msg`: the message goes on along the message path
 class Break(Exception): pass
 class Thrown(Exception):
     def __init__(self, v):
@@ -85,10 +86,24 @@ class Interp:
         return fr.vars
 
     # ------------------------------------------------------------ handlers
-    def invoke(self, name, args):
+    def lookup(self, name):
+        """(the script context that has the handler, the handler) or (None, None). One script here;
+        the stack runtime walks the message path (control, group, card, stack)"""
         h = self.handlers.get(name.lower())
+        return (self, h) if h is not None else (None, None)
+
+    def after_pass(self, name, args):
+        """`pass name` ran: what the next object on the message path answers (none here)"""
+        return ''
+
+    def invoke(self, name, args):
+        owner, h = self.lookup(name)
         if h is None:
             raise XtError("handler: can't find handler %s" % name)
+        if owner is not self:                       # the handler lives further along the message path
+            r = owner.invoke(name, args)
+            self.refs, self.result = owner.refs, owner.result
+            return r
         kind, _, params, body, byref = h[:5]
         pyfn = h[5] if len(h) > 5 else None     # a handler the translator turned into Python
         self.refs = {}
@@ -106,6 +121,8 @@ class Interp:
             self.exec_block(body, fr)
         except Return as r:
             return plain(r.v)
+        except Pass:
+            return self.after_pass(name, args)
         except ExitHandler:
             return ''
         finally:
@@ -273,7 +290,7 @@ class Interp:
         raise Break()
 
     def x_pass(self, st, fr):
-        raise ExitHandler()
+        raise Pass()
 
     def x_throw(self, st, fr):
         raise Thrown(to_text(self.ev(st[1], fr)))
@@ -389,7 +406,7 @@ class Interp:
 
     def x_cmd(self, st, fr):
         name, parts = st[1], st[2]
-        if name in self.handlers:
+        if self.lookup(name)[1] is not None:
             nodes = [p[1] for p in parts if p[0] == 'e']
             self.check_byref(name, [n[0] for n in nodes])
             r = self.invoke(name, [self.ev(n, fr) for n in nodes])
@@ -406,7 +423,7 @@ class Interp:
 
     def check_byref(self, name, kinds):
         """a chunk given to an @ parameter is an error in LiveCode (measured, LIVECODE_FACTS)"""
-        for i in self.handlers[name][4]:
+        for i in self.lookup(name)[1][4]:
             if i < len(kinds) and kinds[i] == 'chunk':
                 raise XtError('handler: parameter %d of %s is not a variable' % (i + 1, name))
 
@@ -765,7 +782,8 @@ class Interp:
         name = e[1]
         n = name.lower()
         args = [self.ev(a, fr) for a in e[2]]
-        if n in self.handlers and self.handlers[n][0] == 'function':
+        hf = self.lookup(n)[1]
+        if hf is not None and hf[0] == 'function':
             r = self.invoke(name, args)
             for i, v in self.refs.items():
                 if i < len(e[2]) and e[2][i][0] in ('var', 'idx'):
@@ -918,4 +936,5 @@ BUILTINS = {
     'sum': lambda it, fr, *a: numstr(sum(_n(x) for x in (a if len(a) > 1 else _t(a[0]).split(',')))),
     'average': lambda it, fr, *a: numstr(sum(_n(x) for x in a) / len(a)),
     'isnumber': lambda it, fr, x: 'true' if is_numeric_text(_t(x)) else 'false',
+    'specialfolderpath': lambda it, fr, x: it.host.special_folder(_t(x)),
 }

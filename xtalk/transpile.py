@@ -273,7 +273,7 @@ class Gen:
         self.emit(ind, 'continue' if self.loops else 'raise NextRepeat()')
 
     def s_pass(self, s, ind):
-        self.emit(ind, "return ''")
+        self.emit(ind, 'raise Pass()')                 # the message goes on along the message path
 
     def s_break(self, s, ind):
         if self.in_switch:

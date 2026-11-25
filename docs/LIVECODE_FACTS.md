@@ -50,3 +50,18 @@ standalone per library group.
   held pipes), not LiveCode. `golden.py` still uses a fresh copy per group (faster and safe).
 - `Hunter.GemInfo` was never a runaway loop: same cause. Its cases are now in lib_cases.txt (322 of 322 match).
 - Script locals (`local sH`) are shared by all handlers, arrays included: `put x into sH[i]` writes the script local.
+
+## Objects and messages (measured 24 Nov, standalone; Phase 2)
+- `set the width of graphic G to 50` keeps the centre: rect 10,10,110,60 -> 35,10,85,60. Height 50 -> 21 with
+  centre y 85 (after loc 100,100: rect 75,75,125,125) -> 75,89,125,110: new top = centre - trunc(h/2)... measured
+  89 = trunc(100 - 10.5); bottom = top + 21.
+- `the loc` = trunc((left+right)/2), trunc((top+bottom)/2): rect 75,89,125,110 -> 100,99.
+- `set the left` moves, keeps the width: 35,10,85,60 -> 0,10,50,60. `set the loc` centres the rect.
+- `the long id of button "B"` = `button id 1004 of card id 1002 of stack "xtM1"`; `the name` = `button "B"`;
+  an unnamed card's name = `card id 1002`. `the short name of me` = B.
+- `pass mouseUp` in a button goes on to the card, then the stack; `the target` stays the button.
+- `send "hello 7" to button "B"`: the words after the message name are its parameters. `dispatch "hello" to
+  button "B" with 8` the same. Both follow the message path (and pass).
+- `the "abc"` is just abc (the card reader stack uses `put the "Entrance, Obstacle..." into tItems`).
+- A custom property reads as `the uFoo of stack "x"` and `the uFoo of this stack`.
+- NOT measured: preOpenStack/openCard order (an invisible stack opened from a library sent none of them).

@@ -7,7 +7,7 @@ a translated handler may `do` a string, and an interpreted one may call a transl
 import warnings
 from . import chunks as ch                                    # noqa: F401  (used by generated code)
 from .values import XtError, to_text, to_num, to_bool, numstr, plain   # noqa: F401
-from .interp import (Interp, Frame, BUILTINS as B, CONST as K, Thrown, Break,   # noqa: F401
+from .interp import (Interp, Frame, BUILTINS as B, CONST as K, Thrown, Break, Pass,   # noqa: F401
                      ExitRepeat, NextRepeat, _re_search)
 from .host import wildcard
 from .parser import parse_statements
@@ -70,14 +70,14 @@ class Runtime(Interp):
         self.exec_block(parse_statements(code), fr)
 
     def has_handler(self, name):
-        return name in self.handlers
+        return self.lookup(name)[1] is not None
 
     # ---- calls
     def fn(self, fr, name, args, setters):
         """a function call: the script's own handlers first, then the built-in functions.
         setters[i] = (node kind, function that writes a value back into argument i) or None"""
         n = name.lower()
-        h = self.handlers.get(n)
+        h = self.lookup(n)[1]
         if h is not None and h[0] == 'function':
             r = self.invoke(name, args)
             for i, v in self.refs.items():
@@ -100,7 +100,7 @@ class Runtime(Interp):
     def cmd(self, fr, name, vals, setters, words):
         """a command line: a handler of the script, else the host (go, show, answer...).
         words: the line's layout, a word for each word part and None for each expression"""
-        if name in self.handlers:
+        if self.lookup(name)[1] is not None:
             self.check_byref(name, [None if st is None else st[0] for st in setters])
             r = self.invoke(name, vals)
             self.result = r if isinstance(r, str) else ''

@@ -759,6 +759,9 @@ class Parser:
 
     def the_form(self):
         k, s, _ = self.peek()
+        if k == 'str':                                   # `the "abc"` is just "abc" (LIVECODE_FACTS)
+            self.i += 1
+            return ('str', s)
         w = s.lower() if k == 'id' else ''
         if w == 'current' and self.peek(1)[0] == 'id' and self.peek(1)[1].lower() in OBJTYPES:
             self.i += 1

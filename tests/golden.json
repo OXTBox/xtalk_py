@@ -125,7 +125,8 @@
   "1 + 2 * 3": "7",
   "quote & \"a\" & quote": "\"a\"",
   "\"a\" & tab & \"b\"": "a\tb",
-  "the number of words in \"one two\" & \" three\"": "2 three"
+  "the number of words in \"one two\" & \" three\"": "2 three",
+  "the \"abc\"": "abc"
  },
  "script": {
   "put \"a,b,c\" into t\nput \"X\" into item 2 of t\nput t into tOut": "a,X,c",
