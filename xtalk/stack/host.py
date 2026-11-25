@@ -830,6 +830,10 @@ class StackHost(Host):
         if name in ('show', 'hide'):
             if es:
                 o = self.resolve(es[0])
+                if o.type == 'stack':          # one window: hide this stack = show the one before it
+                    if name == 'hide':
+                        rt.leave_stack(o, closing=False)
+                    return ''
                 o.props['visible'] = 'true' if name == 'show' else 'false'
                 rt.changed = True
             return ''
@@ -859,7 +863,16 @@ class StackHost(Host):
                 self.resolve(es[0]).props['disabled'] = 'true' if name == 'disable' else 'false'
                 rt.changed = True
             return ''
+        if name == 'open' and es:              # open stack "about": shown in the one window (first time: its open messages)
+            o = self.resolve(es[0])
+            if o.type == 'stack':
+                rt.go_card(o.current)
+                return ''
         if name == 'close':
+            o = self.resolve(es[0], must=False) if es else rt.default_stack
+            if o is not None and o.type == 'stack' and o is not rt.first_stack:
+                rt.leave_stack(o, closing=True)    # a substack closes: back to the stack shown before it
+                return ''
             rt.close_stack()
             rt.closed = True               # close stack / close this stack: the window ends
             return ''

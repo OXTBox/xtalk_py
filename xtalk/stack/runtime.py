@@ -115,6 +115,8 @@ class StackRuntime:
         self.closed = False            # the window sets this: draw frames while a script waits
         self.closing_sent = False      # closeCard / closeStack went out
         self.opened = set()            # id() of the stacks opened (they got their open messages)
+        self.shown_before = []         # the stacks shown before this one (one window: close/hide goes back)
+        self.first_stack = self.default_stack     # closing this one ends the window
         self.clipboard = ''            # the clipboard's text; the window keeps it in step with the system's
         self.on_clipboard_get = None   # the window: read the system clipboard
         self.on_clipboard_set = None
@@ -217,6 +219,23 @@ class StackRuntime:
             self.message(card, 'closeCard')
             self.message(card, 'closeStack')
 
+    def leave_stack(self, st, closing):
+        """close or hide a stack that is not the first: closing sends closeCard, closeStack to its card (as a
+        stack closing does, measured 26 Nov) and its next opening sends the open messages again; the window
+        then shows the stack shown before it (no messages: going back to an open stack sends none)"""
+        if closing and id(st) in self.opened:
+            self.opened.discard(id(st))
+            if st.current is not None:
+                self.message(st.current, 'closeCard')
+                self.message(st.current, 'closeStack')
+        if st is not self.default_stack:
+            return
+        self.shown_before = [x for x in self.shown_before if x is not st]
+        if self.focused is not None and self.focused.stack is st:
+            self.set_focus(None)
+        self.default_stack = self.shown_before.pop() if self.shown_before else self.first_stack
+        self.changed = True
+
     def go_card(self, card):
         st = card.stack
         if st.current is card and st is self.default_stack:
@@ -224,6 +243,7 @@ class StackRuntime:
         if self.focused is not None and self.focused.card is not card:
             self.set_focus(None)
         if st is not self.default_stack:
+            self.shown_before.append(self.default_stack)
             self.default_stack = st
             self.changed = True
             if id(st) not in self.opened:  # a stack opened the first time: the four open messages to its card

@@ -369,6 +369,18 @@ if os.path.isdir(NINE):
     rt.run('go stack "nineball"\ngo stack "About"')
     check('go stack: the first time its four open messages, then none (measured)', (first, rt.G['glog'], rt.default_stack.name),
           ((4, 'About'), '', 'About'))
+    rt = StackRuntime(NINE, files_dir=os.path.join(ROOT, 'run_files', 'test'))     # the stack's own scripts again
+    rt.open()
+    rt.message(rt.obj('button "Help"'), 'menuPick', ['About'])
+    shown = rt.default_stack.name
+    rt.click('100,20')                         # About's card: close this stack
+    check('Help > About: open stack shows it; a click closes it, back to the game', (shown, rt.default_stack.name, rt.closed),
+          ('About', 'nineball', False))
+    rt.message(rt.obj('button "Help"'), 'menuPick', ['Preferences'])
+    shown = rt.default_stack.name
+    rt.click('button "Close"')                 # hide this stack
+    check('Help > Preferences, then its Close (hide this stack): back to the game', (shown, rt.default_stack.name), ('Preferences', 'nineball'))
+    rt.run('go stack "About"')
     f = rt.obj('field "Field"')
     check('nine-ball About: its styled field read from the harvest', rt.get('field "Field"', 'htmltext').count('<font face="Lucida Grande" size="14">'), 2)
     rt.close_stack()
