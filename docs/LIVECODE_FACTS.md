@@ -220,3 +220,8 @@ standalone per library group.
   shift 65505...). From memory, not measured (needs a real keyboard).
 - A filled (opaque) polygon graphic is drawn filled; graphics a script creates with no colour take the stack's
   colours (Raycasting_101: black floor/roof, grey walls). The fill rule we use is even-odd (not measured).
+- **Line height** (Segoe UI, margins 8, 4 lines): fixedLineHeight true: the effective textHeight = floor(textSize * 4/3)
+  (10->13, 12->16, 14->18, 18->24, 24->32) and formattedHeight = lines x textHeight + 8; a line with bigger text
+  (size 24 in a size-12 field) stays 16. fixedLineHeight false: each line its font's own height: 10->15, 12->18,
+  14->18, 18->26, 24->36; a size-24 line in a size-12 field makes that line 36 (we do not do this yet: one height a
+  field).

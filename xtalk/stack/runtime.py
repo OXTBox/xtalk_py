@@ -472,7 +472,21 @@ class StackRuntime:
             sbw = int(float(self.host.obj_prop(o, 'scrollbarwidth') or 16)) if self.host.obj_prop(o, 'vscrollbar') == 'true' else 0
         except ValueError:
             sbw = 16
-        return size, size * 4 / 3 + 2, m, scroll, sbw
+        return size, self.line_height(o, size), m, scroll, sbw
+
+    FREE_LINE = {10: 15, 12: 18, 14: 18, 18: 26, 24: 36}   # Segoe UI, fixedLineHeight false (measured 25 Nov)
+
+    def line_height(self, o, size):
+        """fixedLineHeight true (a new field): every line is the textHeight, floor(size * 4/3) unless set;
+        false: the font's own height (Segoe UI table; other sizes 1.5 x size). Measured 25 Nov. Not done: with
+        fixedLineHeight false a line with bigger text is taller (we use one height for the whole field)"""
+        if str(self.host.obj_prop(o, 'fixedlineheight')).lower() == 'false':
+            return self.FREE_LINE.get(size, int(round(size * 1.5)))
+        try:
+            th = int(float(self.inherit(o, 'textHeight') or 0))
+        except ValueError:
+            th = 0
+        return th if th > 0 else size * 4 // 3
 
     # ---- the layout: one rule for drawing, clicks, scrolling and the caret
     def text_width(self, o, a, b):

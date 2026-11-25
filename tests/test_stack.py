@@ -498,6 +498,17 @@ if os.path.isdir(LC):
     rt.dialog_answers = ['speed', '9']
     rt.click('button "PropertyArrays"')
     check('cycles: PropertyArrays asks twice, stores key and value', rt.eval('the MyArray["speed"] of button "PropertyArrays"'), '9')
+# line heights (measured 25 Nov): fixedLineHeight true = floor(size * 4/3); false = the font's own (Segoe UI)
+rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
+rt.open()
+rt.run('create field "LH"')
+_lh = []
+for _fixed in ('true', 'false'):
+    for _size in (10, 12, 14, 18, 24):
+        rt.run('set the fixedLineHeight of field "LH" to %s\nset the textSize of field "LH" to %d' % (_fixed, _size))
+        _lh.append(rt.field_metrics(rt.obj('field "LH"'))[1])
+check('line heights, fixed then free, sizes 10 12 14 18 24 (measured)', _lh, [13, 16, 18, 24, 32, 15, 18, 18, 26, 36])
+
 # a stack opening / closing on a card with a background group (measured 25 Nov)
 rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
 rt.run('set the backgroundBehavior of group "Grp" to true')
