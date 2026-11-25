@@ -143,7 +143,7 @@ everything." Scripts written against xt3d should run unchanged in the Python run
    - an icon and its name together on a button
 5. Ask him for more stacks to harvest when these are clean (`lcmcp harvest <stack>`).
 
-### Phase 2 thorough: done so far (branch `phase2-thorough`, 9 commits from d14aedb to e56cb58; NOT merged, NOT pushed)
+### Phase 2 thorough: done so far (branch `phase2-thorough`, commits d14aedb..ea62a50 + this note; NOT merged, NOT pushed)
 Dated by the system clock (25 Nov; the notes above say 26 Nov). Every rule below was measured in LiveCode
 first and is in LIVECODE_FACTS (the end of the file), unless it says "from memory".
 
@@ -161,8 +161,15 @@ first and is in LIVECODE_FACTS (the end of the file), unless it says "from memor
 | Line heights, fixedLineHeight true/false | leftover 3 (one height a field: a bigger-text line in a free field is not taller yet) |
 | Background groups: on the card's message path; open/close/go background messages | open-message order with groups |
 | `set the script of`; `set the loc` with odd sizes; `pass` follows the target's path | found on the way |
+| A parameter named like a script global is the parameter (measured) | a wrong-variable risk the globals fix brought |
+| `rawKeyDown`, `set the cursor to none`, `set the screenMouseLoc` (real window only), `globalLoc`/`localLoc` (from memory) | Raycasting_101: Esc / backtick free the mouse; W A S D through the keysDown |
+| Numbers copy as themselves | arrays copy faster than on main again (20k elements: 0.15 s, main 0.22 s) |
 
-Tests: 404 / 409 / 126. Corpus 41,132 handlers to Python, no file worse. Survey: every harvest has no errors
+What he will SEE differently: nine-ball's Instructions lines are 16 apart, not 18 (the real stack's field is
+fixedLineHeight true, textHeight 16: measured on a copy). LightCycles3 is pixel-identical to main.
+Raycasting_101 draws its walls (filled polygons); XtRedeemer (shared backgrounds, a pendingMessages loop): 47/55.
+
+Tests: 405 / 410 / 128. Corpus 41,132 handlers to Python, no file worse. Survey: every harvest has no errors
 except TKInter-izer 14/15 (his question) and GAD 65/77 (skipped by him).
 
 Still open:
