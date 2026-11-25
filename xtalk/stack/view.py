@@ -250,12 +250,19 @@ class View:
         except ValueError:
             return
         f = 0 if b == a else max(0.0, min(1.0, (v - a) / (b - a)))
+        show = self.on(o, 'showValue')
+        label = ('%d' % v) if v == int(v) else ('%.2f' % v)
         if rc.width >= rc.height:
             x = rc.x + f * (rc.width - 12)
-            rl.draw_rectangle_rec(rl.Rectangle(x, rc.y + 2, 12, rc.height - 4), rl.Color(120, 120, 120, 255))
+            top = rc.y + (14 if show else 2)
+            rl.draw_rectangle_rec(rl.Rectangle(x, top, 12, rc.height - (top - rc.y) - 2), rl.Color(120, 120, 120, 255))
+            if show:                                  # the value above the thumb
+                self.text(o, label, x + 6 - self.measure(o, label, 11) / 2, rc.y, rl.BLACK, 11)
         else:
             y = rc.y + f * (rc.height - 12)
             rl.draw_rectangle_rec(rl.Rectangle(rc.x + 2, y, rc.width - 4, 12), rl.Color(120, 120, 120, 255))
+            if show:
+                self.text(o, label, rc.x + rc.width + 2, y, rl.BLACK, 11)
 
     def texture(self, o):
         path = o.node.get('asset')

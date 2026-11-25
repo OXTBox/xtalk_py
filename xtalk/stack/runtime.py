@@ -93,6 +93,7 @@ class StackRuntime:
         self.last_down = None          # (object, clock, x, y) of the last press: a quick second one is a double click
         self.double = False            # this press is the second of a double click
         self.scroll_drag = None        # a field whose scrollbar the mouse is dragging
+        self.thumb_drag = None         # a scrollbar / slider whose thumb the mouse is dragging
         self.start_programs = True     # False: shell() only notes the script (the survey: no windows pop up)
         self.not_started = []          # the scripts shell() would have started
         self.clock = 0.0               # virtual milliseconds
@@ -239,6 +240,9 @@ class StackRuntime:
                 n = self.field_line_at(o, y)     # the line is hilited before mouseDown (the owner's scripts read it there)
                 o.props['hilitedLines'] = str(n) if n else ''
                 self.changed = True
+        if o.type == 'scrollbar' and self.host.obj_prop(o, 'disabled') != 'true':
+            self.thumb_drag = o
+            self.set_thumb_at(o, x, y)
         self.message(o, 'mouseDoubleDown' if self.double else 'mouseDown', [str(button)])
         if o.type == 'button' and self.host.obj_prop(o, 'style') == 'menu' and self.visible(o) \
                 and self.host.obj_prop(o, 'menumode') in ('option', 'pulldown', 'combobox') \
@@ -251,6 +255,7 @@ class StackRuntime:
         self.mouse_move(x, y)
         self.button_down = False
         self.pressed = None
+        self.thumb_drag = None
         if self.scroll_drag is not None:     # the release ends a scrollbar drag: no message
             self.scroll_drag = None
             return down_on
@@ -359,6 +364,33 @@ class StackRuntime:
         f = (y - o.rect[1]) / max(1, o.height)
         self.scroll_field(o, int(max(0, min(1, f)) * top) - self.field_metrics(o)[3])
 
+    # ------------------------------------------------------------ scrollbars and sliders
+    def thumb_range(self, o):
+        try:
+            a = float(self.host.obj_prop(o, 'startvalue') or 0)
+            b = float(self.host.obj_prop(o, 'endvalue') or 65535)
+        except ValueError:
+            a, b = 0.0, 65535.0
+        return a, b
+
+    def set_thumb_at(self, o, x, y):
+        """the thumb goes under the mouse (the window draws a 12 px thumb); a change sends scrollbarDrag.
+        Whole numbers when both ends are whole: not measured."""
+        a, b = self.thumb_range(o)
+        l, t, r, btm = o.rect
+        if r - l >= btm - t:
+            f = (x - l - 6) / max(1, r - l - 12)
+        else:
+            f = (y - t - 6) / max(1, btm - t - 12)
+        v = a + max(0.0, min(1.0, f)) * (b - a)
+        v = round(v) if a == int(a) and b == int(b) else round(v, 4)
+        text = str(int(v)) if v == int(v) else str(v)
+        if self.host.obj_prop(o, 'thumbposition') == text:
+            return
+        o.props['thumbPosition'] = text
+        self.changed = True
+        self.message(o, 'scrollbarDrag', [text])
+
     # ------------------------------------------------------------ menus
     @staticmethod
     def menu_items(text):
@@ -424,6 +456,8 @@ class StackRuntime:
         if self.scroll_drag is not None:
             self.scroll_field_to(self.scroll_drag, y)
             return
+        if self.thumb_drag is not None:
+            self.set_thumb_at(self.thumb_drag, x, y)
         if not self.button_down:
             self._enter_leave()
         # mouseMove (Dictionary): to the control under the mouse, or the card; while the button is held,

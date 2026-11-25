@@ -178,6 +178,10 @@ if os.path.isdir(LC):
     check('cycles: S drives the bike down, 2 px a step', (x1 - x0, (y1 - y0) % 2, y1 > y0), (0, 0, True))
     check('cycles: the trail grows', len(rt.get('graphic "PlayerLaserWall"', 'points').split('\n')) > 5, True)
     check('cycles: no script errors', rt.errors, [])
+    sb = rt.obj('scrollbar "Changesscroll"')
+    rt.drag((sb.rect[0] + 10, sb.rect[1] + 20), (sb.rect[2] - 20, sb.rect[1] + 20), steps=5)
+    check('cycles: dragging a slider moves its thumb (scrollbarDrag runs, no errors)',
+          (int(rt.get('scrollbar "Changesscroll"', 'thumbPosition')) > 38, rt.errors), (True, []))
     rt.dialog_answers = ['speed', '9']
     rt.click('button "PropertyArrays"')
     check('cycles: PropertyArrays asks twice, stores key and value', rt.eval('the MyArray["speed"] of button "PropertyArrays"'), '9')
