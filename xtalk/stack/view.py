@@ -501,6 +501,13 @@ class View:
             return self.menu['pick']
         finally:
             self.menu = None
+            # the click on the menu was taken inside this loop: if the button is up now, the release the
+            # runtime waited for will never come (it would eat the next click's mouseUp)
+            if not rl.is_mouse_button_down(0):
+                self.rt.swallow_up = False
+                self.rt.button_down = False
+                self.rt.pressed = None
+                self.down_on = None
 
     KEYS = None
     SPECIAL_KEYS = [(rl.KEY_BACKSPACE, 'backspace'), (rl.KEY_DELETE, 'delete'), (rl.KEY_ENTER, 'return'),
