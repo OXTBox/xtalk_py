@@ -143,6 +143,36 @@ everything." Scripts written against xt3d should run unchanged in the Python run
    - an icon and its name together on a button
 5. Ask him for more stacks to harvest when these are clean (`lcmcp harvest <stack>`).
 
+### Phase 2 thorough: done so far (branch `phase2-thorough`, 9 commits from d14aedb to e56cb58; NOT merged, NOT pushed)
+Dated by the system clock (25 Nov; the notes above say 26 Nov). Every rule below was measured in LiveCode
+first and is in LIVECODE_FACTS (the end of the file), unless it says "from memory".
+
+| Done | What it fixed |
+|---|---|
+| Script-level `global` lines reach the handlers below them | the 900 "bad operand" errors; GAD went 3/77 -> 65/77 without being touched |
+| Numbers keep their full value through arrays, parameters, returns | Raycasting_101's divide by zero (`sin(pi)` stored in an array) |
+| `this wd` / `this window`, `delete local/global`, `the graphic ID x` | 3DShufflepuckaroo and Raycasting_101 load errors |
+| `the pendingMessages`, `cancel`, `send ... in` gives the id, `the long seconds` | Shufflepuck 3/3 |
+| `choose` tool (from memory), `the keysDown` (from memory) | Raycasting_101 opens and runs its loop |
+| `set the points` to one comma list | Raycasting walls |
+| Filled polygons drawn filled | Raycasting walls were invisible (snapshot checked) |
+| Turned images: rect, direction, move, resize | leftover 1 |
+| `delete line` / `sort lines` keep a styled field's styles | leftover 2 |
+| Line heights, fixedLineHeight true/false | leftover 3 (one height a field: a bigger-text line in a free field is not taller yet) |
+| Background groups: on the card's message path; open/close/go background messages | open-message order with groups |
+| `set the script of`; `set the loc` with odd sizes; `pass` follows the target's path | found on the way |
+
+Tests: 404 / 409 / 126. Corpus 41,132 handlers to Python, no file worse. Survey: every harvest has no errors
+except TKInter-izer 14/15 (his question) and GAD 65/77 (skipped by him).
+
+Still open:
+- The Dictionary checks (OXT-Beyond was closed): arrow keys with no field focused; `commandKeyDown`.
+  (`angle` on rectangles/ovals is MEASURED now: stored, corners not turned; we already did that.)
+- Drawn plainly: glow/shadow effects (Shufflepuck uses 13, LightCycles3 2), maybe an icon with its name
+  (TKInter-izer 1). No harvest uses players, widgets or gradients.
+- Questions for him: TKInter-izer's missing button; start GAD now (65/77)?; more stacks to harvest; a look at
+  Shufflepuck and Raycasting_101 on screen.
+
 ## How we work (unchanged; see HANDOFF_2026-11-26.md for details)
 - **Looking at a stack:**
   - He runs `~/projects/xtalk_py/tools/open_stack.sh <harvest folder>` (window at 200,32).
