@@ -324,7 +324,11 @@ class Gen:
         elif kind == 'each':
             ck, v, e = p
             kind2 = ck.rstrip('s') if ck not in ('chars',) else 'char'
-            if kind2 == 'key':
+            if kind2 == 'element':
+                k = self.tmp('k')
+                self.emit(ind, 'for %s in rt.elements(%s):' % (k, self.ex(e)))
+                self.emit(ind + 1, 'rt.setvar(fr, %s, %s)' % (_r(v), k))
+            elif kind2 == 'key':
                 k = self.tmp('k')
                 self.emit(ind, 'for %s in list(%s):' % (k, self.ex(e)))
                 self.emit(ind + 1, 'rt.setvar(fr, %s, %s)' % (_r(v), k))

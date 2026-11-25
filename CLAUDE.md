@@ -12,6 +12,9 @@ not useful to him.
 ## Decisions already made (do not reopen without the owner)
 
 - Interpreter first (reads xTalk text and runs it: package `xtalk/`, tests `tests/test_interp.py` against `tests/golden.json`); the translator to Python comes second, after thorough testing (owner, 21 Nov).
+- The translator exists (24 Nov): `xtalk/transpile.py` + `xtalk/pyrt.py`. After any change to `xtalk/`, run BOTH
+  `python3 -I tests/test_interp.py` and `python3 -I tests/test_transpile.py`; after a corpus sync or a library
+  change, `python3 -I tools/translate.py --libs` (the test fails on stale `generated/` files). Never edit `generated/`.
 - GUI: raylib + Dear ImGui, for the editors, the stack runtime and 3D alike.
 - xt3d, Vibecode3D and LIB_LLM are separate tools in their own projects. They meet
   through shared formats (harvest JSON, 0/1 sprite frames, models, raylib-named calls).

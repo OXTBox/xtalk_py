@@ -89,7 +89,7 @@ They agree on data, not on code.
   `do` and `value()` of text made at run time are interpreted. A handler it cannot translate is kept as
   xTalk and interpreted (none so far).
 - `python3 -I tests/test_transpile.py`: the same LiveCode answers, every case and library translated
-  first: 338 of 338 (incl. switch fall-through, fixed 24 Nov), plus 5 self-checks.
+  first: 352 of 352 (incl. switch fall-through and 14 cases for the translator's own paths), plus 5 self-checks.
 - `python3 -I tools/translate_corpus.py`: corpus 1124 of 1129 handlers (5 do not parse). All 1652
   distinct `.livecodescript` files in ~/projects: 20,591 handlers become Python that compiles, 430 do not parse.
 - `generated/lib_bit.py`, `lib_map.py`, `lib_trace.py`: the three libraries as generated Python

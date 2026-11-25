@@ -360,12 +360,16 @@ class Interp:
             elif kind == 'each':
                 ck, v, e = p
                 kind2 = ck.rstrip('s') if ck not in ('chars',) else 'char'
-                if kind2 not in ('key',):
+                if kind2 not in ('key', 'element'):
                     text = to_text(self.ev(e, fr))      # an array can't be text; keys loops read it below
                 if kind2 in ('key',):
                     arr = self.ev(e, fr)
                     for key in list(arr):
                         self.setvar(fr, v, key)
+                        run()
+                elif kind2 == 'element':
+                    for val in self.elements(self.ev(e, fr)):
+                        self.setvar(fr, v, val)
                         run()
                 else:
                     kind2 = {'character': 'char', 'chars': 'char'}.get(ck, kind2)
@@ -376,10 +380,18 @@ class Interp:
         except ExitRepeat:
             pass
 
+    @staticmethod
+    def elements(arr):
+        """repeat for each element: the values of an array (a copy, as LiveCode)"""
+        if not isinstance(arr, dict):
+            raise XtError("repeat: can't treat text as an array")
+        return [copy.deepcopy(x) if isinstance(x, dict) else x for x in list(arr.values())]
+
     def x_cmd(self, st, fr):
         name, parts = st[1], st[2]
         if name in self.handlers:
             nodes = [p[1] for p in parts if p[0] == 'e']
+            self.check_byref(name, [n[0] for n in nodes])
             r = self.invoke(name, [self.ev(n, fr) for n in nodes])
             self.result = r if isinstance(r, str) else ''
             for i, v in self.refs.items():
@@ -391,6 +403,12 @@ class Interp:
             return m(parts, fr)
         vals = [(p[0], to_text(self.ev(p[1], fr)) if p[0] == 'e' else p[1]) for p in parts]
         self.result = to_text(self.host.command(name, vals) or '')
+
+    def check_byref(self, name, kinds):
+        """a chunk given to an @ parameter is an error in LiveCode (measured, LIVECODE_FACTS)"""
+        for i in self.handlers[name][4]:
+            if i < len(kinds) and kinds[i] == 'chunk':
+                raise XtError('handler: parameter %d of %s is not a variable' % (i + 1, name))
 
     def c_do(self, parts, fr):
         code = to_text(self.ev(parts[0][1], fr))

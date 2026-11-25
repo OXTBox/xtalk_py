@@ -1,0 +1,157 @@
+-- Test library for the translator's own paths (by reference, matchText, try, loops, filter, sort, delete, do).
+-- Answers from LiveCode 9.6.3 in tests/golden.json; cases in tests/lib_cases.txt.
+
+function T.Bump @pX, pBy
+   add pBy to pX
+   return pX
+end T.Bump
+
+command T.Bump2 @pX
+   add 1 to pX
+end T.Bump2
+
+command T.Fill @pA, pK
+   put "v" & pK into pA[pK]
+end T.Fill
+
+function T.ByRef
+   put 1 into tN
+   get T.Bump(tN, 5)
+   put 10 into tS
+   T.Bump2 tS
+   T.Fill tArr, "x"
+   T.Fill tArr, "y"
+   put the keys of tArr into tKeys
+   sort lines of tKeys
+   replace return with "+" in tKeys
+   return tN & "|" & it & "|" & tS & "|" & tKeys & "|" & tArr["y"]
+end T.ByRef
+
+function T.ByRefKey
+   put 4 into tK["n"]
+   T.Bump2 tK["n"]
+   return tK["n"]
+end T.ByRefKey
+
+function T.ByRefChunk
+   put "1,2,3" into tC
+   T.Bump2 item 2 of tC
+   return tC
+end T.ByRefChunk
+
+function T.Match
+   get matchText("key=val42", "(\w+)=val(\d+)", tA, tB)
+   return it & "|" & tA & "|" & tB
+end T.Match
+
+function T.MatchMiss
+   put "z" into tA
+   get matchText("nope", "(\d+)", tA)
+   return it & "|" & tA
+end T.MatchMiss
+
+function T.Try
+   put empty into tOut
+   try
+      put "a" after tOut
+      throw "boom"
+      put "x" after tOut
+   catch tErr
+      put "c:" & tErr after tOut
+   finally
+      put "|f" after tOut
+   end try
+   return tOut
+end T.Try
+
+function T.TryReturnInner
+   global gTryT
+   put empty into gTryT
+   try
+      return "r"
+   finally
+      put "f" into gTryT
+   end try
+   return "after"
+end T.TryReturnInner
+
+function T.TryReturn
+   global gTryT
+   put T.TryReturnInner() into t
+   return t & gTryT
+end T.TryReturn
+
+function T.TryErr
+   try
+      put 1 / 0 into x
+   catch tErr
+      return "caught"
+   end try
+   return "no"
+end T.TryErr
+
+function T.Loops
+   put empty into tOut
+   repeat with i = 1 to 6
+      if i = 2 then next repeat
+      switch i
+         case 5
+            exit repeat
+         case 3
+            put "t" after tOut
+            break
+         default
+            put i after tOut
+      end switch
+   end repeat
+   repeat with j = 10 down to 1 step -3
+      put "," & j after tOut
+   end repeat
+   return tOut
+end T.Loops
+
+function T.Filter
+   put "apple,banana,cherry,avocado" into t
+   replace comma with return in t
+   filter t with "a*"
+   replace return with "+" in t
+   put "apple,banana,cherry" into t2
+   filter items of t2 without "*an*"
+   return t & "|" & t2
+end T.Filter
+
+function T.SortBy
+   put "b3,a1,c2" into t
+   sort items of t numeric by char 2 of each
+   put "b,A,c" into t2
+   sort items of t2 descending
+   return t & "|" & t2
+end T.SortBy
+
+function T.Delete
+   put "a,b,c,d" into t
+   delete item 2 of t
+   put "one two three" into w
+   delete word 2 of w
+   put 1 into tArr["x"]
+   put 2 into tArr["y"]
+   delete variable tArr["x"]
+   return t & "|" & w & "|" & the keys of tArr
+end T.Delete
+
+function T.Do
+   put 3 into x
+   do "put x * 2 into y"
+   do "add 1 to y"
+   return y & "|" & value("x + y")
+end T.Do
+
+function T.Each
+   put 5 into tA["p"]
+   put 7 into tA["q"]
+   put 0 into tS
+   repeat for each element tE in tA
+      add tE to tS
+   end repeat
+   return tS
+end T.Each

@@ -101,6 +101,7 @@ class Runtime(Interp):
         """a command line: a handler of the script, else the host (go, show, answer...).
         words: the line's layout, a word for each word part and None for each expression"""
         if name in self.handlers:
+            self.check_byref(name, [None if st is None else st[0] for st in setters])
             r = self.invoke(name, vals)
             self.result = r if isinstance(r, str) else ''
             for i, v in self.refs.items():

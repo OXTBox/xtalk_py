@@ -24,6 +24,10 @@ exactly. Each line was checked in LiveCode 9.6.3; add the date and how.
   also those below the default), else the default, is where it starts; from there every body runs, through the
   `case` lines and the `default` line, until a `break`. `case "a"` / `case "b"` / body is one body for both.
   Tests: the last three blocks of tests/script_cases.txt ("AB", "CDyz", "1/DE!F/E/").
+- A chunk given to an `@` (by reference) parameter of a command is an error: `T.Bump2 item 2 of tC` (measured 24 Nov).
+  A variable and an array element (`tK["n"]`) are fine.
+- `repeat for each element tE in tArray` walks the values of an array (measured 24 Nov: 5 + 7 = 12).
+- `return` inside `try` still runs `finally`; `throw` goes to `catch` with the thrown text (tests/wrap_translator.txt).
 - `repeat with i = 10 down to 1 step 4` (positive step with `down to`) runs zero times. `repeat with i = 1 to 10 step 4` gives 1, 5, 9, 13 and leaves `i` at 13.
 - `word`, `char` and the like, written bare, are errors (reserved words), not variables.
 - `cr` is a newline (ASCII 10), the same as `return`; not a carriage return.
