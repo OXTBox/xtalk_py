@@ -525,6 +525,8 @@ class StackRuntime:
         return o
 
     def key(self, ch):
+        if hasattr(self, 'log_clicks'):
+            self.log_clicks.append('key %r' % ch)
         self.message(self.default_stack.current, 'keyDown', [ch])
 
     # ------------------------------------------------------------ for tests and tools

@@ -37,9 +37,10 @@ def main(a):
     t0 = time.time()
     rt.log_clicks = []                     # what was clicked, for the report at the end
     View(rt).run()
-    print('--- report: window open %.0f s, %d clicks' % (time.time() - t0, len(rt.log_clicks)))
-    for c in rt.log_clicks[-30:]:
-        print('  click:', c)
+    keys = sum(1 for c in rt.log_clicks if c.startswith('key '))
+    print('--- report: window open %.0f s, %d clicks, %d keys' % (time.time() - t0, len(rt.log_clicks) - keys, keys))
+    for c in rt.log_clicks[-60:]:
+        print('  ', c)
     for e in rt.errors:
         print('script error:', *e)
     for o, e in rt.load_errors:
