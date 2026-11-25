@@ -625,6 +625,8 @@ class StackHost(Host):
         if p == 'angle':                       # 390 reads back 30, -30 reads 330 (measured 26 Nov)
             a = to_num(value) % 360
             value = str(int(a)) if a == int(a) else str(a)
+            if o.type == 'image':
+                self.turn_image(o, a)
         if p in ('hilitedline', 'hilitedlines'):
             o.props['hilitedLines'] = ','.join(x.strip() for x in str(value).split(',') if x.strip().isdigit())
             return
@@ -632,6 +634,8 @@ class StackHost(Host):
             old = list(o.rect)
             self.set_geometry(o, p, value)
             self.move_points(o, old)
+            if o.type == 'image' and not to_num(o.props.get('angle', 0) or 0) % 360:
+                o.unturned = None              # moved/resized while not turned: the next turn starts from here
             return
         if p in ('points', 'relativepoints'):
             self.set_points(o, value, p == 'relativepoints')
@@ -750,6 +754,26 @@ class StackHost(Host):
         for k, c in enumerate(o.card.flat() if o.card is not None else sib, 1):
             c.layer = k
         self.rt.changed = True
+
+    def turn_image(self, o, a):
+        """an image's angle turns it counterclockwise about its centre; its rect becomes the box around the
+        turned picture, ceil(w|cos| + h|sin|) wide; angle 0 gives the first rect back (measured 25 Nov)"""
+        un = getattr(o, 'unturned', None)
+        if un is None:
+            if to_num(o.props.get('angle', 0) or 0) % 360 != 0:
+                o.unturned = list(o.rect)      # harvested already turned: its picture size is not known here
+                return
+            un = o.unturned = list(o.rect)
+        w, h = un[2] - un[0], un[3] - un[1]
+        if a == 0:
+            o.rect = list(un)
+            return
+        r = math.radians(a)
+        W = math.ceil(w * abs(math.cos(r)) + h * abs(math.sin(r)))
+        H = math.ceil(w * abs(math.sin(r)) + h * abs(math.cos(r)))
+        cx, cy = (un[0] + un[2]) / 2.0, (un[1] + un[3]) / 2.0
+        L, T = math.floor(cx - W / 2.0), math.floor(cy - H / 2.0)
+        o.rect = [L, T, L + W, T + H]
 
     def set_points(self, o, value, relative):
         dx, dy = (o.rect[0], o.rect[1]) if relative else (0, 0)

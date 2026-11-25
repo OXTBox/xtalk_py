@@ -12,6 +12,7 @@ import math, os
 import pyray as rl
 from imgui_bundle import imgui
 from .host import canon
+from ..values import to_num
 from .styled import COLOR_NAMES, PLAIN
 from . import styled
 
@@ -369,7 +370,14 @@ class View:
     def draw_image(self, o):
         tex = self.texture(o)
         rc = self.rect(o)
-        if tex is not None:
+        a = to_num(self.prop(o, 'angle') or 0) % 360
+        if tex is not None and a:                 # turned counterclockwise about the centre (measured)
+            un = getattr(o, 'unturned', None)
+            w, h = (un[2] - un[0], un[3] - un[1]) if un else (tex.width, tex.height)
+            cx, cy = rc.x + rc.width / 2.0, rc.y + rc.height / 2.0
+            rl.draw_texture_pro(tex, rl.Rectangle(0, 0, tex.width, tex.height), rl.Rectangle(cx, cy, w, h),
+                                rl.Vector2(w / 2.0, h / 2.0), -a, rl.WHITE)
+        elif tex is not None:
             rl.draw_texture_pro(tex, rl.Rectangle(0, 0, tex.width, tex.height), rc, rl.Vector2(0, 0), 0, rl.WHITE)
         else:
             rl.draw_rectangle_lines_ex(rc, 1, rl.Color(200, 200, 200, 255))

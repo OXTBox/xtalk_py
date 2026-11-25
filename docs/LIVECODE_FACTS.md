@@ -192,3 +192,10 @@ standalone per library group.
   removes it; `cancel` of an unknown id does nothing (the result unchanged).
 - **set the points** to `"10,20,30,40,50,60"` (one line): pairs, read back one point a line. `"1,2,3"`: `1,2` and an
   empty line (the odd number left over makes a break). `"1,2" & cr & "3,4,5,6"`: three points.
+- **angle of a rectangle / oval graphic**: stored and read back (30), but the rect and the effective points do
+  not change (the corners are not turned). Our runtime already did this.
+- **angle of an image** turns it COUNTERclockwise about its centre (a pixel at top-right of a 4x2 image is at
+  top-left after 90). The rect becomes the box around the turned picture: width ceil(w|cos a| + h|sin a|),
+  height ceil(w|sin a| + h|cos a|), left/top = floor(centre - size/2): 60x40 at 100,100: 45 -> 94,84,165,155;
+  30 -> 94,87,166,152; 90 -> 109,90,150,150 (41 wide: cos 90 is not exactly 0). Angle 0 gives the first rect
+  back. formattedWidth/Height stay 60x40. An image with no pixels behaves differently (not used).

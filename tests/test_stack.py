@@ -246,6 +246,18 @@ check('points as one comma list: paired (measured)', rt.get('graphic "PolyT"', '
 rt.run('set the points of graphic "PolyT" to "1,2" & cr & "3,4,5,6"')
 check('points: lines with two pairs (measured)', rt.get('graphic "PolyT"', 'points'), '1,2\n3,4\n5,6')
 rt.run('delete graphic "PolyT"')
+rt.run('create image "ImT"\nset the rect of image "ImT" to 100,100,160,140')
+rt.run('set the angle of image "ImT" to 45')
+im45 = rt.get('image "ImT"', 'rect')
+rt.run('set the angle of image "ImT" to 30')
+im30 = rt.get('image "ImT"', 'rect')
+rt.run('set the angle of image "ImT" to 90')
+im90 = rt.get('image "ImT"', 'rect')
+rt.run('set the angle of image "ImT" to 0')
+check('image angle: the rect is the box around the turned picture; 0 gives it back (measured)',
+      (im45, im30, im90, rt.get('image "ImT"', 'rect')),
+      ('94,84,165,155', '94,87,166,152', '109,90,150,150', '100,100,160,140'))
+rt.run('delete image "ImT"')
 rt.run('set the angle of graphic "G" to 390')
 a1 = rt.eval('the angle of graphic "G"')
 rt.run('set the angle of graphic "G" to -30')
