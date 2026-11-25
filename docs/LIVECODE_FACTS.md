@@ -225,3 +225,5 @@ standalone per library group.
   (size 24 in a size-12 field) stays 16. fixedLineHeight false: each line its font's own height: 10->15, 12->18,
   14->18, 18->26, 24->36; a size-24 line in a size-12 field makes that line 36 (we do not do this yet: one height a
   field).
+- A handler parameter named like a script-level global is the parameter (the global is not read or changed:
+  `ARG-`, global still `G`). `local g` in a handler below `global g` does not compile.

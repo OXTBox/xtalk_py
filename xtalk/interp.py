@@ -114,7 +114,8 @@ class Interp:
             self.depth = 0
             raise XtError('handler: stack overflow')
         fr = Frame(args)
-        fr.globals.update(self.SG.get(name.lower(), ()))
+        pl = {p.lower() for p in params}       # a parameter named like a script global wins (measured 25 Nov)
+        fr.globals.update(g for g in self.SG.get(name.lower(), ()) if g not in pl)
         import copy
         for i, p in enumerate(params):
             fr.vars[p.lower()] = copy.deepcopy(args[i]) if i < len(args) else ''   # full number kept (measured)

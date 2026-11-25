@@ -18,3 +18,15 @@ function sgBoth
    sgSet
    return sgBefore() & "|" & sgAfter()
 end sgBoth
+
+-- a parameter named like a script global is the parameter; the global is untouched (measured)
+function sgParam gSgT
+   put gSgT & "-" into tA
+   put "NEW" into gSgT
+   return tA
+end sgParam
+
+function sgParamBoth
+   sgSet
+   return sgParam("ARG") & sgAfter()
+end sgParamBoth

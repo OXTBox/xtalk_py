@@ -427,7 +427,8 @@
   },
   "tests/lib_sglobals.txt": {
    "sgBoth()": "gSgT|7",
-   "sgAfter()": "7"
+   "sgAfter()": "7",
+   "sgParamBoth()": "ARG-7"
   },
   "tests/lib_fullnum.txt": {
    "1/fnRet()": "8165619676597685",

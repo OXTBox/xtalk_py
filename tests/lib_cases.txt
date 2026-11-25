@@ -182,3 +182,4 @@ tests/lib_sglobals.txt	sgAfter()
 tests/lib_fullnum.txt	1/fnRet()
 tests/lib_fullnum.txt	fnPar(sin(pi))
 tests/lib_fullnum.txt	1/fnArr()["k"]
+tests/lib_sglobals.txt	sgParamBoth()
