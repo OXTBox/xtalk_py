@@ -368,6 +368,19 @@ class View:
                 self.text(o, label, rc.x + rc.width + 2, y, rl.BLACK, 11)
 
     def texture(self, o):
+        fn = str(self.prop(o, 'fileName') or '')
+        if fn:                                    # set the fileName of image: the picture comes from that file
+            full = self.rt.host.real_path(fn)
+            if not os.path.isabs(full):
+                full = os.path.join(self.rt.host.default_folder, full)
+            if full not in self.textures:
+                if len(self.textures) > 64:       # an image viewer goes through many files: keep the cache small
+                    for k in [k for k in self.textures if k != full][:32]:
+                        rl.unload_texture(self.textures.pop(k))
+                self.textures[full] = rl.load_texture(full) if os.path.isfile(full) else None
+            if self.textures[full] is not None and self.textures[full].id:
+                return self.textures[full]
+            return None
         path = o.node.get('asset')
         if not path:
             return None
@@ -611,6 +624,8 @@ class View:
             fl = imgui.InputTextFlags_.password if d['sub'] == 'password' else 0
             imgui.set_next_item_width(380)
             _, d['text'] = imgui.input_text('##xtinput', d['text'], fl)
+            if d['sub'] in ('file', 'files', 'folder', 'folders'):
+                self.draw_browser(d)
         for i, b in enumerate(d['buttons']):
             if i:
                 imgui.same_line()
@@ -622,6 +637,28 @@ class View:
         if d['done'] is None and d['typing'] and imgui.is_key_pressed(imgui.Key.escape):
             d['done'] = 'Cancel'
 
+    def draw_browser(self, d):
+        """answer folder / file: the folders (and files) where the path points; a click goes in or picks"""
+        here = d['text'].rstrip('/') or '/'
+        if not os.path.isdir(here):
+            here = os.path.dirname(here) or '/'
+        try:
+            names = sorted(os.listdir(here), key=str.lower)
+        except OSError:
+            names = []
+        dirs = [n for n in names if not n.startswith('.') and os.path.isdir(os.path.join(here, n))]
+        files = [] if d['sub'].startswith('folder') else [n for n in names if os.path.isfile(os.path.join(here, n))]
+        imgui.begin_child('##xtbrowse', imgui.ImVec2(380, 260), imgui.ChildFlags_.borders)
+        if imgui.selectable('..##up', False)[0]:
+            d['text'] = (os.path.dirname(here) or '/') + '/'
+        for n in dirs:
+            if imgui.selectable('[%s]##d%s' % (n, n), False)[0]:
+                d['text'] = os.path.join(here, n) + '/'
+        for n in files:
+            if imgui.selectable(n + '##f' + n, d['text'] == os.path.join(here, n))[0]:
+                d['text'] = os.path.join(here, n)
+        imgui.end_child()
+
     def dialog_frames(self, kind, sub, icon, prompt, extra, title):
         """a script shows answer/ask: draw until a button is clicked (the handler waits) -> (it, the result)"""
         typing = kind == 'ask' or sub in ('file', 'files', 'folder', 'folders')
@@ -630,6 +667,10 @@ class View:
             text = extra[0]
         if sub in ('file', 'files', 'folder', 'folders'):
             text = self.rt.host.folders['documents'] + '/'
+            if extra and self.rt.real_folders:       # answer folder "..." with "<where to start>"
+                start = self.rt.host.real_path(extra[0])
+                if os.path.isdir(start):
+                    text = start.rstrip('/') + '/'
         buttons = (extra or ['OK']) if (kind == 'answer' and not sub) else ['Cancel', 'OK']
         self.dialog = {'kind': kind, 'sub': sub, 'icon': icon, 'prompt': prompt, 'title': title, 'typing': typing,
                        'text': text, 'buttons': buttons, 'done': None, 'focused': False}
@@ -649,6 +690,8 @@ class View:
         if done == 'Cancel':
             return '', 'cancel'
         if sub in ('file', 'files', 'folder', 'folders'):
+            if self.rt.real_folders:                  # a real app: the real path (reading only; writes stay sandboxed)
+                return (text.rstrip('/') if sub.startswith('folder') else text) or '/', ''
             return self.rt.host.sandboxed(text), ''
         return text, ''
 

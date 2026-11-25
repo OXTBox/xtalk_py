@@ -65,9 +65,29 @@ class ObjInterp(Runtime):
             return self.host.long_id(self.obj)
         return super().getvar(fr, name)
 
+    def _me_container(self, e, fr):
+        return (e[0] == 'var' and e[1].lower() == 'me' and 'me' not in fr.vars and 'me' not in fr.globals
+                and self.obj.type in ('field', 'button'))
+
+    def undefined(self, fr, name):
+        if name.lower() == 'me' and self._me_container(('var', name), fr):
+            return False
+        return super().undefined(fr, name)
+
+    def e_var(self, e, fr):
+        """me as a value in a field or button script is its text (measured 25 Nov: line 2 of me)"""
+        if self._me_container(e, fr):
+            return self.host.get_prop(self.host.long_id(self.obj), 'text')
+        return super().e_var(e, fr)
+
+    def assign(self, target, value, mode, fr):
+        if self._me_container(target, fr):     # put "XX" into line 1 of me: the field's text changes
+            return self.put_obj(self.host.long_id(self.obj), value, 'keep' if mode == 'into' else mode)
+        return super().assign(target, value, mode, fr)
+
 
 class StackRuntime:
-    def __init__(self, folder, files_dir=None):
+    def __init__(self, folder, files_dir=None, real_folders=False):
         self.harvest = Harvest(os.path.expanduser(folder))
         self.default_stack = self.harvest.main
         self.G = {}
@@ -77,6 +97,13 @@ class StackRuntime:
                                           'run_files')
         self.host.folders = {'documents': os.path.join(files, 'Documents'), 'temporary': os.path.join(files, 'tmp'),
                              'desktop': os.path.join(files, 'Desktop'), 'home': files, 'resources': self.harvest.folder}
+        self.host.sandbox_root = files     # every write goes in here, whatever the folders are
+        self.real_folders = real_folders
+        if real_folders:                   # a real window (an app): specialFolderPath and reading use the user's own
+            home = self.host.user_home()   # folders; writes still stay in the sandbox
+            self.host.folders.update({'home': home, 'documents': os.path.join(home, 'Documents'),
+                                      'desktop': os.path.join(home, 'Desktop'), 'pictures': os.path.join(home, 'Pictures')})
+        self.host.default_folder = self.harvest.folder
         self.ctx = {}
         self.load_errors = []
         self.errors = []               # script errors while running: (message, object, error text)

@@ -237,3 +237,7 @@ standalone per library group.
   selection, Left/Right = previous/next card, Up/Down = back/forward through the recent cards (not first/last; fixed).
   commandKeyDown: sent with the key's character to the focused control, else the card; on Windows/Unix whenever
   Control is held; not sent with Return/Tab/Backspace/Delete/Enter/arrows/function keys (as we did).
+- **me as a value in a field / button script is its text**: `return line 2 of me` -> the field's line 2;
+  `put "XX" into line 1 of me` changes the field; in a button script `me` is the button's text (empty).
+  `the short name of me`, `send ... to me`, `hide me`, `within(me, ...)` still mean the object.
+- files() / folders(): the names in the defaultFolder; folders() starts with `..` (Simple_image_viewer filters it).

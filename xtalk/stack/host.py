@@ -350,7 +350,7 @@ class StackHost(Host):
             v = rt.dialog_answers.pop(0)
             if v is None:
                 return '', ('' if kind == 'answer' and not sub else 'cancel')
-            if sub in ('file', 'files', 'folder', 'folders'):
+            if sub in ('file', 'files', 'folder', 'folders') and not rt.real_folders:
                 v = self.sandboxed(v if v.startswith('/') else os.path.join(self.folders['documents'], v))
             return v, ''
         return super().dialog(kind, sub, icon, prompt, extra, title)
@@ -475,6 +475,10 @@ class StackHost(Host):
             return rt.props.get('navigationarrows', 'true')
         if p == 'tool':
             return getattr(rt, 'tool', 'browse tool')
+        if p == 'defaultfolder':
+            return rt.host.default_folder
+        if p in ('files', 'folders'):
+            return self.list_dir(p)
         if p == 'keysdown':
             return ','.join(str(c) for c in rt.held_codes)
         if p == 'pendingmessages':
@@ -486,6 +490,11 @@ class StackHost(Host):
     def on_global_prop(self, name, v):
         """set the screenMouseLoc: the window moves the real mouse there (a game keeps it inside)"""
         rt = self.rt
+        if name == 'defaultfolder':           # set the defaultFolder: where files() / folders() look
+            p = self.real_path(v)
+            if os.path.isdir(p):
+                self.default_folder = p
+            return
         if name == 'screenmouseloc' and rt.on_warp is not None:
             try:
                 x, y = (int(round(to_num(p))) for p in str(v).split(',')[:2])
@@ -1052,8 +1061,42 @@ class StackHost(Host):
         return ''
 
     # ------------------------------------------------------------ files
+    @staticmethod
+    def user_home():
+        """the user's home: under WSL the Windows profile (/mnt/c/Users/<name>), else ~"""
+        prof = os.environ.get('USERPROFILE', '')
+        if not prof and os.path.isdir('/mnt/c/Users'):
+            try:
+                import subprocess
+                prof = subprocess.run(['cmd.exe', '/c', 'echo %USERPROFILE%'], capture_output=True, text=True,
+                                      stdin=subprocess.DEVNULL, timeout=5, cwd='/mnt/c').stdout.strip()
+            except (OSError, subprocess.SubprocessError):
+                prof = ''
+        p = StackHost.real_path(prof) if prof else ''
+        return p if p and os.path.isdir(p) else os.path.expanduser('~')
+
+    @staticmethod
+    def real_path(p):
+        """a path as a script gives it -> one this Python can open: C:/x or C:\\x -> /mnt/c/x under WSL"""
+        p = str(p).replace('\\', '/')
+        m = re.match(r'^([A-Za-z]):/(.*)$', p)
+        if m and os.path.isdir('/mnt/%s' % m.group(1).lower()):
+            return '/mnt/%s/%s' % (m.group(1).lower(), m.group(2))
+        return p
+
+    def list_dir(self, kind, path=None):
+        """files() / folders(): the names in the defaultFolder (or path), one a line; folders() starts with .."""
+        d = self.real_path(path) if path else self.default_folder
+        try:
+            names = sorted(os.listdir(d), key=str.lower)
+        except OSError:
+            return ''
+        if kind == 'files':
+            return '\n'.join(n for n in names if os.path.isfile(os.path.join(d, n)))
+        return '\n'.join(['..'] + [n for n in names if os.path.isdir(os.path.join(d, n))])
+
     def sandboxed(self, p):
-        home = os.path.abspath(self.folders.get('home', 'run_files'))
+        home = os.path.abspath(getattr(self, 'sandbox_root', None) or self.folders.get('home', 'run_files'))
         full = os.path.abspath(p) if not re.match(r'^[A-Za-z]:/|^[a-z]+:', p) else None
         if full is not None and (full == home or full.startswith(home + os.sep)):
             return full

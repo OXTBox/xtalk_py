@@ -773,6 +773,8 @@ class Interp:
 
     def desc(self, e, fr):
         """text naming an object node"""
+        if e[0] == 'var' and e[1].lower() == 'me':     # the X of me: the object (its value may be its text)
+            return to_text(self.getvar(fr, e[1]))
         if e[0] == 'obj':
             _, typ, ref, parent = e
             if ref[0] == 'this':
@@ -803,7 +805,7 @@ class Interp:
 
     def arg(self, n, fr):
         """a built-in command's argument: an object reference stays the object (hide field "F")"""
-        return self.desc(n, fr) if n[0] == 'obj' else self.ev(n, fr)
+        return self.desc(n, fr) if n[0] == 'obj' or (n[0] == 'var' and n[1].lower() == 'me') else self.ev(n, fr)
 
     def e_exists(self, e, fr):
         ok = self.host.exists(self.desc(e[1], fr))
@@ -958,7 +960,7 @@ class Interp:
         name = e[1]
         n = name.lower()
         args = [self.ev(a, fr) for a in e[2]]
-        if n == 'within' and e[2] and e[2][0][0] == 'obj':      # within(field "F", pt): the object, not its text
+        if n == 'within' and e[2] and (e[2][0][0] == 'obj' or (e[2][0][0] == 'var' and e[2][0][1].lower() == 'me')):   # within(me, pt): the object
             args[0] = self.desc(e[2][0], fr)
         hf = self.lookup(n)[1]
         if hf is not None and hf[0] == 'function':
@@ -1116,6 +1118,8 @@ def f_baseconvert(it, fr, num, frm, to):
 BUILTINS = {
     'baseconvert': f_baseconvert,
     'globalloc': f_globalloc,
+    'files': lambda it, fr, *a: it.host.list_dir('files', _t(a[0]) if a else None) if hasattr(it.host, 'list_dir') else '',
+    'folders': lambda it, fr, *a: it.host.list_dir('folders', _t(a[0]) if a else None) if hasattr(it.host, 'list_dir') else '',
     'localloc': f_localloc,
     'within': lambda it, fr, o, p: it.host.within(_t(o), _t(p)),
     'shell': lambda it, fr, c: it.host.shell(_t(c)),

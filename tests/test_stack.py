@@ -531,6 +531,19 @@ rt.open()
 rt.run('close stack "Message box"')
 check('close stack of a stack that is not here (the IDE Message box): the window stays open', rt.closed, False)
 
+rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
+rt.open()
+rt.run('put "aa" & cr & "bb" into field "F"')
+rt.run('set the script of field "F" to "function fLine" & cr & "return line 2 of me" & cr & "end fLine" & cr & '
+       '"command cPut" & cr & "put " & quote & "XX" & quote & " into line 1 of me" & cr & "end cPut" & cr & '
+       '"function fName" & cr & "return the short name of me" & cr & "end fName"')
+rt.run('global gR\nput fLine() into gR') if False else None
+_c = rt.ctx[id(rt.obj('field "F"'))]
+_r1, _r2 = _c.call('fLine'), _c.call('fName')
+_c.call('cPut')
+check('me in a field script: its text as a value, the object for "of me" (measured)',
+      (_r1, _r2, rt.get('field "F"', 'text')), ('bb', 'F', 'XX\nbb'))
+
 # a stack opening / closing on a card with a background group (measured 25 Nov)
 rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
 rt.run('set the backgroundBehavior of group "Grp" to true')
