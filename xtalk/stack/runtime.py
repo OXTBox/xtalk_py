@@ -43,7 +43,10 @@ class ObjInterp(Runtime):
 
     def after_pass(self, name, args):
         n = name.lower()
-        later = self.rt.contexts(self.obj)
+        t = self.rt.target                 # pass goes on along the target's path (a card's: card, its
+        later = self.rt.contexts(t) if t is not None else []      # background groups, stack)
+        if self not in later:
+            later = self.rt.contexts(self.obj)
         for c in later[later.index(self) + 1:] if self in later else []:
             if n in c.handlers:
                 return c.invoke(name, args)
@@ -130,12 +133,31 @@ class StackRuntime:
                         self.load_errors.append((self.host.name_of(o, 'long'), e))
                     self.ctx[id(o)] = c
 
+    def set_script(self, o, text):
+        """set the script of o: a fresh script context (its script locals start empty)"""
+        o.script = text
+        self.ctx.pop(id(o), None)
+        if text.strip():
+            c = ObjInterp(self, o)
+            c.load(text)
+            self.ctx[id(o)] = c
+            return '; '.join(c.load_errors)
+        return ''
+
     # ------------------------------------------------------------ the message path
+    @staticmethod
+    def backgrounds(card):
+        """the card's groups with backgroundBehavior: after the card on the message path; entering / leaving
+        them sends the background messages"""
+        return [g for g in card.children if g.type == 'group'
+                and any(k.lower() == 'backgroundbehavior' and str(v).lower() == 'true' for k, v in g.props.items())]
+
     def path(self, o):
         out = []
         while o is not None:
             out.append(o)
             if o.type == 'card':
+                out.extend(g for g in self.backgrounds(o) if g not in out)   # card -> background groups -> stack
                 o = o.stack
             elif o.type == 'stack':
                 o = o.mainstack if o.mainstack is not o else None
@@ -274,11 +296,20 @@ class StackRuntime:
                 return
             if st.current is card:
                 return
-        if st.current is not None and st.current is not card:
-            self.message(st.current, 'closeCard')
+        old = st.current if st.current is not card else None
+        before = {g.id for g in self.backgrounds(old)} if old is not None else set()
+        after = {g.id for g in self.backgrounds(card)}
+        if old is not None:                # measured 25 Nov: closeCard, closeBackground (a background left),
+            self.message(old, 'closeCard')  # preOpenBackground (one entered), preOpenCard, openBackground, openCard;
+            if before - after:              # a background on both cards: no background messages
+                self.message(old, 'closeBackground')
         st.current = card
         self.default_stack = st
+        if after - before:
+            self.message(card, 'preOpenBackground')
         self.message(card, 'preOpenCard')
+        if after - before:
+            self.message(card, 'openBackground')
         self.message(card, 'openCard')
         self.changed = True
 

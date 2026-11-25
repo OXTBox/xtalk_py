@@ -620,6 +620,12 @@ class StackHost(Host):
         if p == 'custompropertyset':
             o.cps = str(value)
             return
+        if p == 'script':
+            self.rt.set_script(o, str(value))
+            return
+        if p in ('backgroundbehavior', 'sharedbehavior'):
+            o.props['backgroundBehavior' if p == 'backgroundbehavior' else 'sharedBehavior'] = str(value).lower()
+            return
         if p == 'style':                       # set the style to "Line": stored as line (measured 25 Nov)
             value = str(value).lower()
         if p == 'angle':                       # 390 reads back 30, -30 reads 330 (measured 26 Nov)

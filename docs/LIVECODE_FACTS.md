@@ -202,3 +202,8 @@ standalone per library group.
 - **Styled field, delete and sort** (htmlText `<p><b>zz</b> bb</p><p><i>cc</i> yy</p><p>aa <font color=red>rr</font></p>`):
   `delete word 1 of line 1` -> `<p>bb</p>` (the rest keeps its styles); `delete line 2` -> lines 1 and 3 with their
   styles; `sort lines of field` and `... descending` -> each line moves with its own styles.
+- **Background messages** (group with backgroundBehavior, card 1 and card 2 share it, card 3 has none):
+  1->2 `closeCard,preOpenCard,openCard` (no background messages); 2->3 `closeCard,closeBackground,preOpenCard,openCard`;
+  3->1 `closeCard,preOpenBackground,preOpenCard,openBackground,openCard`. The group's handler ran with `me` = the
+  group (a card's path: card, its background groups, stack). Not measured: several background groups at once,
+  and whether a card's own handler sees them first (we send them to the card).

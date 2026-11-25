@@ -271,6 +271,22 @@ check('styled field: delete line / sort lines keep each line\'s styles (measured
        '<p>aa <font color="#FF0000">rr</font></p>\n<p><i>cc</i> yy</p>\n<p><b>zz</b> bb</p>',
        '<p><b>zz</b> bb</p>\n<p><i>cc</i> yy</p>\n<p>aa</p>'))
 rt.run('delete field "SfT"')
+rt.run('go card 1')
+rt.run('set the backgroundBehavior of group "Grp" to true')
+_bgs = ''.join('on %s\nglobal glog\nput "%s," after glog\npass %s\nend %s\n' % (m, m, m, m) for m in
+               ['preOpenBackground', 'openBackground', 'closeBackground', 'closeCard', 'preOpenCard', 'openCard'])
+rt.run('set the script of group "Grp" to "%s"' % _bgs.replace('"', '" & quote & "').replace('\n', '" & cr & "'))
+rt.G['glog'] = ''
+rt.run('go card "Two"')
+_leave = rt.G['glog']
+rt.G['glog'] = ''
+rt.run('go card 1')
+check('background messages: leaving / entering a background group (measured order)',
+      tuple(','.join(next(m for m in ('preOpenBackground', 'openBackground', 'closeBackground', 'closeCard', 'preOpenCard', 'openCard')
+                          if m in x) for x in g.split('openCard:')[0].split(',') if x) + ',' for g in (_leave, rt.G['glog'])),
+      ('closeCard,closeBackground,', 'preOpenBackground,preOpenCard,openBackground,openCard,'))   # the message names in the order logged
+rt.run('set the script of group "Grp" to empty')
+rt.run('set the backgroundBehavior of group "Grp" to false')
 rt.run('set the angle of graphic "G" to 390')
 a1 = rt.eval('the angle of graphic "G"')
 rt.run('set the angle of graphic "G" to -30')
