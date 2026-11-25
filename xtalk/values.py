@@ -14,6 +14,12 @@ class NumStr(str):
     number to numberFormat only when it is stored (put ... into x), not between operators"""
     raw = 0.0
 
+    def __copy__(self):                # never changed in place: a copy can be itself (arrays copy fast)
+        return self
+
+    def __deepcopy__(self, memo):
+        return self
+
 def numstr(n):
     if isinstance(n, bool):
         return 'true' if n else 'false'
