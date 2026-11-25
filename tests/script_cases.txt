@@ -222,3 +222,97 @@ put "q" into line 3 of tOut
 put "a" & return & "b" into t
 put "X" into line 2 of t
 put t into tOut
+----
+put empty into tOut
+switch "a"
+case "a"
+put "A" after tOut
+case "b"
+put "B" after tOut
+break
+case "c"
+put "C" after tOut
+end switch
+----
+put empty into tOut
+switch "c"
+case "a"
+put "A" after tOut
+break
+case "c"
+put "C" after tOut
+default
+put "D" after tOut
+end switch
+switch
+case 1 = 2
+put "x" after tOut
+case 1 = 1
+put "y" after tOut
+case 1 = 3
+put "z" after tOut
+break
+case 1 = 1
+put "w" after tOut
+end switch
+----
+put empty into tOut
+repeat for each item tK in "b,q,e"
+switch tK
+case "a"
+case "b"
+put "1" after tOut
+break
+default
+put "D" after tOut
+case "e"
+put "E" after tOut
+if tK is "e" then break
+put "!" after tOut
+case "f"
+put "F" after tOut
+end switch
+put "/" after tOut
+end repeat
+----
+put empty into tOut
+switch "right"
+case "Right"
+put "matched" after tOut
+break
+default
+put "nomatch" after tOut
+end switch
+put "," & the caseSensitive after tOut
+put "," & ("right" = "Right") after tOut
+switch "b"
+case "B"
+put ",B" after tOut
+break
+default
+put ",default" after tOut
+end switch
+----
+put empty into tOut
+switch "1.0"
+case 1
+put "num" after tOut
+break
+default
+put "text" after tOut
+end switch
+switch " b "
+case "b"
+put ",trim" after tOut
+break
+default
+put ",exact" after tOut
+end switch
+set the caseSensitive to true
+switch "b"
+case "B"
+put ",B" after tOut
+break
+default
+put ",cs" after tOut
+end switch

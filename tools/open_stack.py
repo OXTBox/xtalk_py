@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""open_stack.py - open a harvested stack in the Python runtime (Phase 2). Needs the .venv packages.
+
+    .venv/bin/python -I tools/open_stack.py HARVEST_FOLDER                  a window at 200,32; click away
+    .venv/bin/python -I tools/open_stack.py HARVEST_FOLDER --snap OUT.png [--click 'button "OK"' ...]
+                                                                           hidden: click, then save the card
+
+Files the stack writes (specialFolderPath("Documents")...) land in xtalk_py/run_files/, never in yours.
+"""
+import os, sys
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+
+def main(a):
+    if not a:
+        sys.exit(__doc__)
+    if '--snap' not in a and not os.environ.get('XTALK_KEEP_WAYLAND'):
+        os.environ['WAYLAND_DISPLAY'] = 'no-wayland'   # GLFW falls back to X11 under WSLg: the window can be placed at 200,32
+    from xtalk.stack import StackRuntime
+    from xtalk.stack.view import View
+    rt = StackRuntime(a[0])
+    if '--snap' in a:
+        out = a[a.index('--snap') + 1]
+        v = View(rt, hidden=True)
+        rt.open()
+        i = 0
+        while '--click' in a[i:]:
+            i = a.index('--click', i) + 1
+            rt.click(a[i])
+        v.snapshot(out)
+        v.close()
+        for e in rt.errors:
+            print('script error:', *e)
+        print('saved', out)
+        return
+    View(rt).run()
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

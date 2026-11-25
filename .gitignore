@@ -1,4 +1,7 @@
-__pycache__/
 *.pyc
 *:Zone.Identifier
+.venv/
+__pycache__/
 tests/.combined/
+imgui.ini
+run_files/

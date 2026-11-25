@@ -453,7 +453,7 @@ class Parser:
     def st_switch(self):
         subject = None if self.peek()[0] == 'nl' else self.expr()
         self.skip_nl()
-        cases, default = [], None
+        cases, default, dpos = [], None, 0
         while self.is_word('case') or self.is_word('default'):
             if self.accept_word('case'):
                 vals = [self.expr()]
@@ -462,10 +462,11 @@ class Parser:
                 cases.append((vals, self.block(('case', 'default', 'end'))))
             else:
                 self.i += 1
+                dpos = len(cases)                  # where the default sits: cases fall through into it
                 default = self.block(('case', 'default', 'end'))
         self.expect_word('end')
         self.expect_word('switch')
-        return ('switch', subject, cases, default)
+        return ('switch', subject, cases, default, dpos)
 
     def st_try(self):
         body = self.block(('catch', 'finally', 'end'))
@@ -644,7 +645,8 @@ class Parser:
             name = w + ' ' + self.next()[1].lower()
             self.i += 1
             return ('propof', name, self.p_un(), None)
-        if w in ('url', 'file', 'binfile') and (self.peek()[0] == 'str' or (self.peek()[0] == 'id' and not self.is_word('into') and not self.is_word('is') and not self.is_word('and'))):
+        if w in ('url', 'file', 'binfile') and (self.peek()[0] == 'str' or (w == 'url' and self.is_op('('))
+                                                 or (self.peek()[0] == 'id' and not self.is_word('into') and not self.is_word('is') and not self.is_word('and'))):
             return ('url', w, self.primary())
         if w == 'there' and self.is_word('is'):
             self.i += 1
@@ -758,6 +760,9 @@ class Parser:
 
     def the_form(self):
         k, s, _ = self.peek()
+        if k == 'str':                                   # `the "abc"` is just "abc" (LIVECODE_FACTS)
+            self.i += 1
+            return ('str', s)
         w = s.lower() if k == 'id' else ''
         if w == 'current' and self.peek(1)[0] == 'id' and self.peek(1)[1].lower() in OBJTYPES:
             self.i += 1

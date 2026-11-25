@@ -1,0 +1,13 @@
+{"type": "stack", "name": "xtM1", "id": 1003, "role": "main", "rect": [100, 100, 400, 300], "size": [300, 200],
+ "effective": {"textFont": "Segoe UI", "textSize": 12}, "custom": {"uFoo": "bar", "$sets": {"cSet": {"k": "v"}}},
+ "script": {"file": "scripts/xtM1__stack.livecodescript"},
+ "cards": [
+  {"type": "card", "name": "", "id": 1002, "number": 1, "controls": [
+    {"type": "graphic", "name": "G", "id": 1003, "layer": 1, "rect": [10, 10, 110, 60]},
+    {"type": "button", "name": "B", "id": 1004, "layer": 2, "rect": [150, 10, 230, 33],
+     "script": {"file": "scripts/xtM1__button_1004_B.livecodescript"}},
+    {"type": "group", "name": "Grp", "id": 1010, "layer": 3, "rect": [10, 100, 200, 160], "controls": [
+      {"type": "button", "name": "R1", "id": 1011, "layer": 4, "rect": [10, 100, 90, 120], "props": {"style": "radiobutton"}},
+      {"type": "button", "name": "R2", "id": 1012, "layer": 5, "rect": [10, 130, 90, 150], "props": {"style": "radiobutton", "hilited": true}}]},
+    {"type": "field", "name": "F", "id": 1020, "layer": 6, "rect": [220, 100, 290, 190], "text": "one"}]},
+  {"type": "card", "name": "Two", "id": 1030, "number": 2, "controls": []}]}

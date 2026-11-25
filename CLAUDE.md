@@ -12,6 +12,9 @@ not useful to him.
 ## Decisions already made (do not reopen without the owner)
 
 - Interpreter first (reads xTalk text and runs it: package `xtalk/`, tests `tests/test_interp.py` against `tests/golden.json`); the translator to Python comes second, after thorough testing (owner, 21 Nov).
+- The translator exists (24 Nov): `xtalk/transpile.py` + `xtalk/pyrt.py`. After any change to `xtalk/`, run BOTH
+  `python3 -I tests/test_interp.py` and `python3 -I tests/test_transpile.py`; after a corpus sync or a library
+  change, `python3 -I tools/translate.py --libs` (the test fails on stale `generated/` files). Never edit `generated/`.
 - GUI: raylib + Dear ImGui, for the editors, the stack runtime and 3D alike.
 - xt3d, Vibecode3D and LIB_LLM are separate tools in their own projects. They meet
   through shared formats (harvest JSON, 0/1 sprite frames, models, raylib-named calls).
@@ -54,7 +57,7 @@ repeating requirements into `LIB_<Name>` projects.
   re-run it instead of editing them. Mark progress in the interpreter's own test list,
   not in the generated file.
 - Never edit the owner's other projects from here without being asked.
-- Python 3.14 is installed in WSL; pip is not yet. Ask before installing packages.
+- Python 3.14 in WSL; no system pip. Phase 2 packages live in `.venv/` (git-ignored; pip from bootstrap.pypa.io, owner OK 24 Nov): raylib + imgui-bundle, pinned in `requirements.txt`. Core `xtalk/` and its tests stay standard-library only (`python3 -I`). Ask before adding packages.
 
 ## xTalk pitfalls already learned (from the owner's projects)
 

@@ -19,7 +19,17 @@ exactly. Each line was checked in LiveCode 9.6.3; add the date and how.
 - Numbers print with the `numberFormat` default `0.######`: `1/3` is `0.333333`, `pi` is `3.141593`, `sqrt(2)` is `1.414214`. Whole numbers print plain. All arithmetic is double precision: `2^53 + 1` is `9007199254740992`; `100000000000000 + 0.5` is `100000000000000.5`.
 - `-2^2` is `4` (unary minus binds tighter than `^`); `- - 3` is an error.
 - `true and "x"` is `false`, no error (and/or treat anything but "true" as false).
-- `switch` matches cases exactly, case-sensitively: `switch "b"` does not take `case "B"`.
+- `switch` compares as text, ignoring case unless `the caseSensitive` is true (re-measured 25 Nov; an older
+  line here said case-sensitive, which was wrong and broke LightCycles3): `switch "right"` takes `case "Right"`;
+  `switch "1.0"` does not take `case 1` (no number compare); `switch " b "` does not take `case "b"` (no trim).
+- `switch` falls through (measured 24 Nov, standalone): the first case that matches (cases are tried in order,
+  also those below the default), else the default, is where it starts; from there every body runs, through the
+  `case` lines and the `default` line, until a `break`. `case "a"` / `case "b"` / body is one body for both.
+  Tests: the last three blocks of tests/script_cases.txt ("AB", "CDyz", "1/DE!F/E/").
+- A chunk given to an `@` (by reference) parameter of a command is an error: `T.Bump2 item 2 of tC` (measured 24 Nov).
+  A variable and an array element (`tK["n"]`) are fine.
+- `repeat for each element tE in tArray` walks the values of an array (measured 24 Nov: 5 + 7 = 12).
+- `return` inside `try` still runs `finally`; `throw` goes to `catch` with the thrown text (tests/wrap_translator.txt).
 - `repeat with i = 10 down to 1 step 4` (positive step with `down to`) runs zero times. `repeat with i = 1 to 10 step 4` gives 1, 5, 9, 13 and leaves `i` at 13.
 - `word`, `char` and the like, written bare, are errors (reserved words), not variables.
 - `cr` is a newline (ASCII 10), the same as `return`; not a carriage return.
@@ -42,3 +52,18 @@ standalone per library group.
   held pipes), not LiveCode. `golden.py` still uses a fresh copy per group (faster and safe).
 - `Hunter.GemInfo` was never a runaway loop: same cause. Its cases are now in lib_cases.txt (322 of 322 match).
 - Script locals (`local sH`) are shared by all handlers, arrays included: `put x into sH[i]` writes the script local.
+
+## Objects and messages (measured 24 Nov, standalone; Phase 2)
+- `set the width of graphic G to 50` keeps the centre: rect 10,10,110,60 -> 35,10,85,60. Height 50 -> 21 with
+  centre y 85 (after loc 100,100: rect 75,75,125,125) -> 75,89,125,110: new top = centre - trunc(h/2)... measured
+  89 = trunc(100 - 10.5); bottom = top + 21.
+- `the loc` = trunc((left+right)/2), trunc((top+bottom)/2): rect 75,89,125,110 -> 100,99.
+- `set the left` moves, keeps the width: 35,10,85,60 -> 0,10,50,60. `set the loc` centres the rect.
+- `the long id of button "B"` = `button id 1004 of card id 1002 of stack "xtM1"`; `the name` = `button "B"`;
+  an unnamed card's name = `card id 1002`. `the short name of me` = B.
+- `pass mouseUp` in a button goes on to the card, then the stack; `the target` stays the button.
+- `send "hello 7" to button "B"`: the words after the message name are its parameters. `dispatch "hello" to
+  button "B" with 8` the same. Both follow the message path (and pass).
+- `the "abc"` is just abc (the card reader stack uses `put the "Entrance, Obstacle..." into tItems`).
+- A custom property reads as `the uFoo of stack "x"` and `the uFoo of this stack`.
+- NOT measured: preOpenStack/openCard order (an invisible stack opened from a library sent none of them).

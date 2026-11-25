@@ -8,7 +8,7 @@ runtime with raylib, after 9.6.3 can no longer be used.
 
 | Question | Decision |
 |---|---|
-| How scripts run | **Interpreter first**: reads xTalk and executes it, as LiveCode does. A one-time translator to plain Python may come later. |
+| How scripts run | **Interpreter first**: reads xTalk and executes it, as LiveCode does. The translator to plain Python comes second, after thorough testing (owner, 21 Nov). Both exist since 24 Nov. |
 | GUI foundation | **raylib + Dear ImGui**. One engine for the editors, the stack runtime and the 3D view. |
 | Where | **This project** (`~/projects/xtalk_py`, working name). xt3d, Vibecode3D and LIB_LLM stay separate projects and tools. |
 | Goal for the editors | "Final Cut Pro quality" doodle, animate, meshify and game-play editors, usable from both Vibecode3D and xt3d. Eventually. |
@@ -68,7 +68,7 @@ They agree on data, not on code.
    path is not needed when raylib draws everything.
 4. **Editors**: doodle, animate, meshify, game play, built on the runtime and shared by
    Vibecode3D and xt3d.
-5. **Optional translator**: xTalk to plain Python, for people who want Python output.
+5. **Translator**: xTalk to plain Python (`xtalk/transpile.py`, built 24 Nov ahead of phases 2-4, see below).
 
 ## Where Phase 1 stands (21 Nov 2026)
 
@@ -82,7 +82,28 @@ They agree on data, not on code.
   `answer`), `send ... in N milliseconds`, `dispatch`, `pass`, message path, `do` of handler-local code
   across handlers, the property catalogue (207 properties), styled text. Those need Phase 2 (stack runtime).
 
-## Next concrete step
+## Where the translator stands (24 Nov 2026)
+
+- `xtalk/transpile.py` turns a script into a Python module; `xtalk/pyrt.py` is what it runs on (the
+  interpreter's own rules, so both always agree). Handlers, if/repeat/switch/try become plain Python;
+  `do` and `value()` of text made at run time are interpreted. A handler it cannot translate is kept as
+  xTalk and interpreted (none so far).
+- `python3 -I tests/test_transpile.py`: the same LiveCode answers, every case and library translated
+  first: 352 of 352 (incl. switch fall-through and 14 cases for the translator's own paths), plus 5 self-checks.
+- `python3 -I tools/translate_corpus.py`: corpus 1124 of 1129 handlers (5 do not parse). All 1652
+  distinct `.livecodescript` files in ~/projects: 20,591 handlers become Python that compiles, 430 do not parse.
+- `generated/lib_bit.py`, `lib_map.py`, `lib_trace.py`: the three libraries as generated Python
+  (`python3 -I tools/translate.py --libs`; the test fails when they are out of date).
+- Speed: about the same as the interpreter (every operation still goes through the shared rules).
+  Faster output (plain Python locals where a variable is surely text) is a later step.
+- Still open, and Phase 2 work: objects, the message path, `send`/`dispatch`/`pass`, properties, the GUI.
+
+## Where Phase 2 stands (25 Nov 2026)
+- Started (owner's go, 24 Nov night): `xtalk/stack/` + `tools/open_stack.sh`. Two of his harvested stacks open and
+  their buttons work (Game_card_reader, LightCycles3): Phase 2's "done when" is met for those two, not yet for
+  every stack. Gaps and the other harvests: docs/HANDOFF_2026-11-24.md (Phase 2 part).
+
+## Next concrete step (written 11 Nov; Phase 1 is done)
 
 Phase 1 begins with the value model and chunk expressions (`put`, `char/word/item/line
 of`, `&`, `&&`, comparisons, number formatting), because `put` alone is 7,500 of the

@@ -47,6 +47,10 @@ class Host:
         self.log.append((name, parts))
         return ''
 
+    def special_folder(self, name):
+        """specialFolderPath(name): none in the plain in-memory host"""
+        return ''
+
     # ---- files and urls
     def read_url(self, kind, ref):
         path = ref[5:] if ref.lower().startswith('file:') else ref
