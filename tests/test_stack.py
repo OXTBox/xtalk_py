@@ -544,6 +544,20 @@ _c.call('cPut')
 check('me in a field script: its text as a value, the object for "of me" (measured)',
       (_r1, _r2, rt.get('field "F"', 'text')), ('bb', 'F', 'XX\nbb'))
 
+rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
+rt.open()
+rt.run('go card 1\nput "one" & cr & "two" & cr & "three" into field "F"\nset the lockText of field "F" to true\n'
+       'set the listBehavior of field "F" to true')
+_f = rt.obj('field "F"')
+_lh = rt.field_metrics(_f)[1]
+rt.click('%d,%d' % (_f.rect[0] + 10, int(_f.rect[1] + 4 + _lh * 0.5)))
+_a = (rt.focused is _f, rt.host.hilited_lines(_f))
+rt.special_key('down')
+rt.special_key('down')
+rt.special_key('down')
+check('a clicked list field takes the focus; Down moves its hilite, stops at the last line', (_a, rt.host.hilited_lines(_f)),
+      ((True, [1]), [3]))
+
 # a stack opening / closing on a card with a background group (measured 25 Nov)
 rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
 rt.run('set the backgroundBehavior of group "Grp" to true')

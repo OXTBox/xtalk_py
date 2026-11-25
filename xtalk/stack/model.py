@@ -54,6 +54,10 @@ def regular_points(rect, sides, angle):
     return pts + [pts[0]]
 
 
+# OXT-Beyond's dark theme, asked of OXT-Beyond 25 Nov (a new stack, button, field: effective colours)
+OXT_DARK = {'foregroundColor': '255,255,255', 'backgroundColor': '32,32,32', 'hiliteColor': '0,120,215'}
+
+
 class Obj:
     """a stack, card or control"""
 
@@ -212,6 +216,10 @@ class Harvest:
         for s in self.stacks:
             s.mainstack = self.main
         self.errors = self.manifest.get('errors', [])
+        if str(self.manifest.get('sourceFile', '')).lower().endswith('.oxtstack'):
+            for s in self.stacks:              # made in OXT-Beyond: its dark theme where the stack sets no colour
+                s.effective.update(OXT_DARK)   # (the harvest ran in LiveCode 9.6.3: black on black)
+                s.theme = 'oxt-dark'
 
     def stack(self, name):
         for s in self.stacks:

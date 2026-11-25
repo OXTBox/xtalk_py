@@ -414,6 +414,10 @@ class StackRuntime:
                 n = self.field_line_at(o, y)     # the line is hilited before mouseDown (the owner's scripts read it there)
                 o.props['hilitedLines'] = str(n) if n else ''
                 self.changed = True
+                if self.host.obj_prop(o, 'traversalon') != 'false' and self.focused is not o:
+                    self.set_focus(None)         # a list field takes the focus (its arrow keys move the hilite)
+                    self.focused = o
+                    self.message(o, 'focusIn')
         if self.focused is not None and o is not self.focused:
             self.set_focus(None)                 # a click elsewhere: the field loses the focus
         if o.type == 'scrollbar' and self.host.obj_prop(o, 'disabled') != 'true':
@@ -799,7 +803,8 @@ class StackRuntime:
         if hasattr(self, 'log_clicks'):
             self.log_clicks.append('key %r' % ch)
         f = self.focused
-        if not self.handled(f or self.default_stack.current, 'keyDown', [ch]) and f is not None and self.focused is f:
+        if not self.handled(f or self.default_stack.current, 'keyDown', [ch]) and f is not None and self.focused is f \
+                and self.editable(f):
             self.type_into(f, ch)
 
     SPECIAL = {'backspace': ('backspaceKey', []), 'delete': ('deleteKey', []), 'return': ('returnInField', []),
@@ -827,6 +832,17 @@ class StackRuntime:
         if msg and self.handled(f, msg, args):
             return
         if self.focused is not f:
+            return
+        if not self.editable(f):                 # a list field: Up/Down move the hilite (after a passed arrowKey)
+            if name in ('up', 'down') and self.host.obj_prop(f, 'listbehavior') == 'true':
+                n = len(f.text.split('\n'))
+                cur = self.host.hilited_lines(f)
+                i = (cur[0] if cur else 0) + (1 if name == 'down' else -1)
+                if cur or name == 'down':
+                    i = max(1, min(n, i))
+                    f.props['hilitedLines'] = str(i)
+                    self.scroll_to_line(f, i) if hasattr(self, 'scroll_to_line') else None
+                    self.changed = True
             return
         t, (s, e) = f.text, self.sel
         if name == 'backspace':

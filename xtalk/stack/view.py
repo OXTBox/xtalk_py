@@ -73,7 +73,7 @@ class View:
         rt.on_clipboard_get = lambda: rl.get_clipboard_text() or ''
         rt.on_clipboard_set = lambda t: rl.set_clipboard_text(t)
         self.cursor_hidden = False
-        self.captured, self.vmouse = False, (0, 0)
+        self.captured, self.vmouse, self.last_real = False, (0, 0), (0, 0)
         if not hidden:                 # a hidden (test) window never moves the real mouse
             rt.window_pos = tuple(pos)
             rt.on_warp = self.warp
@@ -92,7 +92,7 @@ class View:
         want = hide and str(rt.props.get('lockcursor', '')).lower() == 'true'
         if want and not self.captured:
             m = rl.get_mouse_position()
-            self.vmouse = (m.x, m.y)
+            self.vmouse = self.last_real = (m.x, m.y)
             rl.disable_cursor()
             self.captured = True
         elif not want and self.captured:
@@ -301,8 +301,9 @@ class View:
     def draw_field(self, o):
         rc = self.rect(o)
         if self.on(o, 'opaque'):
-            rl.draw_rectangle_rec(rc, colour(self.inherit(o, 'backgroundColor'), rl.WHITE)
-                                  if o.props.get('backgroundColor') not in (None, '') else rl.WHITE)
+            own = o.props.get('backgroundColor') not in (None, '')
+            dark = getattr(o.stack, 'theme', '') == 'oxt-dark'    # OXT's dark theme: fields dark too
+            rl.draw_rectangle_rec(rc, colour(self.inherit(o, 'backgroundColor'), rl.WHITE) if (own or dark) else rl.WHITE)
         if self.on(o, 'showBorder'):
             rl.draw_rectangle_lines_ex(rc, 1, colour(self.inherit(o, 'borderColor'), rl.Color(130, 135, 144, 255)))
         rt = self.rt
@@ -311,7 +312,7 @@ class View:
         hl = set(rt.host.hilited_lines(o))
         rl.begin_scissor_mode(int(rc.x + 1), int(rc.y + 1), int(rc.width - 2 - sbw), int(rc.height - 2))
         fg = colour(self.inherit(o, 'foregroundColor'), rl.BLACK)
-        if rt.focused is o:
+        if rt.focused is o and rt.editable(o):     # a focused list field shows its hilite, no caret
             self.draw_selection(o, rc, rows, lh, m, scroll)
         x0 = rc.x + m / 2 + 2
         y = rc.y + m / 2 - scroll
@@ -503,8 +504,12 @@ class View:
         busy = self.draw_panel()
         rl.end_drawing()
         if self.captured:                         # a mouse-look game: only the movement counts (see capture())
-            d = rl.get_mouse_delta()
-            self.vmouse = (self.vmouse[0] + d.x, self.vmouse[1] + d.y)
+            d, m = rl.get_mouse_delta(), rl.get_mouse_position()
+            dx, dy = d.x, d.y
+            if dx == 0 and dy == 0:               # WSL may give no movement for a grabbed mouse: use the pointer
+                dx, dy = m.x - self.last_real[0], m.y - self.last_real[1]
+            self.last_real = (m.x, m.y)
+            self.vmouse = (self.vmouse[0] + dx, self.vmouse[1] + dy)
             x, y = int(self.vmouse[0]), int(self.vmouse[1])
         else:
             m = rl.get_mouse_position()
