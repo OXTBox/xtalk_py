@@ -277,8 +277,16 @@ class Interp:
         _, name, obj, key, ex = st
         v = self.setprop_value(self.ev(ex, fr), obj is not None)
         if obj is None:
+            if key is not None and hasattr(self.host, 'set_global_key'):     # set the clipboardData["text"] to x
+                self.host.set_global_key(name, to_text(self.ev(key, fr)), to_text(v))
+                return
             self.set_global_prop(name, v)
             return
+        if obj[0] == 'chunk':                  # set the textStyle of word 2 of field "F" to "bold"
+            r = self.field_chunk(obj, fr)
+            if r is not None and hasattr(self.host, 'set_chunk_prop'):
+                self.host.set_chunk_prop(r[0], r[1], r[2], name, to_text(v))
+                return
         self.host.set_prop(self.desc(obj, fr), self.prop_name(fr, name), v, None if key is None else to_text(self.ev(key, fr)))
 
     @staticmethod
@@ -481,6 +489,26 @@ class Interp:
         self.put_var(fr, 'it', it)
         self.result = result
 
+    def field_chunk(self, node, fr):
+        """a chunk of a field (word 1 of line 2 of field "F") -> (the field, first char, end char), offsets into
+        the field's text; None when the chunk is not of an object"""
+        if node[0] == 'obj':
+            desc = self.desc(node, fr)
+            return desc, 0, len(to_text(self.host.get_prop(desc, 'text')))
+        if node[0] != 'chunk':
+            return None
+        _, kind, a, b, inner = node
+        r = self.field_chunk(inner, fr)
+        if r is None:
+            return None
+        desc, s0, e0 = r
+        text = to_text(self.host.get_prop(desc, 'text'))[s0:e0]
+        a2, b2 = self.range(a, b, fr, kind, text)
+        sp = ch.spans(text, kind, **self.delims())
+        rr = ch._range(len(sp), a2, a2 if b is None else b2)
+        s, e = (sp[rr[0]][0], sp[rr[1]][1]) if rr else (len(text), len(text))
+        return desc, s0 + s, s0 + e
+
     def c_select(self, parts, fr):
         """select after/before text of field F, select text of F, select char a to b of F, select empty:
         the host puts the caret / selection there (a field) or takes it away"""
@@ -561,7 +589,8 @@ class Interp:
             cur = to_text(self.ev(inner, fr)) if not (inner[0] == 'var' and self.undefined(fr, inner[1])) else ''
             av = self.chunk_arg(a, fr)
             bv = None if b is None else self.chunk_arg(b, fr)
-            self.assign(inner, self.put_chunk(kind, cur, av, bv, value, mode), 'into', fr)
+            # into a chunk of a field: the rest of its styles stay ('keep'); a whole `put into` clears them
+            self.assign(inner, self.put_chunk(kind, cur, av, bv, value, mode), 'keep' if inner[0] == 'obj' else 'into', fr)
             return
         if k == 'obj':
             self.put_obj(self.desc(target, fr), value, mode)
@@ -575,9 +604,15 @@ class Interp:
         raise XtError("put: can't put into that")
 
     def put_obj(self, desc, value, mode='into'):
-        """put into a field (or any object): its text"""
-        cur = self.host.get_prop(desc, 'text') if mode != 'into' else ''
+        """put into a field (or any object): its text. mode 'keep': the new whole text from a chunk put
+        (the host keeps the styles of what did not change)"""
         v = to_text(value)
+        if mode != 'into' and hasattr(self.host, 'put_text'):
+            self.host.put_text(desc, v, mode)
+            return
+        if mode == 'keep':
+            mode = 'into'
+        cur = self.host.get_prop(desc, 'text') if mode != 'into' else ''
         self.host.set_prop(desc, 'text', v if mode == 'into' else (cur + v if mode == 'after' else v + cur))
 
     def put_var(self, fr, name, value, mode='into'):
@@ -660,6 +695,11 @@ class Interp:
 
     def e_var(self, e, fr):
         return self.getvar(fr, e[1])
+
+    def e_propkey(self, e, fr):
+        """the clipboardData["text"]: an engine property that is an array"""
+        f = getattr(self.host, 'get_global_key', None)
+        return f(e[1], to_text(self.ev(e[2], fr))) if f else ''
 
     def e_prop(self, e, fr):
         n = e[1]
@@ -773,6 +813,10 @@ class Interp:
 
     def e_propof(self, e, fr):
         _, name, operand, key = e
+        if operand[0] == 'chunk' and hasattr(self.host, 'get_chunk_prop'):    # the textStyle of word 2 of field 1
+            r = self.field_chunk(operand, fr)
+            if r is not None:
+                return self.host.get_chunk_prop(r[0], r[1], r[2], name)
         name = self.prop_name(fr, name)
         f = BUILTINS.get(name)
         if f is not None and operand[0] not in ('obj',):

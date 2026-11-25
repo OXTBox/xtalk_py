@@ -5,19 +5,27 @@
 Drawn: card colour; graphics (rectangle, roundrect, oval, line, polygon, curve, regular) with fill,
 border and label; buttons (standard, rectangle, roundrect, transparent, checkbox, radio, menu kinds as
 a plain button); fields (plain text, scroll, list hilite); scrollbars (track + thumb); images from the
-harvest's assets. NOT drawn yet: styled text (htmlText), players, widgets, gradients, ink effects.
+harvest's assets. Styled text (htmlText runs: face, size, bold/italic, underline, strikeout, colours) and word wrap.
+NOT drawn yet: players, widgets, gradients, ink effects, rotated images.
 """
 import math, os
 import pyray as rl
 from imgui_bundle import imgui
 from .host import canon
+from .styled import COLOR_NAMES, PLAIN
+from . import styled
 
 FONT_DIRS = ['/mnt/c/Windows/Fonts', '/usr/share/fonts/truetype/dejavu']
-FONT_FILES = {'segoe ui': 'segoeui.ttf', 'arial': 'arial.ttf', 'consolas': 'consola.ttf', '': 'segoeui.ttf'}
-NAMES = {'white': (255, 255, 255), 'black': (0, 0, 0), 'red': (255, 0, 0), 'green': (0, 255, 0),
-         'blue': (0, 0, 255), 'yellow': (255, 255, 0), 'gray': (190, 190, 190), 'grey': (190, 190, 190),
-         'darkgray': (169, 169, 169), 'lightgray': (211, 211, 211), 'orange': (255, 165, 0), 'cyan': (0, 255, 255),
-         'magenta': (255, 0, 255), 'purple': (160, 32, 240), 'brown': (165, 42, 42), 'pink': (255, 192, 203)}
+FAMILIES = {   # face -> (regular, bold, italic, bold italic) files in the Windows fonts folder
+    'segoe ui': ('segoeui', 'segoeuib', 'segoeuii', 'segoeuiz'), 'arial': ('arial', 'arialbd', 'ariali', 'arialbi'),
+    'consolas': ('consola', 'consolab', 'consolai', 'consolaz'), 'courier new': ('cour', 'courbd', 'couri', 'courbi'),
+    'times new roman': ('times', 'timesbd', 'timesi', 'timesbi'), 'verdana': ('verdana', 'verdanab', 'verdanai', 'verdanaz'),
+    'georgia': ('georgia', 'georgiab', 'georgiai', 'georgiaz'), 'tahoma': ('tahoma', 'tahomabd', 'tahoma', 'tahomabd')}
+ALIASES = {'': 'segoe ui', 'lucida grande': 'segoe ui', 'helvetica': 'arial', 'geneva': 'verdana',
+           'courier': 'courier new', 'monaco': 'consolas', 'times': 'times new roman', 'menlo': 'consolas'}
+CODEPOINTS = list(range(32, 127)) + list(range(160, 384)) + list(range(0x2010, 0x2040)) + [0x20AC, 0x2122, 0x2190,
+              0x2191, 0x2192, 0x2193, 0x2022, 0x2026]
+NAMES = {k: v for k, v in COLOR_NAMES.items()}
 
 
 def colour(v, default=None):
@@ -59,20 +67,33 @@ class View:
         self.dialog = None             # an answer/ask being shown
         self.down_on = None
         self.panel = True
+        rt.measure = lambda o, s, st=None: self.measure(o, s, None, st)   # the layout measures with the real fonts
+        rt.measure_key = 'font'
+        rt.on_clipboard_get = lambda: rl.get_clipboard_text() or ''
+        rt.on_clipboard_set = lambda t: rl.set_clipboard_text(t)
         imgui.create_context()
         imgui.get_io().set_ini_filename('')
         imgui.backends.opengl3_init('#version 330')
 
     # ------------------------------------------------------------ helpers
-    def font(self, o, size):
-        name = (self.prop(o, 'textfont') or self.inherit(o, 'textFont') or '').lower()
-        f = FONT_FILES.get(name, 'segoeui.ttf')
-        if 'bold' in str(self.prop(o, 'textstyle') or self.inherit(o, 'textStyle') or '').lower():
-            f = {'segoeui.ttf': 'segoeuib.ttf', 'arial.ttf': 'arialbd.ttf', 'consola.ttf': 'consolab.ttf'}.get(f, f)
+    def font(self, o, size, st=None):
+        """the font for o's text, or for a styled run st (its face and bold/italic over the field's)"""
+        face = (st[1] if st and st[1] else None) or self.prop(o, 'textfont') or self.inherit(o, 'textFont') or ''
+        flags = st[0] if st and st[0] else styled.flags_of(self.prop(o, 'textstyle') or self.inherit(o, 'textStyle') or '')
+        face = str(face).lower().strip()
+        fam = FAMILIES.get(ALIASES.get(face, face), FAMILIES['segoe ui'])
+        f = fam[('bold' in flags) + 2 * ('italic' in flags)] + '.ttf'
         key = (f, size)
         if key not in self.fonts:
             path = next((os.path.join(d, f) for d in FONT_DIRS if os.path.exists(os.path.join(d, f))), None)
-            self.fonts[key] = rl.load_font_ex(path, size * 2, None, 0) if path else rl.get_font_default()
+            if path is None and f != 'segoeui.ttf':
+                path = next((os.path.join(d, x) for d in FONT_DIRS for x in ('segoeui.ttf', 'DejaVuSans.ttf')
+                             if os.path.exists(os.path.join(d, x))), None)
+            if path:
+                cps = rl.ffi.new('int[]', CODEPOINTS)          # curly quotes, accents, the euro...
+                self.fonts[key] = rl.load_font_ex(path, size * 2, rl.ffi.cast('int *', cps), len(CODEPOINTS))
+            else:
+                self.fonts[key] = rl.get_font_default()
             rl.set_texture_filter(self.fonts[key].texture, rl.TEXTURE_FILTER_BILINEAR)
         return self.fonts[key]
 
@@ -98,14 +119,14 @@ class View:
         except ValueError:
             return 12
 
-    def text(self, o, s, x, y, col, size=None):
-        size = size or self.size(o)
-        f = self.font(o, size)
+    def text(self, o, s, x, y, col, size=None, st=None):
+        size = (st[2] if st and st[2] else None) or size or self.size(o)
+        f = self.font(o, size, st)
         rl.draw_text_ex(f, s, rl.Vector2(x, y), size * 4 / 3, 0, col)
 
-    def measure(self, o, s, size=None):
-        size = size or self.size(o)
-        return rl.measure_text_ex(self.font(o, size), s, size * 4 / 3, 0).x
+    def measure(self, o, s, size=None, st=None):
+        size = (st[2] if st and st[2] else None) or size or self.size(o)
+        return rl.measure_text_ex(self.font(o, size, st), s, size * 4 / 3, 0).x
 
     def prop(self, o, p):
         return self.rt.host.obj_prop(o, p.lower())
@@ -160,10 +181,14 @@ class View:
                     run = []
                 else:
                     run.append(p)
-        elif style == 'regular':
-            n = int(float(self.prop(o, 'polySides') or 4))
-            cx, cy = rc.x + rc.width / 2, rc.y + rc.height / 2
-            rl.draw_poly_lines_ex(rl.Vector2(cx, cy), n, min(rc.width, rc.height) / 2, 0, lw, line)
+        elif style == 'regular':                  # the same corners as within() and LiveCode (angle turns them)
+            pts = self.rt.host.regular(o)
+            if filled:
+                cx, cy = (o.rect[0] + o.rect[2]) // 2, (o.rect[1] + o.rect[3]) // 2
+                for a, b in zip(pts, pts[1:]):        # clockwise on screen: raylib wants counter-clockwise
+                    rl.draw_triangle(rl.Vector2(cx, cy), rl.Vector2(*b), rl.Vector2(*a), fill)
+            for a, b in zip(pts, pts[1:]):
+                rl.draw_line_ex(rl.Vector2(*a), rl.Vector2(*b), lw, line)
         if self.on(o, 'showName'):
             s = self.prop(o, 'label') or o.name
             self.text(o, s, rc.x + (rc.width - self.measure(o, s)) / 2, rc.y + (rc.height - self.size(o) * 4 / 3) / 2,
@@ -215,51 +240,67 @@ class View:
                                   if o.props.get('backgroundColor') not in (None, '') else rl.WHITE)
         if self.on(o, 'showBorder'):
             rl.draw_rectangle_lines_ex(rc, 1, colour(self.inherit(o, 'borderColor'), rl.Color(130, 135, 144, 255)))
-        size, lh, m, scroll, sbw = self.rt.field_metrics(o)    # one rule for drawing and for clicks
-        lines = o.text.split('\n')
-        hl = set(self.rt.host.hilited_lines(o))
+        rt = self.rt
+        size, lh, m, scroll, sbw = rt.field_metrics(o)    # one rule for drawing and for clicks
+        rows = rt.field_rows(o)
+        hl = set(rt.host.hilited_lines(o))
         rl.begin_scissor_mode(int(rc.x + 1), int(rc.y + 1), int(rc.width - 2 - sbw), int(rc.height - 2))
         fg = colour(self.inherit(o, 'foregroundColor'), rl.BLACK)
-        if self.rt.focused is o:
-            self.draw_selection(o, rc, lines, lh, m, scroll)
+        if rt.focused is o:
+            self.draw_selection(o, rc, rows, lh, m, scroll)
+        x0 = rc.x + m / 2 + 2
         y = rc.y + m / 2 - scroll
-        for i, s in enumerate(lines, 1):
+        for n, a, b in rows:
             if y > rc.y + rc.height:
                 break
             if y + lh >= rc.y:
-                if i in hl:
+                lit = n in hl
+                if lit:
                     rl.draw_rectangle(int(rc.x + 1), int(y), int(rc.width - 2 - sbw), int(lh), rl.Color(0, 120, 215, 255))
-                self.text(o, s, rc.x + m / 2 + 2, y, rl.WHITE if i in hl else fg, size)
+                x = x0
+                for i, j, st in styled.runs(o.text, o.styles, a, b):
+                    piece = o.text[i:j]
+                    w = self.measure(o, piece, size, st)
+                    if st[4] and not lit:
+                        rl.draw_rectangle(int(x), int(y), int(w + 0.5), int(lh), colour(st[4]))
+                    col = rl.WHITE if lit else (colour(st[3]) if st[3] else fg)
+                    rsize = st[2] or size
+                    ty = y + (st[5] or 0) + (lh - 2 - rsize * 4 / 3) / 2 + 1
+                    self.text(o, piece, x, ty, col, size, st)
+                    if 'underline' in st[0]:
+                        rl.draw_line(int(x), int(ty + rsize * 4 / 3), int(x + w), int(ty + rsize * 4 / 3), col)
+                    if 'strikeout' in st[0]:
+                        rl.draw_line(int(x), int(ty + rsize * 2 / 3 + 1), int(x + w), int(ty + rsize * 2 / 3 + 1), col)
+                    x += w
             y += lh
         rl.end_scissor_mode()
         if sbw:
             tr = rl.Rectangle(rc.x + rc.width - sbw - 1, rc.y + 1, sbw, rc.height - 2)
             rl.draw_rectangle_rec(tr, rl.Color(240, 240, 240, 255))
-            total = max(1, len(lines) * lh + m)
+            total = max(1, len(rows) * lh + m)
             if total > rc.height:
                 th = max(12, tr.height * rc.height / total)
                 ty = tr.y + (tr.height - th) * min(1, scroll / max(1, total - rc.height))
                 rl.draw_rectangle_rec(rl.Rectangle(tr.x + 3, ty, sbw - 6, th), rl.Color(193, 193, 193, 255))
 
-    def draw_selection(self, o, rc, lines, lh, m, scroll):
-        """the focused field: its selection (blue) or a blinking caret"""
+    def draw_selection(self, o, rc, rows, lh, m, scroll):
+        """the focused field: its selection (blue) or a blinking caret, row by row as drawn"""
+        rt = self.rt
         n = len(o.text)
-        s, e = sorted(max(0, min(n, v)) for v in self.rt.sel)
+        s, e = sorted(max(0, min(n, v)) for v in rt.sel)
         x0, y0 = rc.x + m / 2 + 2, rc.y + m / 2 - scroll
-        pos = 0
-        for i, line in enumerate(lines):
-            a, b = pos, pos + len(line)             # this line's characters
-            y = y0 + i * lh
-            if s != e and s <= b and e >= a and not (s == e):
-                ls, le = max(s, a) - a, min(e, b) - a
-                xa = x0 + self.measure(o, line[:ls])
-                xb = x0 + self.measure(o, line[:le]) + (4 if e > b else 0)
+        caret_row = rt.row_of(o, s) if s == e else -1
+        for r, (ln, a, b) in enumerate(rows):
+            y = y0 + r * lh
+            if s != e and s <= b and e >= a:
+                ls, le = max(s, a), min(e, b)
+                xa = x0 + rt.text_width(o, a, ls)
+                xb = x0 + rt.text_width(o, a, le) + (4 if e > b else 0)
                 if xb > xa:
                     rl.draw_rectangle(int(xa), int(y), int(xb - xa), int(lh), rl.Color(173, 214, 255, 255))
-            if s == e and a <= s <= b and (rl.get_time() % 1.0) < 0.6:
-                xc = x0 + self.measure(o, line[:s - a])
+            if r == caret_row and (rl.get_time() % 1.0) < 0.6:
+                xc = x0 + rt.text_width(o, a, s)
                 rl.draw_line(int(xc), int(y + 1), int(xc), int(y + lh - 1), rl.BLACK)
-            pos = b + 1
 
     def draw_scrollbar(self, o):
         rc = self.rect(o)
@@ -395,8 +436,13 @@ class View:
             self.panel = not self.panel
         ch = rl.get_char_pressed()
         while ch:
-            rt.key(chr(ch))
+            if 'controlkey' not in held:          # Control + a letter is a command key (below), not typing
+                rt.key(chr(ch))
             ch = rl.get_char_pressed()
+        if 'controlkey' in held:
+            for k in range(rl.KEY_A, rl.KEY_Z + 1):
+                if rl.is_key_pressed(k):
+                    rt.control_key(chr(ord('a') + k - rl.KEY_A))
         for k, name in self.SPECIAL_KEYS:
             if rl.is_key_pressed(k) or rl.is_key_pressed_repeat(k):
                 rt.special_key(name)
@@ -557,10 +603,10 @@ class View:
         self.rt.on_wait = self.wait_frames
         self.rt.on_menu = self.menu_frames
         self.rt.on_dialog = self.dialog_frames
-        self.rt.measure = lambda o, s: self.measure(o, s)
         self.rt.open()
         while not rl.window_should_close() and not self.rt.closed:
             self.frame()
+        self.rt.close_stack()
         self.close()
 
     def snapshot(self, path, frames=2):

@@ -1,7 +1,7 @@
 """Tokenizer and parser: xTalk text -> tuples (a small AST).
 
 Expressions   ('str',s) ('num',s) ('var',name) ('const',name) ('call',name,args) ('bin',op,l,r)
-              ('un',op,e) ('chunk',kind,a,b,inner) ('count',kind,e) ('prop',name) ('idx',base,keys)
+              ('un',op,e) ('chunk',kind,a,b,inner) ('count',kind,e) ('prop',name) ('propkey',name,key) ('idx',base,keys)
 Statements    see Parser.statement
 """
 import re
@@ -917,6 +917,7 @@ class Parser:
             self.expect_op(']')
             if self.accept_word('of'):
                 return ('propof', w, self.p_un(), key)
+            return ('propkey', w, key)              # the clipboardData["text"]
         return ('prop', w)
 
     def expect_word_in(self, *ws):

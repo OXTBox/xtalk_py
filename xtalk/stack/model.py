@@ -4,6 +4,7 @@ Plain Python, no GUI. A property is looked up as the harvest says: the object's 
 manifest's typeDefaults for its type, then empty. Geometry lives in `rect` only.
 """
 import json, math, os
+from .styled import from_html
 
 CONTROL_TYPES = ('button', 'field', 'graphic', 'image', 'group', 'scrollbar', 'player', 'widget')
 
@@ -34,6 +35,25 @@ def to_xtalk(v):
     return str(v)
 
 
+def regular_points(rect, sides, angle):
+    """a regular graphic's corners (measured 26 Nov, LIVECODE_FACTS): vertex k at angle + k*360/sides degrees,
+    clockwise on screen from straight right; centre (l+r) div 2, (t+b) div 2; radii width div 2 - 1 and
+    height div 2 - 1; each offset from the centre rounded half toward the centre (110.5 -> 111, 129.5 -> 129);
+    the first repeated at the end"""
+    l, t, r, b = rect
+    cx, cy = (l + r) // 2, (t + b) // 2
+    rx, ry = (r - l) // 2 - 1, (b - t) // 2 - 1
+    n = max(3, int(sides))
+    def near(v):
+        v = round(v, 6)
+        return int(math.copysign(math.ceil(abs(v) - 0.5), v))
+    pts = []
+    for k in range(n):
+        a = math.radians(angle + k * 360.0 / n)
+        pts.append([cx + near(rx * math.cos(a)), cy + near(ry * math.sin(a))])
+    return pts + [pts[0]]
+
+
 class Obj:
     """a stack, card or control"""
 
@@ -45,6 +65,11 @@ class Obj:
         self.props = dict(node.get('props', {}))
         self.rect = [int(round(x)) for x in node.get('rect', [0, 0, 0, 0])]
         self.text = node.get('text', '')
+        self.styles = None          # a field's styled text: one style per character (styled.py), None = plain
+        if node.get('htmlText'):
+            t, st = from_html(node['htmlText'])
+            if t == self.text:
+                self.styles = st
         self.points = node.get('points')
         self.custom, self.sets = {}, {}
         self.script = ''

@@ -9,7 +9,8 @@ import math, os, re, subprocess, sys
 from ..host import Host
 from ..values import XtError, to_num
 from ..parser import tokenize, ORDINALS
-from .model import CONTROL_TYPES, to_xtalk, Obj
+from .model import CONTROL_TYPES, to_xtalk, Obj, regular_points
+from . import styled
 
 TYPE = {'button': 'button', 'btn': 'button', 'field': 'field', 'fld': 'field', 'graphic': 'graphic',
         'grc': 'graphic', 'image': 'image', 'img': 'image', 'group': 'group', 'grp': 'group',
@@ -387,7 +388,9 @@ class StackHost(Host):
         style = self.obj_prop(o, 'style')
         filled = self.obj_prop(o, 'filled') == 'true'
         pts = [q for q in (o.points or []) if q is not None]
-        if style in ('polygon', 'curve', 'line', 'freehand') and pts:
+        if style == 'regular':
+            pts = self.regular(o)
+        if style in ('polygon', 'curve', 'line', 'freehand', 'regular') and pts:
             if filled and len(pts) > 2 and _in_polygon(x, y, pts):
                 return 'true'
             return 'true' if _near_polyline(x, y, pts, 2) else 'false'
@@ -404,6 +407,14 @@ class StackHost(Host):
         if filled or not inside:
             return 'true' if inside else 'false'
         return 'true' if min(x - l, r - 1 - x, y - t, b - 1 - y) < 2 else 'false'
+
+    def regular(self, o):
+        """the corners of a regular graphic, turned by its angle"""
+        try:
+            n, a = to_num(self.obj_prop(o, 'polysides') or 4), to_num(self.obj_prop(o, 'angle') or 0)
+        except XtError:
+            n, a = 4, 0
+        return regular_points(o.rect, n, a)
 
     def exists(self, desc):
         return self.resolve(desc, must=False) is not None
@@ -458,11 +469,25 @@ class StackHost(Host):
             return '0,0,1536,864'
         if p == 'mainstacks':
             return rt.harvest.main.name
+        if p == 'clipboard':                   # what is on it: text, or empty (measured 26 Nov)
+            return 'text' if rt.get_clipboard() != '' else 'empty'
+        if p == 'navigationarrows':
+            return rt.props.get('navigationarrows', 'true')
         if p == 'tool':
             return 'browse tool'
         if p in ('optionkey', 'shiftkey', 'commandkey', 'controlkey', 'altkey', 'capslockkey'):
             return 'down' if p in rt.keys_down else 'up'
         return ''
+
+    def get_global_key(self, p, key):
+        """the clipboardData["text"] (text only here; unicode the same; styles/rtf/html: empty)"""
+        if p.lower() == 'clipboarddata' and key.lower() in ('text', 'unicode'):
+            return self.rt.get_clipboard()
+        return ''
+
+    def set_global_key(self, p, key, v):
+        if p.lower() == 'clipboarddata' and key.lower() in ('text', 'unicode'):
+            self.rt.set_clipboard(v)
 
     def hilited_lines(self, o):
         v = o.props.get('hilitedLines', '')
@@ -528,6 +553,8 @@ class StackHost(Host):
             return str(o.layer)
         if p in ('text', 'menuitems'):
             return o.text
+        if p == 'htmltext':
+            return styled.to_html(o.text, o.styles)
         if p == 'owner':
             return self.name_of(o.parent) if o.parent is not None else ''
         if p == 'script':
@@ -593,6 +620,9 @@ class StackHost(Host):
             return
         if p == 'style':                       # set the style to "Line": stored as line (measured 25 Nov)
             value = str(value).lower()
+        if p == 'angle':                       # 390 reads back 30, -30 reads 330 (measured 26 Nov)
+            a = to_num(value) % 360
+            value = str(int(a)) if a == int(a) else str(a)
         if p in ('hilitedline', 'hilitedlines'):
             o.props['hilitedLines'] = ','.join(x.strip() for x in str(value).split(',') if x.strip().isdigit())
             return
@@ -609,6 +639,10 @@ class StackHost(Host):
             return
         if p in ('text', 'menuitems'):
             o.text = value
+            o.styles = None                    # put into a field: its styles go (measured 26 Nov)
+            return
+        if p == 'htmltext':
+            o.text, o.styles = styled.from_html(value)
             return
         cp = canon(p)
         for k in o.props:
@@ -630,6 +664,67 @@ class StackHost(Host):
         d = self.custom_of(o, create=True)
         ck = next((k for k in d if k.lower() == p), prop)
         d[ck] = value
+
+    # ------------------------------------------------------------ styled text (styled.py)
+    def put_text(self, desc, v, mode):
+        """put after / before a field, or a chunk put ('keep': v is the new whole text): the styles of the
+        text that did not change stay; new text takes the style before it (measured 26 Nov)"""
+        o = self.resolve(desc)
+        old = o.text
+        if mode == 'after':
+            s, e, new = len(old), len(old), v
+        elif mode == 'before':
+            s, e, new = 0, 0, v
+        else:                                  # the changed middle: what is left after the common ends
+            s = 0
+            while s < len(old) and s < len(v) and old[s] == v[s]:
+                s += 1
+            k = 0
+            while k < len(old) - s and k < len(v) - s and old[-1 - k] == v[-1 - k]:
+                k += 1
+            e, new = len(old) - k, v[s:len(v) - k]
+        self.replace_text(o, s, e, new)
+
+    def replace_text(self, o, s, e, new):
+        o.styles = styled.replace(o.styles, s, e, len(new))
+        o.text = o.text[:s] + new + o.text[e:]
+        self.rt.changed = True
+
+    def set_chunk_prop(self, desc, s, e, prop, value):
+        o = self.resolve(desc)
+        p = prop.lower()
+        if p in ('text', 'htmltext'):
+            if p == 'htmltext':
+                t, st = styled.from_html(value)
+                self.replace_text(o, s, e, t)
+                if st is not None or o.styles is not None:
+                    o.styles = (o.styles or [styled.PLAIN] * len(o.text))
+                    o.styles[s:s + len(t)] = st or [styled.PLAIN] * len(t)
+            else:
+                self.replace_text(o, s, e, value)
+            return
+        if p in styled.SLOT:
+            o.styles = styled.set_range(o.styles, len(o.text), s, e, p, value)
+            self.rt.changed = True
+            return
+        raise XtError("set: can't set %s of a chunk" % prop)
+
+    def get_chunk_prop(self, desc, s, e, prop):
+        o = self.resolve(desc)
+        p = prop.lower()
+        if p == 'text':
+            return o.text[s:e]
+        if p == 'htmltext':
+            return styled.to_html(o.text[s:e], o.styles[s:e] if o.styles else None)
+        eff = p.startswith('effective ')
+        q = p[len('effective '):] if eff else p
+        if q in styled.SLOT:
+            v = styled.get_range(o.styles, o.text, s, e, q)
+            if v == '' and eff:                # the effective textFont of word 2: the field's
+                v = self.rt.inherit(o, q) or ''
+                v = to_xtalk(v) if not isinstance(v, str) else v
+            return v
+        return self.obj_prop(o, p)
 
     def set_points(self, o, value, relative):
         dx, dy = (o.rect[0], o.rect[1]) if relative else (0, 0)
@@ -729,6 +824,9 @@ class StackHost(Host):
             return ''
         if name == 'select':
             return ''
+        if name in ('copy', 'cut', 'paste') and not es:   # the selected text of the focused field
+            rt.edit_action(name)
+            return ''
         if name == 'reset':                  # reset the templateGraphic: back to the plain one
             if es and es[0].lower().replace('the ', '') in self.TEMPLATES:
                 rt.templates.pop((id(rt.default_stack), self.TEMPLATES[es[0].lower().replace('the ', '')]), None)
@@ -739,6 +837,7 @@ class StackHost(Host):
                 rt.changed = True
             return ''
         if name == 'close':
+            rt.close_stack()
             rt.closed = True               # close stack / close this stack: the window ends
             return ''
         if name == 'wait':

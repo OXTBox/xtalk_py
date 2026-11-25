@@ -128,3 +128,40 @@ standalone per library group.
   Keys go to the focused field (keyDown, backspaceKey, deleteKey, returnInField, enterInField, arrowKey, tabKey) and
   along the path; when no handler takes one (or it is passed past the last handler) the field types / deletes /
   moves the caret. NOT done: arrow keys with no field focused would change cards in LiveCode (we only send arrowKey).
+
+## 26 Nov 2026 (rounding off Phase 2; standalone, `lcmcp run --server`)
+- **Open messages** (a saved stack opened with `go stack`, handlers in the stack and both card scripts): order
+  preOpenStack, preOpenCard, openStack, openCard, and **all four go to the current card** (`the target` = the card;
+  the card's handler runs first, then the stack's). We used to send the stack messages to the stack, so a card's
+  `on openStack` never ran. No preOpenBackground/openBackground/resumeStack were sent (no groups on that card).
+  `go next card`: closeCard (old card), preOpenCard, openCard (new card). **`go` to the card already shown sends
+  nothing.** `close stack`: closeCard, then closeStack, both to the card. `the lockMessages` was false.
+- **`angle` of a regular graphic** (`the effective points`): vertex k sits at angle + k*360/polySides degrees,
+  turning clockwise on screen (y down), angle 0 = the first vertex straight right of the centre. Centre =
+  (left+right) div 2, (top+bottom) div 2; x radius = width div 2 - 1, y radius = height div 2 - 1 (60x40 gave
+  29 and 19: an ellipse, not a circle); each offset from the centre rounded half toward the centre
+  (110.5 -> 111, 129.5 -> 129); the first point is repeated at the end. Rect 100,100,
+  140,140, 3 sides: `139,120 111,136 111,104 139,120`; angle 30: `136,129 104,129 120,101 136,129`.
+  Setting the angle does not change the rect. 390 reads back 30, -30 reads 330. A rectangle or oval keeps its
+  angle (reads back 45), its rect and style unchanged (the Dictionary: angle turns regular polygons and images).
+- **htmlText** (field "F"): a plain field gives `<p>line</p>` per line, joined by return. `&` `<` `>` as `&amp;`
+  `&lt;` `&gt;`, tab as `&#9;`, a quote stays `"`, é `&eacute;`, € `&euro;`, ” `&rdquo;`, あ `&#12354;`.
+  Styles of a run nest as `<i><b><strike><u><font face=".." size=".." color="#RRGGBB" bgcolor="#RRGGBB">`
+  (outer to inner, attributes in that order); the style tags stay open across runs whose font tags differ; runs
+  of the same style merge (`<b>a</b><b>b</b>` -> `<b>ab</b>`). Setting it: text outside `<p>` is one paragraph,
+  returns between `</p>` and `<p>` are ignored, `<p></p>` = an empty line, `<br>` = a new line, `<span>` is
+  ignored, `<font color="red">` reads back `#FF0000`, `&#65;` = A, `<sub>`/`<sup>` come back with
+  `shift="4"`/`shift="-4"`, `<img src>` is a space char. The field's own textStyle (`set the textStyle of field`)
+  is NOT in its htmlText.
+- **Chunk styles:** `set the textStyle of word 2 of field "F" to "bold"`; `the textStyle of line 1` = `mixed` when
+  its characters differ; a chunk with no style of its own reads empty (`the textSize of line 1`, `the textFont of
+  word 2`; `the effective textFont` gives the field's). `set the textColor of word 1 to "blue"` reads back `0,0,255`.
+- **Putting text into a styled field:** `put x into field` clears all styles. A chunk put (`into char 1`, `after
+  word 1`, `before word 2`) and `put after/before field` keep the other styles; the new text takes the style of the
+  character just before it, or of the first character when it goes at the very start (`put "y" before` a field
+  starting bold: y is bold; `put "X" into word 2` after a plain space: X is plain, though word 2 was bold).
+- A new field: `dontWrap` false (it wraps). `the navigationArrows` = true.
+- **clipboardData:** `set the clipboardData["text"] to "hi there"` reads back; `the clipboard` = `text`; keys
+  text, unicode, styles, rtf, html. `set the clipboardData to empty`: `the clipboard` = `empty`.
+- From the Dictionary (not measured: keys need a window): with navigationArrows true and no field focused, an
+  arrowKey that no handler takes goes to the previous / next card (left/right), first / last card (up/down).

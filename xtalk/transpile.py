@@ -117,8 +117,13 @@ class Gen:
     def x_url(self, e):
         return 'rt.host.read_url(%s, to_text(%s))' % (_r(e[1]), self.ex(e[2]))
 
+    def x_propkey(self, e):
+        return 'rt.e_propkey(%r, fr)' % (e,)
+
     def x_propof(self, e):
         _, name, operand, key = e
+        if operand[0] == 'chunk':              # the textStyle of word 2 of field 1: the interpreter's rule
+            return 'rt.e_propof(%r, fr)' % (e,)
         if BUILTINS.get(name) is not None and operand[0] != 'obj':
             return 'B[%s](rt, fr, %s)' % (_r(name), self.ex(operand))
         kc = 'None' if key is None else 'to_text(%s)' % self.ex(key)
@@ -173,7 +178,7 @@ class Gen:
             cur = 'rt.cur_text(fr, %s)' % _r(inner[1]) if inner[0] == 'var' else 'to_text(%s)' % self.ex(inner)
             new = 'rt.put_chunk(%s, %s, %s, %s, %s, %s)' % (_r(kind), cur, self.pos(a),
                                                             'None' if b is None else self.pos(b), v, _r(mode))
-            return self.assign(inner, new, 'into')
+            return self.assign(inner, new, 'keep' if inner[0] == 'obj' else 'into')
         if k == 'obj':
             return 'rt.put_obj(%s, %s, %s)' % (self.desc(t), v, _r(mode))
         if k == 'propof':
@@ -268,6 +273,10 @@ class Gen:
 
     def s_setprop(self, s, ind):
         _, name, obj, key, e = s
+        if (obj is not None and obj[0] == 'chunk') or (obj is None and key is not None):
+            # set the textStyle of word 2 of field 1 / set the clipboardData["text"]: the interpreter's rule
+            self.emit(ind, 'rt.x_setprop(%r, fr)' % (s,))
+            return
         v = self.tmp('v')
         self.emit(ind, '%s = %s' % (v, _tt(self.ex(e)) if obj is None else 'rt.setprop_value(%s, True)' % self.ex(e)))
         if obj is None:

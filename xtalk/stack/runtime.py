@@ -17,9 +17,10 @@ from ..interp import Frame, Thrown, ExitRepeat, NextRepeat, Break
 from ..values import XtError
 from .model import Harvest
 from .host import StackHost
+from . import styled
 
 SCRIPT_ERRORS = (XtError, Thrown, ExitRepeat, NextRepeat, Break, RecursionError, ValueError, KeyError, IndexError, TypeError, ZeroDivisionError, OverflowError, OSError, AttributeError)   # a script error never ends the window: it goes to rt.errors (the panel)
-OPEN_MESSAGES = ('preOpenStack', 'preOpenCard', 'openStack', 'openCard')   # order NOT measured (LIVECODE_FACTS)
+OPEN_MESSAGES = ('preOpenStack', 'preOpenCard', 'openStack', 'openCard')   # in this order, all to the card (measured 26 Nov)
 
 
 class ObjInterp(Runtime):
@@ -100,7 +101,9 @@ class StackRuntime:
         self.sel = (0, 0)              # its selection: character offsets (start, end); start == end: the caret
         self.field_changed = False     # typed into since it got the focus (closeField, else exitField)
         self.passed_off = False
-        self.measure = lambda o, s: len(s) * 7     # text width; the window puts in the real font's
+        self.measure = lambda o, s, st=None: len(s) * 7     # text width (a style run); the window puts in the real font's
+        self.measure_key = 'plain'     # which measure the cached rows were made with
+        self._rows = {}                # id(field) -> (key, rows): the layout, made again when its key changes
         self.start_programs = True     # False: shell() only notes the script (the survey: no windows pop up)
         self.not_started = []          # the scripts shell() would have started
         self.clock = 0.0               # virtual milliseconds
@@ -109,6 +112,10 @@ class StackRuntime:
         self.on_wait = None
         self.keys_down = set()         # 'shiftkey', 'optionkey'... while held (the window fills it)
         self.closed = False            # the window sets this: draw frames while a script waits
+        self.closing_sent = False      # closeCard / closeStack went out
+        self.clipboard = ''            # the clipboard's text; the window keeps it in step with the system's
+        self.on_clipboard_get = None   # the window: read the system clipboard
+        self.on_clipboard_set = None
         for st in self.harvest.stacks:
             for o in [st] + st.children + [c for card in st.children for c in card.flat()]:
                 if o.script.strip() and id(o) not in self.ctx:
@@ -191,14 +198,28 @@ class StackRuntime:
 
     # ------------------------------------------------------------ cards and events
     def open(self):
+        """the stack opens: preOpenStack, preOpenCard, openStack, openCard, all to the current card
+        (measured 26 Nov: a card's own `on openStack` runs first, then the stack's)"""
         st = self.default_stack
         for m in OPEN_MESSAGES:
-            self.message(st.current if 'Card' in m else st, m)
+            self.message(st.current, m)
+
+    def close_stack(self):
+        """the window closes (or `close stack`): closeCard, then closeStack, both to the card (measured 26 Nov)"""
+        if self.closing_sent:
+            return
+        self.closing_sent = True
+        card = self.default_stack.current
+        if card is not None:
+            self.message(card, 'closeCard')
+            self.message(card, 'closeStack')
 
     def go_card(self, card):
+        st = card.stack
+        if st.current is card and st is self.default_stack:
+            return                     # go to the card already shown: no messages (measured 26 Nov)
         if self.focused is not None and self.focused.card is not card:
             self.set_focus(None)
-        st = card.stack
         if st.current is not None and st.current is not card:
             self.message(st.current, 'closeCard')
         st.current = card
@@ -350,11 +371,75 @@ class StackRuntime:
             sbw = 16
         return size, size * 4 / 3 + 2, m, scroll, sbw
 
-    def field_line_at(self, o, y):
-        """the line of field o at window y (0: below the last line)"""
+    # ---- the layout: one rule for drawing, clicks, scrolling and the caret
+    def text_width(self, o, a, b):
+        """the width of characters a..b of field o, run by run in their own styles"""
+        return sum(self.measure(o, o.text[i:j], st) for i, j, st in styled.runs(o.text, o.styles, a, b))
+
+    def field_rows(self, o):
+        """field o as drawn: rows (line number, first char, end char); a line wraps at spaces to the field's
+        width unless dontWrap is true (a new field wraps: measured). A word too long for a row is cut."""
+        size, lh, m, scroll, sbw = self.field_metrics(o)
+        wrap = self.host.obj_prop(o, 'dontwrap') != 'true'
+        avail = o.width - m - 4 - sbw
+        key = (o.text, id(o.styles), avail, size, wrap, self.measure_key)
+        c = self._rows.get(id(o))
+        if c is not None and c[0] == key:
+            return c[1]
+        rows, pos = [], 0
+        for n, line in enumerate(o.text.split('\n'), 1):
+            a, b = pos, pos + len(line)
+            if not wrap or avail <= 0 or self.text_width(o, a, b) <= avail:
+                rows.append((n, a, b))
+            else:
+                start, i, used = a, a, 0
+                while i < b:
+                    j = i
+                    while j < b and o.text[j] != ' ':
+                        j += 1                                   # the word i..j
+                    k = j
+                    while k < b and o.text[k] == ' ':
+                        k += 1                                   # its spaces j..k (they may hang past the edge)
+                    w = self.text_width(o, i, j)
+                    if i > start and used + w > avail:           # the word goes to a new row
+                        rows.append((n, start, i))
+                        start, used = i, 0
+                    if w > avail:                                # longer than a row alone: cut it
+                        q = i
+                        while self.text_width(o, q, j) > avail:
+                            r = q + 1
+                            while r < j and self.text_width(o, q, r + 1) <= avail:
+                                r += 1
+                            rows.append((n, q, r))
+                            q = r
+                        start, used = q, self.text_width(o, q, j)
+                    else:
+                        used += w
+                    used += self.text_width(o, j, k)
+                    i = k
+                rows.append((n, start, b))
+            pos = b + 1
+        self._rows[id(o)] = (key, rows)
+        return rows
+
+    def row_at(self, o, y):
+        """the row index under window y (may be out of range)"""
         size, lh, m, scroll, _ = self.field_metrics(o)
-        n = int((y - (o.rect[1] + m / 2 - scroll)) // lh) + 1
-        return n if 1 <= n <= len(o.text.split('\n')) else 0
+        return int((y - (o.rect[1] + m / 2 - scroll)) // lh)
+
+    def row_of(self, o, p):
+        """the row the caret at char p is in (at a wrap, the later row)"""
+        rows = self.field_rows(o)
+        for i, (n, a, b) in enumerate(rows):
+            if a <= p < b or (p == b and (i + 1 == len(rows) or rows[i + 1][0] != n)):
+                return i
+        return len(rows) - 1
+
+    def field_line_at(self, o, y):
+        """the line of field o at window y (0: below the last line); a wrapped line is one line"""
+        rows = self.field_rows(o)
+        r = self.row_at(o, y)
+        return rows[r][0] if 0 <= r < len(rows) else 0
 
     def in_field_scrollbar(self, o, x, y):
         sbw = self.field_metrics(o)[4]
@@ -362,7 +447,7 @@ class StackRuntime:
 
     def field_max_scroll(self, o):
         size, lh, m, scroll, sbw = self.field_metrics(o)
-        return max(0, int(len(o.text.split('\n')) * lh + m - o.height))
+        return max(0, int(len(self.field_rows(o)) * lh + m - o.height))
 
     def scroll_field(self, o, pixels):
         """the mouse wheel over a field"""
@@ -561,15 +646,20 @@ class StackRuntime:
 
     def special_key(self, name):
         """Backspace, Delete, Return, Enter, arrows, Tab: their message, then the field's own action.
-        With no field focused: returnKey / enterKey / arrowKey / tabKey to the card, nothing more
-        (LiveCode's arrow keys would change cards: not done here)."""
+        With no field focused: returnKey / enterKey / arrowKey / tabKey to the card; an arrowKey nobody
+        takes changes cards (navigationArrows)."""
         if hasattr(self, 'log_clicks'):
             self.log_clicks.append('key %s' % name)
         f = self.focused
         msg, args = self.SPECIAL[name]
         if f is None:
             if msg:
-                self.message(self.default_stack.current, {'returnInField': 'returnKey', 'enterInField': 'enterKey'}.get(msg, msg), args)
+                card = self.default_stack.current
+                msg = {'returnInField': 'returnKey', 'enterInField': 'enterKey'}.get(msg, msg)
+                if self.handled(card, msg, args) or msg != 'arrowKey':
+                    return
+                if self.props.get('navigationarrows', 'true') != 'false':
+                    self.arrow_card(args[0])
             return
         if msg and self.handled(f, msg, args):
             return
@@ -598,33 +688,78 @@ class StackRuntime:
             p = (min(s, e) - (1 if s == e else 0)) if name == 'left' else (max(s, e) + (1 if s == e else 0))
             p = max(0, min(len(t), p))
             self.sel = (p, p)
-        elif name in ('up', 'down', 'home', 'end'):
-            line_start = t.rfind('\n', 0, s) + 1
-            col = s - line_start
+        elif name in ('up', 'down', 'home', 'end'):     # by rows as drawn (a wrapped line has several)
+            rows = self.field_rows(f)
+            r = self.row_of(f, s)
+            n, a, b = rows[r]
             if name == 'home':
-                p = line_start
+                p = a
             elif name == 'end':
-                p = t.find('\n', s) if t.find('\n', s) >= 0 else len(t)
-            elif name == 'up':
-                if line_start == 0:
-                    p = 0
-                else:
-                    prev = t.rfind('\n', 0, line_start - 1) + 1
-                    p = min(prev + col, line_start - 1)
+                p = b
+            elif (name == 'up' and r == 0) or (name == 'down' and r == len(rows) - 1):
+                p = 0 if name == 'up' else len(t)
             else:
-                nxt = t.find('\n', s)
-                if nxt < 0:
-                    p = len(t)
-                else:
-                    end2 = t.find('\n', nxt + 1)
-                    p = min(nxt + 1 + col, len(t) if end2 < 0 else end2)
+                x = f.rect[0] + self.field_metrics(f)[2] / 2 + 2 + self.text_width(f, a, s)
+                p = self.char_in_row(f, rows[r - 1 if name == 'up' else r + 1], x)
             self.sel = (p, p)
         self.changed = True
+
+    # ---- the clipboard (the window keeps it in step with the system's; tests use rt.clipboard)
+    def get_clipboard(self):
+        if self.on_clipboard_get is not None:
+            self.clipboard = self.on_clipboard_get() or ''
+        return self.clipboard
+
+    def set_clipboard(self, text):
+        self.clipboard = text
+        if self.on_clipboard_set is not None:
+            self.on_clipboard_set(text)
+
+    def edit_action(self, what):
+        """copy / cut / paste / select all on the focused field's selection (Ctrl+C, X, V, A or the commands)"""
+        f = self.focused
+        if f is None:
+            return
+        s, e = sorted(self.sel)
+        if what in ('copy', 'cut') and s != e:
+            self.set_clipboard(f.text[s:e])
+            if what == 'cut':
+                self.type_into(f, '')
+        elif what == 'paste':
+            t = self.get_clipboard().replace('\r\n', '\n').replace('\r', '\n')
+            if t:
+                self.type_into(f, t)
+        elif what == 'selectall':
+            self.sel = (0, len(f.text))
+        self.changed = True
+
+    def control_key(self, ch):
+        """a key pressed with Control (Command on a Mac): commandKeyDown to the focused field, else the card
+        (Dictionary); nobody takes it: C, X, V, A copy, cut, paste, select all in the field"""
+        if hasattr(self, 'log_clicks'):
+            self.log_clicks.append('key ctrl+%s' % ch)
+        f = self.focused
+        if self.handled(f or self.default_stack.current, 'commandKeyDown', [ch]):
+            return
+        act = {'c': 'copy', 'x': 'cut', 'v': 'paste', 'a': 'selectall'}.get(ch.lower())
+        if act and self.focused is f and (act in ('copy', 'selectall') or self.editable(f)):
+            self.edit_action(act)
+
+    def arrow_card(self, which):
+        """an arrowKey no handler took, no field focused (Dictionary, navigationArrows): left/right go to the
+        previous/next card, up/down to the first/last (not measured: keys need a window)"""
+        st = self.default_stack
+        cards = st.children
+        if len(cards) < 2:
+            return
+        i = cards.index(st.current)
+        to = {'left': cards[i - 1], 'right': cards[(i + 1) % len(cards)], 'up': cards[0], 'down': cards[-1]}[which]
+        self.go_card(to)
 
     def type_into(self, f, text):
         """the engine's own typing: the selection becomes text, the caret after it"""
         s, e = sorted(self.sel)
-        f.text = f.text[:s] + text + f.text[e:]
+        self.host.replace_text(f, s, e, text)
         self.sel = (s + len(text), s + len(text))
         self.field_changed = True
         self.changed = True
@@ -651,17 +786,18 @@ class StackRuntime:
 
     def char_at(self, o, x, y):
         """the character offset in field o under window point x,y (the caret goes before it)"""
-        lines = o.text.split('\n')
-        n = self.field_line_at(o, y) or (len(lines) if y > o.rect[1] else 1)
-        n = max(1, min(n, len(lines)))
-        start = sum(len(l) + 1 for l in lines[:n - 1])
+        rows = self.field_rows(o)
+        r = max(0, min(self.row_at(o, y), len(rows) - 1))
+        return self.char_in_row(o, rows[r], x)
+
+    def char_in_row(self, o, row, x):
+        n, a, b = row
         size, lh, m, scroll, sbw = self.field_metrics(o)
         rel = x - (o.rect[0] + m / 2 + 2)
-        line = lines[n - 1]
-        col = 0
-        while col < len(line) and self.measure(o, line[:col + 1]) - self.measure(o, line[col]) / 2 < rel:
-            col += 1
-        return start + col
+        p = a
+        while p < b and self.text_width(o, a, p + 1) - self.text_width(o, p, p + 1) / 2 < rel:
+            p += 1
+        return p
 
     # ------------------------------------------------------------ for tests and tools
     def get(self, desc, prop):

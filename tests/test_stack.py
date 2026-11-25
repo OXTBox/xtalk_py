@@ -188,6 +188,145 @@ check('ask cancelled: it empty, the result = cancel (Dictionary)', rt.run('ask "
 check('no replies left: answer takes its last (default) button', rt.run('answer "Go?" with "A" or "B"\nreturn it'), 'B')
 check('a sandbox write stays where it says', os.path.exists(os.path.join(home, 'Documents', 'in.txt')), True)
 
+# ---- rounding off Phase 2 (26 Nov): measured in LiveCode, docs/LIVECODE_FACTS.md "26 Nov 2026"
+from xtalk.stack.runtime import ObjInterp            # noqa: E402
+from xtalk.transpile import translate_statements     # noqa: E402
+import xtalk.pyrt as pyrt                            # noqa: E402
+rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
+LOGGER = '\n'.join('on %s\nglobal gLog\nput the short name of me && "%s" && the short name of the target & "/" after gLog\npass %s\nend %s'
+                   % (m, m, m, m) for m in ('preOpenStack', 'openStack', 'preOpenCard', 'openCard', 'closeCard', 'closeStack'))
+card1 = rt.default_stack.current
+c = ObjInterp(rt, card1)
+c.load(LOGGER)
+rt.ctx[id(card1)] = c
+rt.G['glog'] = ''
+rt.open()
+check('open: all four messages to the card, in this order; passed on to the stack script (measured)', rt.G['glog'],
+      'card id 1002 preOpenStack card id 1002/preOpenStack,card id 1002 preOpenCard card id 1002/'
+      'card id 1002 openStack card id 1002/card id 1002 openCard card id 1002/openCard:card id 1002,')
+rt.G['glog'] = ''
+rt.run('go card 1')
+check('go to the card already shown: no messages (measured)', rt.G['glog'], '')
+rt.run('create card "C2"')
+rt.run('go card 1')
+rt.G['glog'] = ''
+rt.special_key('right')
+check('an arrow key nobody takes: next card (navigationArrows)', (rt.eval('the number of this card'), rt.G['glog']),
+      ('2', 'card id 1002 closeCard card id 1002/openCard:Two,'))
+rt.special_key('up')
+check('up arrow: first card', rt.eval('the number of this card'), '1')
+rt.run('set the navigationArrows to false')
+rt.special_key('down')
+check('navigationArrows false: the arrow changes nothing', rt.eval('the number of this card'), '1')
+rt.run('set the navigationArrows to true')
+rt.G['glog'] = ''
+rt.close_stack()
+check('closing: closeCard, closeStack to the card (measured)', rt.G['glog'],
+      'card id 1002 closeCard card id 1002/card id 1002 closeStack card id 1002/')
+
+rt.run('set the style of graphic "G" to "regular"\nset the polySides of graphic "G" to 3\nset the rect of graphic "G" to 100,100,140,140')
+from xtalk.stack.model import regular_points          # noqa: E402
+check('regular graphic corners (measured: the effective points)', regular_points([100, 100, 140, 140], 3, 0),
+      [[139, 120], [111, 136], [111, 104], [139, 120]])
+check('angle 30 turns them clockwise (measured)', regular_points([100, 100, 140, 140], 3, 30),
+      [[136, 129], [104, 129], [120, 101], [136, 129]])
+check('an ellipse, not a circle (measured 60x40)', regular_points([100, 100, 160, 140], 4, 0),
+      [[159, 120], [130, 139], [101, 120], [130, 101], [159, 120]])
+check('6 sides at 90 (measured)', regular_points([100, 100, 200, 200], 6, 90),
+      [[150, 199], [108, 174], [108, 126], [150, 101], [192, 126], [192, 174], [150, 199]])
+rt.run('set the angle of graphic "G" to 390')
+a1 = rt.eval('the angle of graphic "G"')
+rt.run('set the angle of graphic "G" to -30')
+check('angle reads back mod 360 (measured)', (a1, rt.eval('the angle of graphic "G"'), rt.eval('the rect of graphic "G"')),
+      ('30', '330', '100,100,140,140'))
+rt.run('set the angle of graphic "G" to 90\nset the filled of graphic "G" to true')
+check('within() a turned regular graphic (90: the point at the bottom)',
+      (rt.eval('within(graphic "G", "120,108")'), rt.eval('within(graphic "G", "120,135")')), ('false', 'true'))
+
+R, E = rt.run, rt.eval
+R('put "hello world" & cr & "two & <three>" into field "F"')
+check('htmlText of plain text (measured)', E('the htmlText of field "F"'), '<p>hello world</p>\n<p>two &amp; &lt;three&gt;</p>')
+R('set the textStyle of word 2 of field "F" to "bold"')
+R('set the textColor of char 1 to 2 of field "F" to "255,0,0"')
+R('set the textSize of line 2 of field "F" to 18')
+R('set the textFont of word 1 of line 2 of field "F" to "Courier"')
+check('chunk styles -> htmlText (measured)', E('the htmlText of field "F"'),
+      '<p><font color="#FF0000">he</font>llo <b>world</b></p>\n'
+      '<p><font face="Courier" size="18">two</font><font size="18"> &amp; &lt;three&gt;</font></p>')
+check('chunk styles read back: mixed, bold, empty (measured)',
+      E('the textStyle of line 1 of field "F" & "|" & the textStyle of word 2 of field "F" & "|" & the textStyle of field "F" '
+        '& "|" & the textSize of line 2 of field "F" & "|" & the textSize of line 1 of field "F"'), 'mixed|bold||18|')
+R('put "X" into word 2 of field "F"')
+check('put into a bold word after a plain space: plain (measured)', E('the htmlText of field "F"').split('\n')[0],
+      '<p><font color="#FF0000">he</font>llo X</p>')
+PUTS = [('put "x" after field "F"', '<p><b>ab</b> cdx</p>'), ('put "y" before field "F"', '<p><b>yab</b> cdx</p>'),
+        ('put "new" into field "F"', '<p>new</p>'), ('set the htmlText of field "F" to "<p><b>ab</b> cd</p>"', '<p><b>ab</b> cd</p>'),
+        ('put "Q" into char 1 of field "F"', '<p><b>Qb</b> cd</p>'), ('put "ZZ" after word 1 of field "F"', '<p><b>QbZZ</b> cd</p>'),
+        ('put "W" before word 2 of field "F"', '<p><b>QbZZ</b> Wcd</p>')]
+R('set the htmlText of field "F" to "<p><b>ab</b> cd</p>"')
+got = []
+for st, _ in PUTS:
+    R(st)
+    got.append(E('the htmlText of field "F"'))
+check('puts keep or clear styles as LiveCode does (7 measured)', got, [w for _, w in PUTS])
+HT = ('<p>a <b>bold <i>bi</i></b> &amp; &lt;x&gt; &rdquo;q&ldquo; &#65;</p><p></p><p><font face="Arial" size="14" '
+      'color="#00FF00">g</font> <u>u</u> <strike>s</strike></p>')
+R('set the htmlText of field "F" to "%s"' % HT.replace('"', '" & quote & "'))
+check('set the htmlText: text and htmlText back (measured)', (E('the text of field "F"'), E('the htmlText of field "F"')),
+      ('a bold bi & <x> ”q“ A\n\ng u s', '<p>a <b>bold <i>bi</i></b> &amp; &lt;x&gt; &rdquo;q&ldquo; A</p>\n<p></p>\n'
+       '<p><font face="Arial" size="14" color="#00FF00">g</font> <u>u</u> <strike>s</strike></p>'))
+R('put "abc def" into field "F"')
+R('set the textStyle of word 1 of field "F" to "bold,italic,underline,strikeout"\nset the textFont of word 1 of field "F" to "Arial"'
+  '\nset the textColor of word 1 of field "F" to "blue"\nset the backgroundColor of char 1 of field "F" to "yellow"')
+check('tag order i b strike u font (measured)', E('the htmlText of field "F"'),
+      '<p><i><b><strike><u><font face="Arial" color="#0000FF" bgcolor="#FFFF00">a</font><font face="Arial" color="#0000FF">bc'
+      '</font></u></strike></b></i> def</p>')
+check('textColor of a chunk reads r,g,b (measured)', E('the textColor of word 1 of field "F"'), '0,0,255')
+# the same through the translator (its own code path for chunk properties)
+env = dict({k: getattr(pyrt, k) for k in dir(pyrt) if not k.startswith('__')})
+exec(translate_statements('put "one two" into field "F"\nset the textStyle of word 2 of field "F" to "italic"\n'
+                          'put the textStyle of word 2 of field "F" & "|" & the htmlText of field "F" into tout'), env)
+fr = pyrt.Frame([])
+env['_body'](rt.ctx.get(id(rt.default_stack.current)) or ObjInterp(rt, rt.default_stack.current), fr)
+check('translator: chunk style set and read', fr.vars.get('tout'), 'italic|<p>one <i>two</i></p>')
+# typing keeps styles: the new character takes the one before it
+f = rt.obj('field "F"')
+R('set the htmlText of field "F" to "<p><b>ab</b>c</p>"')
+rt.set_focus(f)
+rt.sel = (2, 2)
+rt.key('Z')
+check('typing after bold text is bold', E('the htmlText of field "F"'), '<p><b>abZ</b>c</p>')
+
+R('put "aaa bbb ccc ddd eee" & cr & "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" & cr & "short" into field "F"')
+rows = rt.field_rows(f)
+check('word wrap: a line wraps at spaces, a long word is cut (7 px a char headless)',
+      [f.text[a:b] for _, a, b in rows],
+      ['aaa bbb ', 'ccc ddd ', 'eee', 'xxxxxxxx', 'xxxxxxxx', 'xxxxxxxx', 'xxxxxxxx', 'xxxxxx', 'short'])
+lh = rt.field_metrics(f)[1]
+check('a wrapped line is one line for clicks', rt.field_line_at(f, int(f.rect[1] + 4 + lh * 2.5)), 1)
+R('set the dontWrap of field "F" to true')
+check('dontWrap: one row a line', len(rt.field_rows(f)), 3)
+R('set the dontWrap of field "F" to false')
+rt.sel = (2, 2)
+rt.special_key('down')
+check('down arrow moves by rows as drawn', rt.sel, (10, 10))
+
+R('set the clipboardData["text"] to "hi there"')
+check('clipboardData["text"] and the clipboard (measured)', (E('the clipboardData["text"]'), E('the clipboard')), ('hi there', 'text'))
+R('put "one two" into field "F"')
+rt.set_focus(f)
+rt.sel = (0, 3)
+rt.control_key('c')
+rt.sel = (7, 7)
+rt.control_key('v')
+check('Ctrl+C, Ctrl+V in a field', (f.text, rt.clipboard), ('one twoone', 'one'))
+rt.sel = (0, 4)
+rt.control_key('x')
+check('Ctrl+X cuts', (f.text, rt.clipboard), ('twoone', 'one '))
+R('set the clipboardData["text"] to "Z"\npaste')
+check('the paste command types the clipboard in', f.text, 'Ztwoone')
+check('no errors in these checks', rt.errors, [])
+
 READER = os.path.expanduser('~/projects/XTJSON/Game_card_reader_11_13_2025')
 if os.path.isdir(READER):
     random.seed(1)
