@@ -117,6 +117,7 @@ class StackRuntime:
         self.on_wait = None
         self.keys_down = set()         # 'shiftkey', 'optionkey'... while held (the window fills it)
         self.held_codes = []           # the key codes held now (the keysDown; the window fills it)
+        self.recent, self.recent_i, self._nav = [], -1, False   # recent cards (up/down arrows go through them)
         self.window_pos = (0, 0)       # the window's place on the screen (globalLoc); the window sets it
         self.on_warp = None            # the window: move the real mouse to a screen point
         self.closed = False            # the window sets this: draw frames while a script waits
@@ -298,6 +299,12 @@ class StackRuntime:
         st = card.stack
         if st.current is card and st is self.default_stack:
             return                     # go to the card already shown: no messages (measured 26 Nov)
+        if not self._nav:              # a new visit: the recent cards after this point are dropped
+            if not self.recent and st.current is not None:
+                self.recent = [st.current]
+            self.recent = self.recent[:self.recent_i + 1] if self.recent_i >= 0 else self.recent
+            self.recent.append(card)
+            self.recent_i = len(self.recent) - 1
         if self.focused is not None and self.focused.card is not card:
             self.set_focus(None)
         if st is not self.default_stack:
@@ -879,15 +886,23 @@ class StackRuntime:
 
     def arrow_card(self, which):
         """an arrowKey no handler took, no field focused (Dictionary, navigationArrows): left/right go to the
-        previous/next card, up/down to the first/last (not measured, Dictionary not checked yet: up/down
-        may be back/forth through recent cards)"""
+        previous/next card; up/down go back/forward through the recent cards"""
         st = self.default_stack
+        if which in ('up', 'down'):
+            j = self.recent_i + (-1 if which == 'up' else 1)
+            if 0 <= j < len(self.recent):
+                self.recent_i = j
+                self._nav = True
+                try:
+                    self.go_card(self.recent[j])
+                finally:
+                    self._nav = False
+            return
         cards = st.children
         if len(cards) < 2:
             return
         i = cards.index(st.current)
-        to = {'left': cards[i - 1], 'right': cards[(i + 1) % len(cards)], 'up': cards[0], 'down': cards[-1]}[which]
-        self.go_card(to)
+        self.go_card(cards[i - 1] if which == 'left' else cards[(i + 1) % len(cards)])
 
     def type_into(self, f, text):
         """the engine's own typing: the selection becomes text, the caret after it"""

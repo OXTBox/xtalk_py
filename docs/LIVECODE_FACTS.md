@@ -233,3 +233,7 @@ standalone per library group.
   (test) window never moves the mouse.
 - nine-ball's Instructions field (the real stack, a scratch copy): fixedLineHeight true, effective textSize 12,
   textHeight 16, so its lines are 16 apart (we drew 18 before; the text runs are size 11).
+- **Dictionary (OXT-Beyond, 25 Nov)** settles the old "NOT checked" note: with navigationArrows true and no text
+  selection, Left/Right = previous/next card, Up/Down = back/forward through the recent cards (not first/last; fixed).
+  commandKeyDown: sent with the key's character to the focused control, else the card; on Windows/Unix whenever
+  Control is held; not sent with Return/Tab/Backspace/Delete/Enter/arrows/function keys (as we did).
