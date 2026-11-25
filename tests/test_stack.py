@@ -78,5 +78,22 @@ if os.path.isdir(READER):
     check('reader 5 rooms: the labels', labels, ['Entrance', ' Obstacle', ' Setback', ' Climax', ' Resolution', 'Next'])
     check('reader 5 rooms: 100 dungeons in the list', rt.get('field 1', 'text').count('Entrance:'), 100)
     check('reader: no script errors', rt.errors, [])
+LC = os.path.expanduser('~/projects/XTJSON/LightCycles3')
+if os.path.isdir(LC):
+    random.seed(3)
+    rt = StackRuntime(LC, files_dir=os.path.join(ROOT, 'run_files', 'test'))
+    rt.open()
+    rt.click('button "reset"')
+    check('cycles: countdown waits 2 s (virtual)', rt.clock, 2000.0)
+    start = rt.get('graphic "playerMarker"', 'loc')
+    for k in 'DDSS':                   # the script: the first press of a key sets the way, the next ones the speed
+        rt.key(k)
+    for i in range(10):
+        rt.tick(70)
+    x0, y0 = map(int, start.split(','))
+    x1, y1 = map(int, rt.get('graphic "playerMarker"', 'loc').split(','))
+    check('cycles: S drives the bike down, 2 px a step', (x1 - x0, (y1 - y0) % 2, y1 > y0), (0, 0, True))
+    check('cycles: the trail grows', len(rt.get('graphic "PlayerLaserWall"', 'points').split('\n')) > 5, True)
+    check('cycles: no script errors', rt.errors, [])
 print('\n%d of %d stack checks pass' % (N[0] - len(BAD), N[0]))
 sys.exit(1 if BAD else 0)

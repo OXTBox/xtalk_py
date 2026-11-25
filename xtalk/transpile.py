@@ -253,7 +253,7 @@ class Gen:
     def s_setprop(self, s, ind):
         _, name, obj, key, e = s
         v = self.tmp('v')
-        self.emit(ind, '%s = %s' % (v, _tt(self.ex(e))))
+        self.emit(ind, '%s = %s' % (v, _tt(self.ex(e)) if obj is None else 'rt.setprop_value(%s, True)' % self.ex(e)))
         if obj is None:
             self.emit(ind, 'rt.set_global_prop(%s, %s)' % (_r(name), v))
         else:
@@ -463,9 +463,6 @@ class Gen:
         if not parts or parts[0][0] != 'e':
             raise TranslateError('do without code')
         self.emit(ind, 'rt.do_text(fr, to_text(%s))' % self.ex(parts[0][1]))
-
-    def c_wait(self, parts, ind):
-        pass
 
     def c_filter(self, parts, ind):
         i, kind = 0, 'line'

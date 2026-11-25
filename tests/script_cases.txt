@@ -274,3 +274,45 @@ put "F" after tOut
 end switch
 put "/" after tOut
 end repeat
+----
+put empty into tOut
+switch "right"
+case "Right"
+put "matched" after tOut
+break
+default
+put "nomatch" after tOut
+end switch
+put "," & the caseSensitive after tOut
+put "," & ("right" = "Right") after tOut
+switch "b"
+case "B"
+put ",B" after tOut
+break
+default
+put ",default" after tOut
+end switch
+----
+put empty into tOut
+switch "1.0"
+case 1
+put "num" after tOut
+break
+default
+put "text" after tOut
+end switch
+switch " b "
+case "b"
+put ",trim" after tOut
+break
+default
+put ",exact" after tOut
+end switch
+set the caseSensitive to true
+switch "b"
+case "B"
+put ",B" after tOut
+break
+default
+put ",cs" after tOut
+end switch

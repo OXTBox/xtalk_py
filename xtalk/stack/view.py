@@ -10,6 +10,7 @@ harvest's assets. NOT drawn yet: styled text (htmlText), players, widgets, gradi
 import math, os
 import pyray as rl
 from imgui_bundle import imgui
+from .host import canon
 
 FONT_DIRS = ['/mnt/c/Windows/Fonts', '/usr/share/fonts/truetype/dejavu']
 FONT_FILES = {'segoe ui': 'segoeui.ttf', 'arial': 'arial.ttf', 'consolas': 'consola.ttf', '': 'segoeui.ttf'}
@@ -63,6 +64,8 @@ class View:
     def font(self, o, size):
         name = (self.prop(o, 'textfont') or self.inherit(o, 'textFont') or '').lower()
         f = FONT_FILES.get(name, 'segoeui.ttf')
+        if 'bold' in str(self.prop(o, 'textstyle') or self.inherit(o, 'textStyle') or '').lower():
+            f = {'segoeui.ttf': 'segoeuib.ttf', 'arial.ttf': 'arialbd.ttf', 'consola.ttf': 'consolab.ttf'}.get(f, f)
         key = (f, size)
         if key not in self.fonts:
             path = next((os.path.join(d, f) for d in FONT_DIRS if os.path.exists(os.path.join(d, f))), None)
@@ -72,18 +75,18 @@ class View:
 
     def inherit(self, o, key):
         """a text or colour property: the object, its groups, card, stack, then the stack's effective value"""
-        k = key.lower()
+        k = canon(key)
         x = o
         while x is not None:
             for pk, v in x.props.items():
-                if pk.lower() == k and v != '':
+                if canon(pk) == k and v != '':
                     return v
             x = x.parent if x.type != 'card' else x.stack
             if x is not None and x.type == 'stack':
                 for pk, v in x.props.items():
-                    if pk.lower() == k and v != '':
+                    if canon(pk) == k and v != '':
                         return v
-                return x.effective.get(key)
+                return next((v for ek, v in x.effective.items() if canon(ek) == k), None)
         return None
 
     def size(self, o):
@@ -111,7 +114,7 @@ class View:
     def draw_card(self):
         st = self.rt.default_stack
         card = st.current
-        bg = colour(self.inherit(card, 'backgroundColor') or self.inherit(card, 'backColor'), rl.Color(240, 240, 240, 255))
+        bg = colour(self.inherit(card, 'backgroundColor'), rl.Color(240, 240, 240, 255))
         rl.clear_background(bg)
         for o in card.flat():
             if o.type == 'group' or not self.rt._shown(o):

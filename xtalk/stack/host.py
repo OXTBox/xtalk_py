@@ -19,7 +19,17 @@ TYPE = {'button': 'button', 'btn': 'button', 'field': 'field', 'fld': 'field', '
         'images': 'image', 'groups': 'group', 'controls': 'control', 'cards': 'card', 'players': 'player'}
 GEOMETRY = {'rect', 'rectangle', 'left', 'top', 'right', 'bottom', 'width', 'height', 'loc', 'location',
             'topleft', 'topright', 'bottomleft', 'bottomright'}
-COMMANDS_QUIET = {'lock', 'unlock', 'beep', 'wait', 'focus', 'select', 'flushevents', 'set'}
+SYNONYM = {'backcolor': 'backgroundcolor', 'forecolor': 'foregroundcolor', 'hilitecolor': 'hilitecolor',
+           'bordercolor': 'bordercolor', 'hilited': 'hilite', 'vis': 'visible', 'textcolor': 'foregroundcolor'}
+
+
+def canon(p):
+    """one name for LiveCode's synonyms (backColor = backgroundColor...)"""
+    p = p.lower()
+    return SYNONYM.get(p, p)
+
+
+COMMANDS_QUIET = {'lock', 'unlock', 'beep', 'focus', 'select', 'flushevents', 'set'}
 
 
 def ints(text, n):
@@ -232,6 +242,8 @@ class StackHost(Host):
             return '0,0,1536,864'
         if p == 'mainstacks':
             return rt.harvest.main.name
+        if p == 'tool':
+            return 'browse tool'
         return ''
 
     def obj_prop(self, o, p):
@@ -282,18 +294,22 @@ class StackHost(Host):
             return self.name_of(o.parent) if o.parent is not None else ''
         if p == 'script':
             return o.script
+        if p == 'mainstack':
+            return o.stack.mainstack.name
+        if p in ('points', 'relativepoints'):
+            if o.points is None:
+                return ''
+            dx, dy = (o.rect[0], o.rect[1]) if p == 'relativepoints' else (0, 0)
+            return '\n'.join('' if q is None else '%d,%d' % (q[0] - dx, q[1] - dy) for q in o.points)
         if p == 'customkeys':
             return '\n'.join(o.custom)
         if p == 'custompropertysets':
             return '\n'.join(o.sets)
-        if p in ('hilite', 'hilited'):
-            p = 'hilited'
-        if p == 'vis':
-            p = 'visible'
+        cp = canon(p)
         for k, v in o.props.items():
-            if k.lower() == p:
+            if canon(k) == cp:
                 return to_xtalk(v) if not isinstance(v, str) else v
-        k, v = o.stack.default(o.type, p)
+        k, v = o.stack.default(o.type, p if p != 'hilite' else 'hilited')
         if k is not None:
             return to_xtalk(v) if not isinstance(v, str) else v
         for k, v in o.custom.items():
@@ -320,7 +336,12 @@ class StackHost(Host):
             arr[key] = value
             return
         if p in GEOMETRY:
+            old = list(o.rect)
             self.set_geometry(o, p, value)
+            self.move_points(o, old)
+            return
+        if p in ('points', 'relativepoints'):
+            self.set_points(o, value, p == 'relativepoints')
             return
         if p == 'name':
             o.name = value
@@ -328,14 +349,15 @@ class StackHost(Host):
         if p in ('text', 'menuitems'):
             o.text = value
             return
+        cp = canon(p)
+        for k in o.props:
+            if canon(k) == cp:
+                o.props[k] = value
+                return
         if p in ('hilite', 'hilited'):
             p = 'hilited'
         if p == 'vis':
             p = 'visible'
-        for k in o.props:
-            if k.lower() == p:
-                o.props[k] = value
-                return
         k, _ = o.stack.default(o.type, p)
         if k is not None or p in ('label', 'visible', 'hilited', 'backgroundcolor', 'foregroundcolor', 'textsize',
                                   'textfont', 'textstyle', 'bordercolor', 'blendlevel', 'icon', 'style'):
@@ -346,6 +368,34 @@ class StackHost(Host):
             return
         ck = next((k for k in o.custom if k.lower() == p), prop)
         o.custom[ck] = value
+
+    def set_points(self, o, value, relative):
+        dx, dy = (o.rect[0], o.rect[1]) if relative else (0, 0)
+        pts = []
+        for line in str(value).split('\n'):
+            if line.strip() == '':
+                pts.append(None)
+                continue
+            x, y = ints(line, 2)
+            pts.append([x + dx, y + dy])
+        while pts and pts[-1] is None:
+            pts.pop()
+        o.points = pts
+        real = [q for q in pts if q is not None]
+        if real:           # the rect follows the points (exact LiveCode margins for lineSize: not measured)
+            xs, ys = [q[0] for q in real], [q[1] for q in real]
+            o.rect = [min(xs), min(ys), max(xs) + 1, max(ys) + 1]
+
+    def move_points(self, o, old):
+        """a moved or resized line/polygon graphic takes its points along (scaled to the new size)"""
+        if not o.points or old == o.rect:
+            return
+        ow, oh = old[2] - old[0], old[3] - old[1]
+        nw, nh = o.rect[2] - o.rect[0], o.rect[3] - o.rect[1]
+        sx = nw / ow if ow else 1
+        sy = nh / oh if oh else 1
+        o.points = [None if q is None else [int(round(o.rect[0] + (q[0] - old[0]) * sx)),
+                                            int(round(o.rect[1] + (q[1] - old[1]) * sy))] for q in o.points]
 
     def set_geometry(self, o, p, value):
         """LiveCode's rules (LIVECODE_FACTS): width/height keep the centre; left/top... move"""
@@ -405,6 +455,9 @@ class StackHost(Host):
             return ''
         if name in COMMANDS_QUIET:
             return ''
+        if name == 'wait':
+            rt.wait(self.wait_ms(parts))
+            return ''
         if name == 'answer':
             rt.answers.append(' '.join(es))
             return ''
@@ -448,6 +501,18 @@ class StackHost(Host):
             return ''
         rt.send_text(target, msg)
         return ''
+
+    @staticmethod
+    def wait_ms(parts):
+        """wait N [ticks|milliseconds|seconds] (ticks when no unit); wait until/while: 0 here"""
+        if parts and parts[0] in (('w', 'until'), ('w', 'while')):
+            return 0
+        try:
+            n = to_num(parts[0][1]) if parts else 0
+        except XtError:
+            return 0
+        unit = next((v for k, v in parts[1:] if k == 'w' and v != 'with'), 'ticks')
+        return n * {'milliseconds': 1, 'millisecond': 1, 'seconds': 1000, 'second': 1000}.get(unit, 1000 / 60)
 
     def go(self, text):
         rt = self.rt

@@ -81,6 +81,7 @@ class StackRuntime:
         self.clock = 0.0               # virtual milliseconds
         self.timers, self._seq = [], 0
         self.changed = True
+        self.on_wait = None            # the window sets this: draw frames while a script waits
         for st in self.harvest.stacks:
             for o in [st] + st.children + [c for card in st.children for c in card.flat()]:
                 if o.script.strip() and id(o) not in self.ctx:
@@ -142,6 +143,12 @@ class StackRuntime:
     def after(self, ms, o, text):
         self._seq += 1
         heapq.heappush(self.timers, (self.clock + ms, self._seq, o, text))
+
+    def wait(self, ms):
+        """`wait`: time passes; a window keeps drawing (on_wait), timers wait for the next tick"""
+        if self.on_wait is not None:
+            self.on_wait(ms)
+        self.clock += ms
 
     def tick(self, ms):
         """let ms of virtual time pass: due `send ... in` messages run in order"""

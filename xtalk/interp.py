@@ -263,11 +263,16 @@ class Interp:
 
     def x_setprop(self, st, fr):
         _, name, obj, key, ex = st
-        v = to_text(self.ev(ex, fr))
+        v = self.setprop_value(self.ev(ex, fr), obj is not None)
         if obj is None:
             self.set_global_prop(name, v)
             return
         self.host.set_prop(to_text(self.ev(obj, fr)), name, v, None if key is None else to_text(self.ev(key, fr)))
+
+    @staticmethod
+    def setprop_value(raw, of_object):
+        """an object's (custom) property may hold an array; everything else is text"""
+        return raw if of_object and isinstance(raw, dict) else to_text(raw)
 
     def set_global_prop(self, name, v):
         name = self.ALIAS.get(name, name)
@@ -339,9 +344,12 @@ class Interp:
         except Break:
             pass
 
-    @staticmethod
-    def case_hit(sv, x):
-        return (to_text(x) == sv) if sv is not None else to_bool(x)
+    def case_hit(self, sv, x):
+        """switch compares as text, ignoring case unless the caseSensitive is true (LIVECODE_FACTS)"""
+        if sv is None:
+            return to_bool(x)
+        t = to_text(x)
+        return t == sv if self.props.get('casesensitive') == 'true' else t.lower() == sv.lower()
 
     def x_repeat(self, st, fr):
         _, kind, p, body = st
@@ -450,7 +458,9 @@ class Interp:
         self.assign(dest, d.join(keep), 'into', fr)
 
     def c_wait(self, parts, fr):
-        pass
+        """wait: the host decides what waiting means (nothing in the plain host)"""
+        vals = [(p[0], to_text(self.ev(p[1], fr)) if p[0] == 'e' else p[1]) for p in parts]
+        self.host.command('wait', vals)
 
     def x_sort(self, st, fr):
         _, kind, target, desc, mode, by = st
@@ -937,4 +947,5 @@ BUILTINS = {
     'average': lambda it, fr, *a: numstr(sum(_n(x) for x in a) / len(a)),
     'isnumber': lambda it, fr, x: 'true' if is_numeric_text(_t(x)) else 'false',
     'specialfolderpath': lambda it, fr, x: it.host.special_folder(_t(x)),
+    'exists': lambda it, fr, x: 'true' if it.host.exists(_t(x)) else 'false',
 }

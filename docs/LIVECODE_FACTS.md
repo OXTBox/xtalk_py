@@ -19,7 +19,9 @@ exactly. Each line was checked in LiveCode 9.6.3; add the date and how.
 - Numbers print with the `numberFormat` default `0.######`: `1/3` is `0.333333`, `pi` is `3.141593`, `sqrt(2)` is `1.414214`. Whole numbers print plain. All arithmetic is double precision: `2^53 + 1` is `9007199254740992`; `100000000000000 + 0.5` is `100000000000000.5`.
 - `-2^2` is `4` (unary minus binds tighter than `^`); `- - 3` is an error.
 - `true and "x"` is `false`, no error (and/or treat anything but "true" as false).
-- `switch` matches cases exactly, case-sensitively: `switch "b"` does not take `case "B"`.
+- `switch` compares as text, ignoring case unless `the caseSensitive` is true (re-measured 25 Nov; an older
+  line here said case-sensitive, which was wrong and broke LightCycles3): `switch "right"` takes `case "Right"`;
+  `switch "1.0"` does not take `case 1` (no number compare); `switch " b "` does not take `case "b"` (no trim).
 - `switch` falls through (measured 24 Nov, standalone): the first case that matches (cases are tried in order,
   also those below the default), else the default, is where it starts; from there every body runs, through the
   `case` lines and the `default` line, until a `break`. `case "a"` / `case "b"` / body is one body for both.
