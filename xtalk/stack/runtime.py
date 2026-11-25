@@ -116,6 +116,7 @@ class StackRuntime:
         self.changed = True
         self.on_wait = None
         self.keys_down = set()         # 'shiftkey', 'optionkey'... while held (the window fills it)
+        self.held_codes = []           # the key codes held now (the keysDown; the window fills it)
         self.closed = False            # the window sets this: draw frames while a script waits
         self.closing_sent = False      # closeCard / closeStack went out
         self.opened = set()            # id() of the stacks opened (they got their open messages)

@@ -129,6 +129,16 @@ class View:
         size = (st[2] if st and st[2] else None) or size or self.size(o)
         return rl.measure_text_ex(self.font(o, size, st), s, size * 4 / 3, 0).x
 
+    # raylib key -> LiveCode key code (as rawKeyDown and the keysDown give them; letters lower case; from memory,
+    # not measured: these need a real keyboard)
+    KEYCODES = ([(getattr(rl, 'KEY_%s' % c), ord(c.lower())) for c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ']
+                + [(getattr(rl, 'KEY_%s' % w), ord(d)) for w, d in zip(['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE',
+                                                                         'SIX', 'SEVEN', 'EIGHT', 'NINE'], '0123456789')]
+                + [(rl.KEY_SPACE, 32), (rl.KEY_LEFT, 65361), (rl.KEY_UP, 65362), (rl.KEY_RIGHT, 65363),
+                   (rl.KEY_DOWN, 65364), (rl.KEY_LEFT_SHIFT, 65505), (rl.KEY_RIGHT_SHIFT, 65506),
+                   (rl.KEY_LEFT_CONTROL, 65507), (rl.KEY_RIGHT_CONTROL, 65508), (rl.KEY_LEFT_ALT, 65513),
+                   (rl.KEY_ENTER, 65293), (rl.KEY_ESCAPE, 65307), (rl.KEY_TAB, 65289), (rl.KEY_BACKSPACE, 65288)])
+
     def prop(self, o, p):
         return self.rt.host.obj_prop(o, p.lower())
 
@@ -149,6 +159,22 @@ class View:
     def rect(self, o):
         l, t, r, b = o.rect
         return rl.Rectangle(l, t, r - l, b - t)
+
+    @staticmethod
+    def fill_polygon(pts, fill):
+        """fill a polygon (closed for you), even-odd like within(): one horizontal line per pixel row"""
+        if len(pts) < 3:
+            return
+        edges = list(zip(pts, pts[1:] + pts[:1]))
+        top, bottom = min(p[1] for p in pts), max(p[1] for p in pts)
+        for y in range(int(top), int(bottom) + 1):
+            yc = y + 0.5
+            xs = sorted(x1 + (yc - y1) * (x2 - x1) / (y2 - y1) for (x1, y1), (x2, y2) in edges
+                        if (y1 <= yc < y2) or (y2 <= yc < y1))
+            for a, b in zip(xs[0::2], xs[1::2]):
+                xa, xb = int(round(a)), int(round(b))
+                if xb > xa:
+                    rl.draw_rectangle(xa, y, xb - xa, 1, fill)
 
     def draw_graphic(self, o):
         style = self.prop(o, 'style') or 'rectangle'
@@ -174,6 +200,8 @@ class View:
             rl.draw_ellipse_lines(int(cx), int(cy), rc.width / 2, rc.height / 2, line)
         elif style in ('line', 'polygon', 'curve'):
             pts = o.points or [[o.rect[0], o.rect[1]], [o.rect[2], o.rect[3]]]
+            if style == 'polygon' and filled:
+                self.fill_polygon([p for p in pts if p is not None], fill)
             run = []
             for p in pts + [None]:
                 if p is None:
@@ -440,6 +468,7 @@ class View:
             if rl.is_key_down(key):
                 held.add(name)
         rt.keys_down = held | ({'altkey'} if 'optionkey' in held else set())
+        rt.held_codes = [code for key, code in self.KEYCODES if rl.is_key_down(key)]   # the keysDown
         if rl.is_key_pressed(rl.KEY_F2):
             self.panel = not self.panel
         ch = rl.get_char_pressed()

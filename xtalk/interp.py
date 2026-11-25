@@ -745,7 +745,7 @@ class Interp:
             return h
         raise XtError('expression: unknown property "the %s"' % n)
 
-    MAY_BE_EMPTY = {'pendingmessages', 'focusedobject', 'selection', 'selectedtext', 'selectedfield', 'selectedline', 'selectedchunk',
+    MAY_BE_EMPTY = {'keysdown', 'pendingmessages', 'focusedobject', 'selection', 'selectedtext', 'selectedfield', 'selectedline', 'selectedchunk',
                     'target', 'mousecontrol', 'clicktext', 'clickline', 'clickchunk', 'clickfield', 'foundtext'}
 
     def e_idx(self, e, fr):

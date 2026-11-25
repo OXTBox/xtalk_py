@@ -216,3 +216,7 @@ standalone per library group.
 - **A stack with a background on its card** (all to the card; `the target` = the card): close/delete
   `closeCard,closeBackground,closeStack`; open (`go stack`) `preOpenStack,preOpenBackground,preOpenCard,openStack,
   openBackground,openCard`.
+- `the keysDown`: the codes of the keys held now, comma separated (letters lower-case ASCII, arrows 65361-65364,
+  shift 65505...). From memory, not measured (needs a real keyboard).
+- A filled (opaque) polygon graphic is drawn filled; graphics a script creates with no colour take the stack's
+  colours (Raycasting_101: black floor/roof, grey walls). The fill rule we use is even-odd (not measured).

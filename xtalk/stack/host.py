@@ -475,6 +475,8 @@ class StackHost(Host):
             return rt.props.get('navigationarrows', 'true')
         if p == 'tool':
             return getattr(rt, 'tool', 'browse tool')
+        if p == 'keysdown':
+            return ','.join(str(c) for c in rt.held_codes)
         if p == 'pendingmessages':
             return rt.pending_messages()
         if p in ('optionkey', 'shiftkey', 'commandkey', 'controlkey', 'altkey', 'capslockkey'):
