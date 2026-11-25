@@ -225,7 +225,19 @@ class Interp:
             new = self.cut(cur, kind, a, b)
             self.assign(inner, new, 'into', fr)
             return
+        if t[0] == 'obj':
+            self.host.delete_obj(self.desc(t, fr))
+            return
         raise XtError("delete: can't delete that")
+
+    def x_create(self, st, fr):
+        _, typ, invisible, name, group = st
+        self.do_create(fr, typ, invisible, None if name is None else to_text(self.ev(name, fr)),
+                       None if group is None else self.desc(group, fr))
+
+    def do_create(self, fr, typ, invisible, name, group):
+        """create: the host makes the object; it = its long id (measured 25 Nov)"""
+        self.put_var(fr, 'it', self.host.create(typ, name or '', invisible, group))
 
     def del_idx(self, fr, name, key):
         arr = self.getvar_arr(fr, name)
@@ -267,7 +279,7 @@ class Interp:
         if obj is None:
             self.set_global_prop(name, v)
             return
-        self.host.set_prop(self.desc(obj, fr), name, v, None if key is None else to_text(self.ev(key, fr)))
+        self.host.set_prop(self.desc(obj, fr), self.prop_name(fr, name), v, None if key is None else to_text(self.ev(key, fr)))
 
     @staticmethod
     def setprop_value(raw, of_object):
@@ -707,8 +719,36 @@ class Interp:
     def e_url(self, e, fr):
         return self.host.read_url(e[1], to_text(self.ev(e[2], fr)))
 
+    ENGINE_PROPS = set('''
+        altid angle arcangle armed armborder arrowsize autoarm autohilite backcolor backgroundcolor backpattern
+        behavior blendlevel bordercolor borderwidth bottom bottomcolor bottomleft bottomright cantabort cantdelete
+        cantmodify cantselect capstyle cardnames centered colors controls custompropertyset custompropertysets
+        customkeys customproperties dashes decorations defaultbutton destroystack destroywindow disabled dontresize
+        dontsearch dontwrap dropshadow dynamicpaths editmode effective enabled endarrow endvalue fillgradient filled
+        fixedlineheight focuscolor forecolor foregroundcolor formattedheight formattedwidth formattedrect frame
+        height hgrid hilite hilitecolor hilited hilitedbutton hilitedline hilitedlines hiliteborder hilitefill
+        hiliteicon hilitepattern hscroll hscrollbar htmltext icon id imagedata ink label layer left linesize
+        lineinc listbehavior location loc lockcursor locklocation lockloc lockscreen locktext long margins
+        markerdrawn markerpoints menuhistory menuitems menulines menumode menuname minheight maxheight minwidth
+        maxwidth mode multiplehilites name number opaque orientation owner pageinc pattern points polysides
+        rect rectangle relativepoints resizable right rotation roundends roundradius scalefactor script
+        scrollbarwidth selectedline selectedtext shadow shadowoffset sharedbehavior short showborder showfocusborder
+        showicon showname showvalue startangle startarrow startvalue style text textalign textfont textheight
+        textsize textstyle thumbposition thumbsize title tooltip top topleft topright traversalon threed
+        unicodetext visible vgrid vscroll vscrollbar width wraparound
+        '''.split())
+
+    def prop_name(self, fr, name):
+        """the tProp of x: a custom property named by a variable's value (measured 25 Nov), when tProp is not
+        one of LiveCode's own properties and the variable holds something"""
+        if ' ' in name or name in self.ENGINE_PROPS or self.undefined(fr, name):
+            return name
+        v = self.getvar(fr, name)
+        return to_text(v) if not isinstance(v, dict) and to_text(v) != '' else name
+
     def e_propof(self, e, fr):
         _, name, operand, key = e
+        name = self.prop_name(fr, name)
         f = BUILTINS.get(name)
         if f is not None and operand[0] not in ('obj',):
             return f(self, fr, self.ev(operand, fr))

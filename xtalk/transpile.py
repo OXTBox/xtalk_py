@@ -122,7 +122,7 @@ class Gen:
         if BUILTINS.get(name) is not None and operand[0] != 'obj':
             return 'B[%s](rt, fr, %s)' % (_r(name), self.ex(operand))
         kc = 'None' if key is None else 'to_text(%s)' % self.ex(key)
-        return 'rt.host.get_prop(%s, %s, %s)' % (self.desc(operand), _r(name), kc)
+        return 'rt.host.get_prop(%s, rt.prop_name(fr, %s), %s)' % (self.desc(operand), _r(name), kc)
 
     def x_isa(self, e):
         return 'rt.isa(%s, %s)' % (self.ex(e[1]), _r(e[2]))
@@ -247,8 +247,16 @@ class Gen:
             self.emit(ind, '%s = to_text(%s)' % (c, self.ex(inner)))
             self.emit(ind, self.assign(inner, 'rt.cut_chunk(%s, %s, %s, %s)' % (
                 _r(kind), c, self.pos(a), 'None' if b is None else self.pos(b)), 'into'))
+        elif t[0] == 'obj':
+            self.emit(ind, 'rt.host.delete_obj(%s)' % self.desc(t))
         else:
             self.emit(ind, 'raise XtError("delete: can\'t delete that")')
+
+    def s_create(self, s, ind):
+        _, typ, invisible, name, group = s
+        self.emit(ind, 'rt.do_create(fr, %s, %r, %s, %s)' % (
+            _r(typ), invisible, 'None' if name is None else 'to_text(%s)' % self.ex(name),
+            'None' if group is None else self.desc(group)))
 
     def s_replace(self, s, ind):
         a, b, c = self.tmp('a'), self.tmp('b'), self.tmp('c')
@@ -266,7 +274,7 @@ class Gen:
             self.emit(ind, 'rt.set_global_prop(%s, %s)' % (_r(name), v))
         else:
             kc = 'None' if key is None else 'to_text(%s)' % self.ex(key)
-            self.emit(ind, 'rt.host.set_prop(%s, %s, %s, %s)' % (self.desc(obj), _r(name), v, kc))
+            self.emit(ind, 'rt.host.set_prop(%s, rt.prop_name(fr, %s), %s, %s)' % (self.desc(obj), _r(name), v, kc))
 
     def s_return(self, s, ind):
         self.emit(ind, 'return %s' % self.ex(s[1]))

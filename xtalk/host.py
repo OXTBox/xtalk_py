@@ -38,6 +38,12 @@ class Host:
         o = self.objs.setdefault(self.norm(desc), {})
         o[prop if key is None else '%s[%s]' % (prop, key)] = value
 
+    def create(self, typ, name, invisible, group):
+        raise XtError("can't find handler create")
+
+    def delete_obj(self, desc):
+        raise XtError("delete: can't delete that")
+
     def dialog(self, kind, sub, icon, prompt, extra, title):
         """no window: answer picks the default (last) button, ask takes its default text"""
         self.log.append((kind, [('e', prompt)]))

@@ -9,7 +9,7 @@ import math, os, re, subprocess, sys
 from ..host import Host
 from ..values import XtError, to_num
 from ..parser import tokenize, ORDINALS
-from .model import CONTROL_TYPES, to_xtalk
+from .model import CONTROL_TYPES, to_xtalk, Obj
 
 TYPE = {'button': 'button', 'btn': 'button', 'field': 'field', 'fld': 'field', 'graphic': 'graphic',
         'grc': 'graphic', 'image': 'image', 'img': 'image', 'group': 'group', 'grp': 'group',
@@ -123,8 +123,25 @@ class StackHost(Host):
         pass
 
     # ------------------------------------------------------------ finding objects
+    TEMPLATES = {'templategraphic': 'graphic', 'templatebutton': 'button', 'templatefield': 'field',
+                 'templateimage': 'image', 'templatescrollbar': 'scrollbar', 'templategroup': 'group',
+                 'templateplayer': 'player', 'templatecard': 'card', 'templatestack': 'stack'}
+    TEMPLATE_RECT = [-1, -1, 127, 31]          # measured 25 Nov: width 40 on the template gave 43,-1,83,31
+
+    def template(self, typ):
+        """the templateGraphic (Button...): an object whose settings the next create copies"""
+        st = self.rt.default_stack
+        key = (id(st), typ)
+        t = self.rt.templates.get(key)
+        if t is None:
+            t = Obj(typ, {'type': typ, 'rect': list(self.TEMPLATE_RECT)}, st, None)
+            self.rt.templates[key] = t
+        return t
+
     def resolve(self, desc, must=True):
         d = desc.strip()
+        if d.lower().replace('the ', '') in self.TEMPLATES:
+            return self.template(self.TEMPLATES[d.lower().replace('the ', '')])
         if not d:
             if must:
                 raise XtError('no such object')
@@ -241,6 +258,68 @@ class StackHost(Host):
         v = val.lower()
         return next((o for o in objs if o.name.lower() == v), None)
 
+    def create(self, typ, name, invisible, group):
+        """create (measured 25 Nov): a new object with the next id of the stack, on top of the current card
+        (or in the group); 128x32 centred on the card unless the template's rect was changed; the template's
+        settings copied; no name unless given. A new card is gone to. Returns the long id (into it)."""
+        rt = self.rt
+        st = rt.default_stack
+        new_id = max([st.id] + list(st.ids.keys())) + 1
+        t = rt.templates.get((id(st), typ))
+        if typ == 'card':
+            o = Obj('card', {'type': 'card', 'name': name, 'id': new_id}, st, st)
+            o.number = len(st.children) + 1
+            st.ids[new_id] = o
+            st.children.append(o)
+            rt.go_card(o)
+            return self.name_of(o, 'long')
+        parent = self.resolve(group) if group else st.current
+        if parent.type not in ('card', 'group'):
+            raise XtError("create: can't create in %s" % self.name_of(parent))
+        node = {'type': typ, 'name': name, 'id': new_id, 'layer': len(st.current.flat()) + 1}
+        o = Obj(typ, node, st, parent)
+        if t is not None:
+            o.props = dict(t.props)
+            o.custom = dict(t.custom)
+            o.text, o.points = t.text, (list(t.points) if t.points else None)
+        if t is not None and t.rect != self.TEMPLATE_RECT:
+            o.rect = list(t.rect)
+        else:
+            w, h = st.current.width, st.current.height
+            cx, cy = w // 2, h // 2
+            o.rect = [cx - 64, cy - 16, cx + 64, cy + 16]
+        if invisible:
+            o.props['visible'] = 'false'
+        st.ids[new_id] = o
+        parent.children.append(o)
+        rt.changed = True
+        return self.name_of(o, 'long')
+
+    def delete_obj(self, desc):
+        """delete graphic "x": it goes; anything pointing at it lets go"""
+        rt = self.rt
+        o = self.resolve(desc)
+        if o.type == 'stack':
+            raise XtError("delete: can't delete a stack here")
+        holder = o.stack if o.type == 'card' else o.parent
+        if holder is None or o not in holder.children:
+            raise XtError("delete: can't delete that")
+        if o.type == 'card' and len(holder.children) == 1:
+            raise XtError("delete: can't delete the last card")
+        holder.children.remove(o)
+        gone = {id(x) for x in [o] + o.flat()}
+        for x in [o] + o.flat():
+            o.stack.ids.pop(x.id, None)
+            rt.ctx.pop(id(x), None)
+        for attr in ('hover', 'pressed', 'thumb_drag', 'scroll_drag'):
+            if getattr(rt, attr, None) is not None and id(getattr(rt, attr)) in gone:
+                setattr(rt, attr, None)
+        if rt.grabbed is not None and id(rt.grabbed[0]) in gone:
+            rt.grabbed = None                   # a grab ends, no message (Dictionary, grab)
+        if o.type == 'card' and o.stack.current is o:
+            rt.go_card(o.stack.children[0])
+        rt.changed = True
+
     def dialog(self, kind, sub, icon, prompt, extra, title):
         """answer / ask: the window shows it (rt.on_dialog); with no window, rt.dialog_answers gives the
         replies in order (None = Cancel); with none left, answer takes its default button, ask its default text"""
@@ -338,6 +417,8 @@ class StackHost(Host):
 
     def global_prop(self, p):
         rt = self.rt
+        if p in self.TEMPLATES:            # the templateGraphic: names itself, resolve() finds it
+            return p
         if p == 'target':
             return self.name_of(rt.target) if rt.target is not None else ''
         if p in ('defaultstack', 'topstack'):
@@ -430,8 +511,10 @@ class StackHost(Host):
                 return ''
             dx, dy = (o.rect[0], o.rect[1]) if p == 'relativepoints' else (0, 0)
             return '\n'.join('' if q is None else '%d,%d' % (q[0] - dx, q[1] - dy) for q in o.points)
-        if p == 'customkeys':
-            return '\n'.join(o.custom)
+        if p == 'customkeys':                  # the keys of the active property set (measured 25 Nov)
+            return '\n'.join(self.custom_of(o))
+        if p == 'custompropertyset':
+            return getattr(o, 'cps', '')
         if p == 'custompropertysets':
             return '\n'.join(o.sets)
         cp = canon(p)
@@ -441,10 +524,23 @@ class StackHost(Host):
         k, v = o.stack.default(o.type, p if p != 'hilite' else 'hilited')
         if k is not None:
             return to_xtalk(v) if not isinstance(v, str) else v
-        for k, v in o.custom.items():
+        for k, v in self.custom_of(o).items():
             if k.lower() == p:
                 return v
         return ''
+
+    def custom_of(self, o, create=False):
+        """the custom properties a plain read or write uses: the active customPropertySet, else the object's own"""
+        cps = getattr(o, 'cps', '')
+        if not cps:
+            return o.custom
+        k = next((k for k in o.sets if k.lower() == cps.lower()), None)
+        if k is None or not isinstance(o.sets[k], dict):
+            if not create:
+                return {}
+            k = cps
+            o.sets[k] = {}
+        return o.sets[k]
 
     def set_prop(self, desc, prop, value, key=None):
         p = prop.lower()
@@ -464,6 +560,11 @@ class StackHost(Host):
                 o.custom[s] = arr
             arr[key] = value
             return
+        if p == 'custompropertyset':
+            o.cps = str(value)
+            return
+        if p == 'style':                       # set the style to "Line": stored as line (measured 25 Nov)
+            value = str(value).lower()
         if p in ('hilitedline', 'hilitedlines'):
             o.props['hilitedLines'] = ','.join(x.strip() for x in str(value).split(',') if x.strip().isdigit())
             return
@@ -498,8 +599,9 @@ class StackHost(Host):
                           'textstyle': 'textStyle', 'bordercolor': 'borderColor',
                           'blendlevel': 'blendLevel'}.get(p, prop)] = value
             return
-        ck = next((k for k in o.custom if k.lower() == p), prop)
-        o.custom[ck] = value
+        d = self.custom_of(o, create=True)
+        ck = next((k for k in d if k.lower() == p), prop)
+        d[ck] = value
 
     def set_points(self, o, value, relative):
         dx, dy = (o.rect[0], o.rect[1]) if relative else (0, 0)
@@ -586,6 +688,13 @@ class StackHost(Host):
                 rt.changed = True
             return ''
         if name in COMMANDS_QUIET:
+            return ''
+        if name == 'create' and words[:1] == ['folder'] and es:
+            os.makedirs(self.sandboxed(self._path(es[0])), exist_ok=True)     # create folder: inside the sandbox
+            return ''
+        if name == 'reset':                  # reset the templateGraphic: back to the plain one
+            if es and es[0].lower().replace('the ', '') in self.TEMPLATES:
+                rt.templates.pop((id(rt.default_stack), self.TEMPLATES[es[0].lower().replace('the ', '')]), None)
             return ''
         if name in ('enable', 'disable'):
             if es:

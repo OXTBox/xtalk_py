@@ -85,6 +85,7 @@ class StackRuntime:
         self.hover = None              # the control the mouse is in, as far as mouseEnter/mouseLeave go
         self.on_menu = None            # the window: show a menu, return the pick (text) or None
         self.on_dialog = None          # the window: show answer/ask, return (it, the result)
+        self.templates = {}            # (stack, type) -> the templateGraphic (Button...) object
         self.dialog_answers = []       # no window (tests): replies to answer/ask in order (None = Cancel)
         self.menu_choices = []         # no window (tests): the picks to make, in order (None = close the menu)
         self.menus = []                # every menu shown: (button name, [item labels])

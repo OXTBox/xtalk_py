@@ -283,6 +283,30 @@ class Parser:
         self.expect_word('by')
         return ('arith', 'divide', self.expr(), t)
 
+    CREATE_TYPES = {'graphic': 'graphic', 'grc': 'graphic', 'button': 'button', 'btn': 'button', 'field': 'field',
+                    'fld': 'field', 'image': 'image', 'img': 'image', 'scrollbar': 'scrollbar', 'scroll': 'scrollbar',
+                    'group': 'group', 'grp': 'group', 'player': 'player', 'card': 'card', 'cd': 'card'}
+
+    def st_create(self):
+        """create [invisible] <type> [name] [in group ...] -> ('create', type, invisible, name, group)"""
+        start = self.i
+        invisible = bool(self.accept_word('invisible'))
+        k, s, _ = self.peek()
+        typ = self.CREATE_TYPES.get(s.lower()) if k == 'id' else None
+        if typ is None and self.is_word('folder') and not invisible:
+            self.i += 1                        # create folder <path>: the word, then the path
+            return ('cmd', 'create', [('w', 'folder'), ('e', self.expr())])
+        if typ is None:                        # create stack / alias...: a command for the host
+            self.i = start
+            return ('cmd', 'create', self.cmd_parts())
+        self.i += 1
+        name = group = None
+        if self.peek()[0] not in ('nl', 'eof') and not self.is_word('in'):
+            name = self.p_un()
+        if self.accept_word('in'):
+            group = self.p_un()
+        return ('create', typ, invisible, name, group)
+
     def st_delete(self):
         self.accept_word('variable')
         return ('delete', self.expr())

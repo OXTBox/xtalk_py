@@ -112,3 +112,14 @@ standalone per library group.
 - `answer` / `ask` (Dictionary; dialogs cannot be measured in the windowless standalone): answer puts the clicked
   button into `it` (no buttons: OK; the last one named is the default, Return picks it); ask puts the typed text into
   `it`, Cancel gives `it` empty and the result "cancel". `answer file "p"` is a file dialog (was read as URL file).
+- **create** (measured 25 Nov, a 400x300 stack): `create graphic` -> it = `graphic id 1003 of card id 1002 of stack
+  "zzCreate"` (the long id), no name (`the name` = `graphic id 1003`), rect `136,134,264,166` (128x32 centred on the
+  card), style rectangle, on top, visible. Buttons and fields the same rect. Ids go on from the stack's highest.
+  The templateGraphic: its colour is copied; its rect starts at -1,-1,127,31 (width 40 gave `43,-1,83,31`), and a
+  changed template rect is used as it is. `reset the templateGraphic` clears it. `create card "C2"`: it = the long
+  id, and C2 becomes this card. `delete graphic "Red"`: gone, the result empty.
+- **customPropertySet** (measured): with a set active, `the customKeys` lists that set's keys and plain reads/writes
+  use it (`the plain of stack` reads empty under set "Vec"); `the Vec["a1"]` reads the set directly.
+  **`the tProp of x` with tProp a variable reads the property named by its value** (tProp = "a1" gave a1's value).
+  We do this only when the name is not one of LiveCode's own properties (width, loc...).
+- `set the style of it to "Line"` is stored as `line`; "RadioButton" as `radiobutton` (measured).

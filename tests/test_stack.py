@@ -139,6 +139,25 @@ try:
 except Exception as e:
     refused = 'only a .py file' in str(e)
 check('shell: any other command is refused', refused, True)
+rt.run('go card 1')
+n_before = rt.eval('the number of graphics')
+check('create graphic: it = the long id, no name, 128x32 centred, rectangle (measured)',
+      rt.run('create graphic\nreturn it & "|" & the name of it & "|" & the rect of it & "|" & the style of it'),
+      'graphic id 1037 of card id 1002 of stack "xtM1"|graphic id 1037|86,84,214,116|rectangle')
+rt.run('set the backgroundColor of the templateGraphic to "255,0,0"\nset the width of the templateGraphic to 40')
+check('the template: its colour, and its changed rect (measured)',
+      rt.run('create graphic "Red"\nreturn the backgroundColor of graphic "Red" & "|" & the rect of graphic "Red"'),
+      '255,0,0|43,-1,83,31')
+rt.run('reset the templateGraphic')
+check('reset the templateGraphic', rt.run('create invisible graphic "After"\nreturn the backgroundColor of graphic "After" & "|" & the visible of graphic "After"'), '|false')
+rt.run('delete graphic "Red"')
+check('delete graphic: gone', (rt.eval('there is a graphic "Red"'), rt.eval('the number of graphics')), ('false', str(int(n_before) + 2)))
+rt.run('create button "Go" in group "Grp"')
+check('create in a group', rt.eval('the short name of the owner of button "Go"') if False else rt.obj('button "Go"').parent.name, 'Grp')
+rt.run('delete button "Go"')
+rt.run('delete graphic "After"\ndelete graphic id 1037')
+rt.run('create folder (specialFolderPath("Documents") & "/made_here")')
+check('create folder: inside the sandbox', os.path.isdir(os.path.join(home, 'Documents', 'made_here')), True)
 rt.dialog_answers = ['No', 'Bob', None]
 check('answer: it = the button picked', rt.run('answer "Go?" with "Yes" or "No" titled "T"\nreturn it'), 'No')
 check('ask: it = the text typed', rt.run('ask "Name?" with "x"\nreturn it & "|" & the result'), 'Bob|')
@@ -182,6 +201,13 @@ if os.path.isdir(LC):
     rt.drag((sb.rect[0] + 10, sb.rect[1] + 20), (sb.rect[2] - 20, sb.rect[1] + 20), steps=5)
     check('cycles: dragging a slider moves its thumb (scrollbarDrag runs, no errors)',
           (int(rt.get('scrollbar "Changesscroll"', 'thumbPosition')) > 38, rt.errors), (True, []))
+    n = len(rt.errors)
+    rt.click('button "Redraw ALL"')
+    made = [o.name for o in rt.default_stack.current.flat() if o.type == 'graphic' and o.name.lower()[:4] == 'test' and o.name[4:].isdigit()]
+    check('cycles: Redraw ALL creates its line graphics', (len(made) > 0, rt.errors[n:]), (True, []))
+    check('cycles: the stored trails (a customPropertySet, the tProp of stack) give them points',
+          (len(made), max(len(rt.obj('graphic "%s"' % m).points or []) for m in made) > 1000), (19, True))   # test5 is deleted again by each later call
+    check('style "Line" is stored as line (measured)', rt.get('graphic "test1"', 'style'), 'line')
     rt.dialog_answers = ['speed', '9']
     rt.click('button "PropertyArrays"')
     check('cycles: PropertyArrays asks twice, stores key and value', rt.eval('the MyArray["speed"] of button "PropertyArrays"'), '9')
