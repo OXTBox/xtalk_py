@@ -54,6 +54,7 @@ class View:
         rl.set_target_fps(60)
         self.fonts = {}
         self.textures = {}
+        self.icons = {}                # (stack, icon value) -> the image it names
         self.down_on = None
         self.panel = True
         imgui.create_context()
@@ -198,6 +199,8 @@ class View:
             if self.on(o, 'showBorder'):
                 bc = colour(self.inherit(o, 'borderColor'), rl.Color(173, 173, 173, 255))
                 rl.draw_rectangle_rounded_lines_ex(rc, rnd, 6, 1, bc) if rnd else rl.draw_rectangle_lines_ex(rc, 1, bc)
+        if self.draw_icon(o, rc):
+            label = ''                     # icon and name together: the name is not drawn yet
         tw = self.measure(o, label)
         al = self.prop(o, 'textAlign') or 'center'
         x = rc.x + (rc.width - tw) / 2 if al == 'center' else rc.x + 4 if al == 'left' else rc.x + rc.width - tw - 4
@@ -259,14 +262,47 @@ class View:
             y = rc.y + f * (rc.height - 12)
             rl.draw_rectangle_rec(rl.Rectangle(rc.x + 2, y, rc.width - 4, 12), rl.Color(120, 120, 120, 255))
 
-    def draw_image(self, o):
+    def texture(self, o):
         path = o.node.get('asset')
-        tex = None
-        if path:
-            full = os.path.join(o.stack.folder, path)
-            if full not in self.textures and os.path.exists(full):
-                self.textures[full] = rl.load_texture(full)
-            tex = self.textures.get(full)
+        if not path:
+            return None
+        full = os.path.join(o.stack.folder, path)
+        if full not in self.textures and os.path.exists(full):
+            self.textures[full] = rl.load_texture(full)
+        return self.textures.get(full)
+
+    def icon_image(self, o):
+        """the image a button's icon names (an id, or a name): this stack first, then the others"""
+        v = str(self.prop(o, 'icon') or '').strip()
+        if v in ('', '0') or self.prop(o, 'showIcon') in (False, 'false'):
+            return None
+        key = (id(o.stack), v)
+        if key not in self.icons:
+            found = None
+            for st in [o.stack] + [s for s in self.rt.harvest.stacks if s is not o.stack]:
+                for card in st.children:
+                    for c in card.flat():
+                        if c.type == 'image' and (str(c.props.get('id', getattr(c, 'id', ''))) == v or c.name == v):
+                            found = c
+                            break
+                    if found:
+                        break
+                if found:
+                    break
+            self.icons[key] = found
+        return self.icons[key]
+
+    def draw_icon(self, o, rc):
+        img = self.icon_image(o)
+        tex = self.texture(img) if img is not None else None
+        if tex is None:
+            return False
+        x, y = rc.x + (rc.width - tex.width) / 2, rc.y + (rc.height - tex.height) / 2
+        rl.draw_texture(tex, int(x), int(y), rl.WHITE)
+        return True
+
+    def draw_image(self, o):
+        tex = self.texture(o)
         rc = self.rect(o)
         if tex is not None:
             rl.draw_texture_pro(tex, rl.Rectangle(0, 0, tex.width, tex.height), rc, rl.Vector2(0, 0), 0, rl.WHITE)
@@ -312,7 +348,7 @@ class View:
         rl.end_drawing()
         m = rl.get_mouse_position()
         x, y = int(m.x), int(m.y)
-        rt.mouse = (x, y)
+        rt.mouse_move(x, y)
         if not busy:
             if rl.is_mouse_button_pressed(0):
                 self.down_on = rt.mouse_down(x, y)

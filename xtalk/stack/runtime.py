@@ -79,6 +79,10 @@ class StackRuntime:
         self.target = None
         self.running = []              # objects whose handlers are running (innermost last)
         self.mouse = (0, 0)
+        self.button_down = False       # the mouse button is held (mouse_down .. mouse_up)
+        self.grabbed = None            # `grab`: (control, x offset, y offset) until the button comes up
+        self.pressed = None            # the object the button went down on (it gets mouseMove while held)
+        self.hover = None              # the control the mouse is in, as far as mouseEnter/mouseLeave go
         self.clock = 0.0               # virtual milliseconds
         self.timers, self._seq = [], 0
         self.changed = True
@@ -205,12 +209,28 @@ class StackRuntime:
 
     def mouse_down(self, x, y, button=1):
         self.mouse = (x, y)
+        self._enter_leave()            # the mouse came here before it pressed
+        self.button_down = True
         o = self.control_at(x, y) or self.default_stack.current
+        self.pressed = o
         self.message(o, 'mouseDown', [str(button)])
         return o
 
     def mouse_up(self, x, y, button=1, down_on=None):
-        self.mouse = (x, y)
+        self.mouse_move(x, y)
+        self.button_down = False
+        self.pressed = None
+        o = self._release(button, down_on)
+        self._enter_leave()            # held back while the button was down (Dictionary, mouseEnter/mouseLeave)
+        return o
+
+    def _release(self, button, down_on):
+        x, y = self.mouse
+        if self.grabbed is not None:   # a grabbed control gets the mouseUp (Dictionary, grab)
+            g = self.grabbed[0]
+            self.grabbed = None
+            self.message(g, 'mouseUp', [str(button)])
+            return g
         o = self.control_at(x, y) or self.default_stack.current
         if down_on is not None and o is not down_on:
             self.message(down_on, 'mouseRelease', [str(button)])
@@ -219,6 +239,65 @@ class StackRuntime:
             self._auto_hilite(o)
         self.message(o, 'mouseUp', [str(button)])
         return o
+
+    def _enter_leave(self):
+        """mouseLeave to the control the mouse left, mouseEnter to the one it is in now
+        (order against mouseMove: not measured)"""
+        now = self.control_at(*self.mouse)
+        if now is self.hover:
+            return
+        old, self.hover = self.hover, now
+        if old is not None and old.card is self.default_stack.current:
+            self.message(old, 'mouseLeave')
+        if now is not None:
+            self.message(now, 'mouseEnter')
+
+    def grab(self, o):
+        """`grab o` (LiveCode Dictionary): only while the button is down and the mouse is inside o;
+        returns at once, o follows the mouse until the button comes up"""
+        x, y = self.mouse
+        l, t, r, b = o.rect
+        if self.button_down and l <= x < r and t <= y < b:
+            self.grabbed = (o, x - l, y - t)
+
+    def mouse_move(self, x, y):
+        """the mouse is at x,y: a grabbed control follows it (hidden on the way: the grab ends, no message)"""
+        if (x, y) == self.mouse:
+            return
+        self.mouse = (x, y)
+        if self.grabbed is not None:
+            self._follow(x, y)
+        if not self.button_down:
+            self._enter_leave()
+        # mouseMove (Dictionary): to the control under the mouse, or the card; while the button is held,
+        # to the object that was clicked, even outside it
+        o = self.pressed if self.button_down and self.pressed is not None else \
+            (self.control_at(x, y) or self.default_stack.current)
+        self.message(o, 'mouseMove', [str(x), str(y)])
+
+    def _follow(self, x, y):
+        o, dx, dy = self.grabbed
+        if not self._shown(o) or o.card is not self.default_stack.current:
+            self.grabbed = None
+            return
+        self.move_by(o, x - dx - o.rect[0], y - dy - o.rect[1])
+
+    def move_by(self, o, dx, dy):
+        """move a control (a group with all inside it) by dx,dy pixels"""
+        if not (dx or dy):
+            return
+        for c in [o] + (o.flat() if o.type == 'group' else []):
+            c.rect = [c.rect[0] + dx, c.rect[1] + dy, c.rect[2] + dx, c.rect[3] + dy]
+            if c.points:
+                c.points = [None if q is None else [q[0] + dx, q[1] + dy] for q in c.points]
+        self.changed = True
+
+    def drag(self, start, end, steps=4):
+        """for tests: press at start (x,y), move to end in steps, release there"""
+        o = self.mouse_down(*start)
+        for i in range(1, steps + 1):
+            self.mouse_move(start[0] + (end[0] - start[0]) * i // steps, start[1] + (end[1] - start[1]) * i // steps)
+        return self.mouse_up(*end, down_on=o)
 
     def _auto_hilite(self, o):
         style = self.host.obj_prop(o, 'style')

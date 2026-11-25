@@ -39,6 +39,8 @@ check('names', rt.eval('the name of button "B" & "," & the short name of button 
       'button "B",B,card id 1002')
 check('custom property', rt.eval('the uFoo of this stack & "," & the uFoo of stack "xtM1"'), 'bar,bar')
 check('custom set', rt.eval('the cSet["k"] of this stack'), 'v')
+check('button i of this stack (i is a variable, not a property)',
+      rt.run('put 2 into i\nreturn the short name of button i of this stack'), 'R1')
 check('number/id of card 1', rt.eval('the number of card 1 & "," & the id of card 1'), '1,1002')
 check('the "abc"', rt.eval('the "abc"'), 'abc')
 # not measured in LiveCode, but how the engine is used:
@@ -61,6 +63,20 @@ check('send in: runs, and sends again', rt.G['glog'], 'tick1,tick2,tick3,')
 rt.G['glog'] = ''
 rt.run('go card "Two"')
 check('go card', rt.G['glog'], 'openCard:Two,')
+rt.G['glog'] = ''
+rt.drag((30, 30), (130, 90))      # grab me (Dictionary): follows the mouse, mouseUp when released
+check('grab me: the button follows the mouse', rt.get('button "D"', 'rect'), '120,80,160,110')
+check('grab me: mouseUp to the grabbed button', rt.G['glog'], 'up:D,')
+rt.G['glog'] = ''
+rt.drag((110, 30), (110, 200))    # grab graphic "G2" from D2: the mouse is not inside G2
+check('grab: mouse outside the control, nothing moves', rt.get('graphic "G2"', 'rect'), '20,100,60,140')
+check('grab: no grab; mouseMove to D2 while held; mouseLeave waits for the release (Dictionary)', rt.G['glog'],
+      'in;mv:110/72;mv:110/115;mv:110/157;mv:110/200;rel;out;')
+rt.G['glog'] = ''
+rt.mouse_move(120, 30)
+rt.mouse_move(120, 30)
+rt.mouse_move(300, 300)
+check('mouseMove once a move; mouseEnter / mouseLeave', rt.G['glog'], 'in;mv:120/30;out;')
 check('no script errors', rt.errors, [])
 rt.run('put "x" into URL "file:/tmp/escape_test.txt"')
 rt.run('put "y" into URL ("file:" & specialFolderPath("Documents") & "/in.txt")')
