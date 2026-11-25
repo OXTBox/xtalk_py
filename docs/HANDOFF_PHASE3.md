@@ -1,0 +1,113 @@
+# Handoff: Phase 3 of the Pythonization (written 26 Nov 2026, evening)
+
+Read first: `CLAUDE.md`, `docs/ROADMAP.md` (Phases), `docs/LIVECODE_FACTS.md`, then this.
+Where Phase 2 ended: `docs/HANDOFF_2026-11-26.md` ("Done 26 Nov" and "Later the same day").
+
+## Where things stand
+- **Phase 1 (interpreter) and Phase 2 (stack runtime) are done** for the stacks the owner uses as tests. All on
+  xtalk_py main and **pushed** to OXTBox (c653286, 26 Nov).
+- Seen working on the owner's own screen:
+  - nine-ball (styled Instructions, Help menu, About, Preferences radio buttons)
+  - LightCycles3 (keys, sliders, Redraw ALL, the turned hitbox graphics)
+  - TKInter-izer (menus, list fields, typing, drag-select, Ctrl+A/C)
+  - the card reader
+- Tests (run all three after any change to `xtalk/`):
+
+  | Test | Result |
+  |---|---|
+  | `python3 -I tests/test_interp.py` | 396/396 |
+  | `python3 -I tests/test_transpile.py` | 401/401 |
+  | `python3 -I tests/test_stack.py` | 115/115 |
+
+  Survey (`python3 -I tools/survey_stacks.py`):
+
+  | Stack | Clicks that work |
+  |---|---|
+  | nine-ball | 16/16 |
+  | LightCycles3 | 18/18 |
+  | card reader | 3/3 |
+  | TKInter-izer | 14/15 (its Program field names a button the stack does not have) |
+
+- Phase 2 leftovers (small, do when a stack needs them):
+  - **Rotated images:** the `angle` of an image is not drawn.
+  - **Styled fields:** `delete` or `sort` on a styled field probably loses its styles.
+  - **Line height:** `fixedLineHeight false` and LiveCode's exact line height are not measured.
+- **Check in the Dictionary when OXT-Beyond is open** (we wrote these from memory):
+  - up/down arrows with no field focused: first/last card, or back/forth through recent cards?
+  - `angle` on rectangles and ovals
+  - `commandKeyDown`
+
+## Phase 3: xt3d on Python raylib
+ROADMAP: "the `xt3d_` handlers map onto pyray; the frame-into-image path is not needed when raylib draws
+everything." Scripts written against xt3d should run unchanged in the Python runner.
+
+**TWO ENGINES (put this in every brief):**
+- **Vibecode3D (XT)** is pure xTalk.
+- **xRay** is the xt3d raylib bridge extension (`~/projects/xt3D_Raylib_Livecode_Bridge`).
+- `vibe_engine_xt3d` is a GENERATED script (Engine-1); never edit it by hand.
+
+### What xt3d is today (in its own project, on OXTBox)
+- **The API list:** `xt3d_raylib_manifest.json` lists every raylib function: 619 in all, 493 wrapped as
+  `xt3d_<Name>`, 126 skipped.
+  - Each entry has the raylib name, the C prototype, a `signature` (s=string i=integer f=number b=boolean
+    p=pointer, a digit = repeat count), params and the return type.
+  - Conventions: images, textures, models, sounds and cameras are **positive integer handles** (0 = invalid);
+    colours are r,g,b,a; vectors are spread into separate numbers; struct returns are comma-separated text.
+- **Hand-written extras:** `xt3d_shim.c` has 43 helpers (cameras, model animation info, the frame-to-imageData
+  path...). These have no single pyray call; each needs its own Python.
+- **Scripts that call xt3d:**
+  - `demos/` (view, window, face, diagnostic)
+  - `testbench/` (xt3d_testbench, vibe_engine_xt3d...)
+  - one script each in LIB_ig3d, LIB_SFX, LIB_MAP, LIB_INPUT, LIB_HOWTO, LIB_DEV, LIB_BUILD
+  - none of the harvests in `~/projects/XTJSON` calls xt3d yet.
+
+### Suggested steps (small, one at a time; ask the owner before starting)
+1. **Generate the mapping, don't hand-write it.** A tool (`tools/gen_xt3d_py.py`) reads the manifest and writes
+   `xtalk/xt3d/generated.py`:
+   - one Python function per wrapped entry: xTalk text args in, converted by `signature`, then pyray, then the
+     result as xTalk text;
+   - a handle table (integer -> pyray object) the same as the shim's.
+   - Never edit the generated file (the same rule as `generated/`).
+2. **The 43 helpers by hand** in `xtalk/xt3d/helpers.py`, checked against what `xt3d_shim.c` does.
+3. **Hook into the interpreter:** an `xt3d_...` call in a script finds the Python function (as BUILTINS / host
+   commands do), in both the interpreter and the translator.
+4. **Where it draws.** In LiveCode the scene is either an image on the card or raylib's own window. Here the
+   stack window already is a raylib window, so:
+   - draw the 3D scene in the image control's rect (a render texture drawn there);
+   - or let `xt3d_InitWindow` mean "use the stack window".
+   - **Ask the owner which he wants.**
+5. **First target:** `demos/xt3d_view_demo.livecodescript` (or the diagnostic), then the testbench, then a
+   Vibecode3D game.
+6. **The referee:** LiveCode with the real xt3d DLL gives the expected text results (handles, struct returns,
+   `xt3d_Version`); pictures are compared by eye or by snapshot.
+   - `lcmcp --standalone` needs the extension loaded; read `LIB_MCP` and the xt3d `CLAUDE.md` for how the
+     testbench does it.
+
+### Questions for the owner before step 1
+- Phase 3 now, or more Phase 2 stacks first (GAD was skipped: "overly complicated, incomplete")?
+- Step 4: the 3D view inside an image on the card, or the whole window?
+- First stack or game he wants to see run through Python raylib.
+
+## How we work (unchanged; see HANDOFF_2026-11-26.md for details)
+- **Looking at a stack:**
+  - He runs `~/projects/xtalk_py/tools/open_stack.sh <harvest folder>` (window at 200,32).
+  - Afterwards, read the report at the end of `run_files/open_stack.log` before asking him.
+  - That report does not show menu picks or what he saw: ask him.
+- **Snapshots:** check our own drawing with a hidden-window snapshot (`tools/open_stack.py --snap`, or
+  `View(rt, hidden=True)` + `snapshot`) before asking him to look. Never grab his whole screen.
+- **Measure, then build:** measure in LiveCode first (`~/projects/LIB_MCP/tools/lcmcp --standalone run --server
+  '...'`), record the answer in LIVECODE_FACTS, and end both copies afterwards (`Client.kill_slot(0)`, `(1)`).
+  Long scripts go in a file piped with `run --server -`.
+- **After any parser change:** run the corpus check before and after:
+  `python3 -I tools/translate_corpus.py -v ~/projects` (today: 41,094 handlers to Python; none may get worse).
+- **Git:**
+  - a branch per piece of work;
+  - merge only on his "merge";
+  - push only on his "push" (each push needs its own word).
+- **Folders:**
+  - `~/projects/XTJSON` is harvest OUTPUT only (not git; holds his test stacks and our edit of nine-ball's
+    Preferences scripts, the old ones in `OLD_scripts_keepsake_26Nov`).
+  - The harvester and rebuilder code live in **LIB_XTJSON**; `lcmcp harvest` lives in **LIB_MCP**. Both on OXTBox.
+- **WSLg:**
+  - the hidden snapshot window cannot reach the Windows clipboard, but his real window can (he copied fine);
+  - Windows programs started from WSL need stdin closed.
