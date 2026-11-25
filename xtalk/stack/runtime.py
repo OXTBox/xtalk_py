@@ -61,27 +61,28 @@ class ObjInterp(Runtime):
             self.rt.running.pop()
 
     def getvar(self, fr, name):
-        if name.lower() == 'me' and 'me' not in fr.vars and 'me' not in fr.globals:
+        if len(name) == 2 and name.lower() == 'me' and 'me' not in fr.vars and 'me' not in fr.globals:
             return self.host.long_id(self.obj)
         return super().getvar(fr, name)
 
     def _me_container(self, e, fr):
-        return (e[0] == 'var' and e[1].lower() == 'me' and 'me' not in fr.vars and 'me' not in fr.globals
+        return (e[0] == 'var' and len(e[1]) == 2 and e[1].lower() == 'me' and 'me' not in fr.vars and 'me' not in fr.globals
                 and self.obj.type in ('field', 'button'))
 
     def undefined(self, fr, name):
-        if name.lower() == 'me' and self._me_container(('var', name), fr):
+        if len(name) == 2 and name.lower() == 'me' and self._me_container(('var', name), fr):
             return False
         return super().undefined(fr, name)
 
     def e_var(self, e, fr):
         """me as a value in a field or button script is its text (measured 25 Nov: line 2 of me)"""
-        if self._me_container(e, fr):
+        n = e[1]
+        if len(n) == 2 and self._me_container(e, fr):
             return self.host.get_prop(self.host.long_id(self.obj), 'text')
-        return super().e_var(e, fr)
+        return self.getvar(fr, n)
 
     def assign(self, target, value, mode, fr):
-        if self._me_container(target, fr):     # put "XX" into line 1 of me: the field's text changes
+        if target[0] == 'var' and self._me_container(target, fr):     # put "XX" into line 1 of me: the field's text changes
             return self.put_obj(self.host.long_id(self.obj), value, 'keep' if mode == 'into' else mode)
         return super().assign(target, value, mode, fr)
 

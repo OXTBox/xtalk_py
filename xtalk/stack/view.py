@@ -73,6 +73,7 @@ class View:
         rt.on_clipboard_get = lambda: rl.get_clipboard_text() or ''
         rt.on_clipboard_set = lambda t: rl.set_clipboard_text(t)
         self.cursor_hidden = False
+        self.captured, self.vmouse = False, (0, 0)
         if not hidden:                 # a hidden (test) window never moves the real mouse
             rt.window_pos = tuple(pos)
             rt.on_warp = self.warp
@@ -81,11 +82,35 @@ class View:
         imgui.backends.opengl3_init('#version 330')
 
     # ------------------------------------------------------------ helpers
+    def capture(self):
+        """set the cursor to none + set the lockCursor to true (Raycasting_101's mouse look): the window grabs
+        the mouse (raylib disable_cursor: hidden, endless movement) and the scripts see a virtual mouseLoc that
+        `set the screenMouseLoc` can put back in the middle. Under WSL a program may not move the real pointer,
+        so this is the only way a mouse-look game works. The cursor back / lockCursor false lets it go."""
+        rt = self.rt
+        hide = str(rt.props.get('cursor', '')).lower() == 'none'
+        want = hide and str(rt.props.get('lockcursor', '')).lower() == 'true'
+        if want and not self.captured:
+            m = rl.get_mouse_position()
+            self.vmouse = (m.x, m.y)
+            rl.disable_cursor()
+            self.captured = True
+        elif not want and self.captured:
+            rl.enable_cursor()
+            self.captured = False
+            self.cursor_hidden = False
+        if not self.captured and hide != self.cursor_hidden:
+            (rl.hide_cursor if hide else rl.show_cursor)()
+            self.cursor_hidden = hide
+
     def warp(self, x, y):
-        """set the screenMouseLoc: x,y on the screen -> inside this window (where the window is now)"""
-        p = rl.get_window_position()
-        self.rt.window_pos = (int(p.x), int(p.y))
-        rl.set_mouse_position(int(x - p.x), int(y - p.y))
+        """set the screenMouseLoc: x,y on the screen -> inside this window. While the mouse is grabbed the
+        virtual mouse moves (always works); otherwise the real pointer is asked to move (WSL may ignore it)"""
+        wx, wy = self.rt.window_pos
+        if self.captured:
+            self.vmouse = (x - wx, y - wy)
+            return
+        rl.set_mouse_position(int(x - wx), int(y - wy))
 
     def font(self, o, size, st=None):
         """the font for o's text, or for a styled run st (its face and bold/italic over the field's)"""
@@ -477,8 +502,13 @@ class View:
         self.draw_card()
         busy = self.draw_panel()
         rl.end_drawing()
-        m = rl.get_mouse_position()
-        x, y = int(m.x), int(m.y)
+        if self.captured:                         # a mouse-look game: only the movement counts (see capture())
+            d = rl.get_mouse_delta()
+            self.vmouse = (self.vmouse[0] + d.x, self.vmouse[1] + d.y)
+            x, y = int(self.vmouse[0]), int(self.vmouse[1])
+        else:
+            m = rl.get_mouse_position()
+            x, y = int(m.x), int(m.y)
         rt.mouse_move(x, y)
         if not busy:
             if rl.is_mouse_button_pressed(0):
@@ -496,10 +526,7 @@ class View:
         for key, code in self.KEYCODES:            # rawKeyDown (Raycasting_101: Esc / ` free the mouse)
             if rl.is_key_pressed(key):
                 rt.raw_key(code)
-        hide = str(rt.props.get('cursor', '')).lower() == 'none'
-        if hide != self.cursor_hidden:             # set the cursor to none (a game that captures the mouse)
-            (rl.hide_cursor if hide else rl.show_cursor)()
-            self.cursor_hidden = hide
+        self.capture()
         if rl.is_key_pressed(rl.KEY_F2):
             self.panel = not self.panel
         ch = rl.get_char_pressed()

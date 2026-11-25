@@ -165,7 +165,13 @@ class Interp:
             for n, init in zip(st[1], st[2]):
                 self.S[n.lower()] = to_text(self.ev(init, fr)) if init is not None else ''
             return
-        m = getattr(self, 'x_' + k)
+        try:
+            m = self._xm[k]
+        except KeyError:
+            m = self._xm[k] = getattr(self, 'x_' + k)
+        except AttributeError:
+            m = getattr(self, 'x_' + k)
+            self._xm = {k: m}
         return m(st, fr)
 
     def x_print(self, st, fr):
@@ -711,7 +717,14 @@ class Interp:
         return to_bool(v)
 
     def ev(self, e, fr):
-        return getattr(self, 'e_' + e[0])(e, fr)
+        try:
+            return self._evm[e[0]](e, fr)
+        except KeyError:                 # first use of this node kind: look its method up once
+            m = self._evm[e[0]] = getattr(self, 'e_' + e[0])
+            return m(e, fr)
+        except AttributeError:
+            self._evm = {}
+            return self.ev(e, fr)
 
     def e_str(self, e, fr):
         return e[1]
