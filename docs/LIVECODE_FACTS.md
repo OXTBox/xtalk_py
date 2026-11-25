@@ -20,6 +20,10 @@ exactly. Each line was checked in LiveCode 9.6.3; add the date and how.
 - `-2^2` is `4` (unary minus binds tighter than `^`); `- - 3` is an error.
 - `true and "x"` is `false`, no error (and/or treat anything but "true" as false).
 - `switch` matches cases exactly, case-sensitively: `switch "b"` does not take `case "B"`.
+- `switch` falls through (measured 24 Nov, standalone): the first case that matches (cases are tried in order,
+  also those below the default), else the default, is where it starts; from there every body runs, through the
+  `case` lines and the `default` line, until a `break`. `case "a"` / `case "b"` / body is one body for both.
+  Tests: the last three blocks of tests/script_cases.txt ("AB", "CDyz", "1/DE!F/E/").
 - `repeat with i = 10 down to 1 step 4` (positive step with `down to`) runs zero times. `repeat with i = 1 to 10 step 4` gives 1, 5, 9, 13 and leaves `i` at 13.
 - `word`, `char` and the like, written bare, are errors (reserved words), not variables.
 - `cr` is a newline (ASCII 10), the same as `return`; not a carriage return.

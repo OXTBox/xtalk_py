@@ -341,27 +341,65 @@ class Gen:
         self.loops -= 1
 
     def s_switch(self, s, ind):
-        _, subject, cases, default = s
+        """the first matching case (else the default) starts; bodies fall through until a break"""
+        _, subject, cases, default = s[:4]
+        dpos = s[4] if len(s) > 4 else len(cases)
         sv = self.tmp('sv')
         mark = len(self.lines)
         self.emit(ind + 1, '%s = %s' % (sv, 'to_text(%s)' % self.ex(subject) if subject else 'None'))
         self.in_switch.append(False)
-        first = True
-        for vals, body in cases:
-            if body and body[-1][0] == 'break':
-                body = body[:-1]                         # the usual break at the end of a case
-            cond = ' or '.join('rt.case_hit(%s, %s)' % (sv, self.ex(v)) for v in vals)
-            self.emit(ind + 1, '%s %s:' % ('if' if first else 'elif', cond))
-            self.block(body, ind + 2)
-            first = False
+        segs = [(vals, body) for vals, body in cases]          # (values or None for the default, body)
         if default is not None:
-            if default and default[-1][0] == 'break':
-                default = default[:-1]
+            segs.insert(dpos, (None, default))
+        ends = lambda b: bool(b) and b[-1][0] == 'break'
+        # stacked cases (case "a" / case "b" / body) share one body: merge them
+        merged, pend = [], []
+        for vals, body in segs:
+            if vals is not None and not body and merged is not None:
+                pend.extend(vals)
+                continue
+            merged.append((None if vals is None else pend + vals, body) if not (vals is None and pend) else None)
+            pend = []
+        simple = None not in merged and not pend and all(ends(b) for _, b in merged[:-1]) \
+            and all(v is not None for v, _ in merged[:-1])
+        if simple:                                            # every case ends in break: if / elif / else
+            first = True
+            for vals, body in merged:
+                body = body[:-1] if ends(body) else body
+                if vals is None:
+                    if first:
+                        self.block(body, ind + 1)
+                    else:
+                        self.emit(ind + 1, 'else:')
+                        self.block(body, ind + 2)
+                    continue
+                cond = ' or '.join('rt.case_hit(%s, %s)' % (sv, self.ex(v)) for v in vals)
+                self.emit(ind + 1, '%s %s:' % ('if' if first else 'elif', cond))
+                self.block(body, ind + 2)
+                first = False
+        else:                                                 # fall-through: find the start, then run on
+            go, n = self.tmp('go'), len(segs)
+            first = True
+            for j, (vals, body) in enumerate(segs):
+                if vals is None:
+                    continue
+                cond = ' or '.join('rt.case_hit(%s, %s)' % (sv, self.ex(v)) for v in vals)
+                self.emit(ind + 1, '%s %s:' % ('if' if first else 'elif', cond))
+                self.emit(ind + 2, '%s = %d' % (go, j))
+                first = False
+            start = dpos if default is not None else n
             if first:
-                self.block(default, ind + 1)
+                self.emit(ind + 1, '%s = %d' % (go, start))
             else:
                 self.emit(ind + 1, 'else:')
-                self.block(default, ind + 2)
+                self.emit(ind + 2, '%s = %d' % (go, start))
+            for j, (vals, body) in enumerate(segs):
+                self.emit(ind + 1, 'if %s <= %d:' % (go, j))
+                if ends(body):
+                    self.block(body[:-1], ind + 2)
+                    self.emit(ind + 2, '%s = %d' % (go, n))    # break: the bodies below do not run
+                else:
+                    self.block(body, ind + 2)
         catches = self.in_switch.pop()
         body = self.lines[mark:]
         del self.lines[mark:]

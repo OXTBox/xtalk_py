@@ -175,7 +175,10 @@
   "put \"abc\" into tOut\nput 7 into char 2 of tOut": "a7c",
   "put the number of items in \"a,b,c\" + 1 into tOut": "4",
   "put empty into tOut\nput \"q\" into line 3 of tOut": "\n\nq",
-  "put \"a\" & return & \"b\" into t\nput \"X\" into line 2 of t\nput t into tOut": "a\nX"
+  "put \"a\" & return & \"b\" into t\nput \"X\" into line 2 of t\nput t into tOut": "a\nX",
+  "put empty into tOut\nswitch \"a\"\ncase \"a\"\nput \"A\" after tOut\ncase \"b\"\nput \"B\" after tOut\nbreak\ncase \"c\"\nput \"C\" after tOut\nend switch": "AB",
+  "put empty into tOut\nswitch \"c\"\ncase \"a\"\nput \"A\" after tOut\nbreak\ncase \"c\"\nput \"C\" after tOut\ndefault\nput \"D\" after tOut\nend switch\nswitch\ncase 1 = 2\nput \"x\" after tOut\ncase 1 = 1\nput \"y\" after tOut\ncase 1 = 3\nput \"z\" after tOut\nbreak\ncase 1 = 1\nput \"w\" after tOut\nend switch": "CDyz",
+  "put empty into tOut\nrepeat for each item tK in \"b,q,e\"\nswitch tK\ncase \"a\"\ncase \"b\"\nput \"1\" after tOut\nbreak\ndefault\nput \"D\" after tOut\ncase \"e\"\nput \"E\" after tOut\nif tK is \"e\" then break\nput \"!\" after tOut\ncase \"f\"\nput \"F\" after tOut\nend switch\nput \"/\" after tOut\nend repeat": "1/DE!F/E/"
  },
  "lib": {
   "libraries/lib_bit.livecodescript": {

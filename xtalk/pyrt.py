@@ -59,10 +59,6 @@ class Runtime(Interp):
     def join(vals):
         return ','.join(to_text(x) for x in vals)
 
-    @staticmethod
-    def case_hit(sv, x):
-        return (to_text(x) == sv) if sv is not None else to_bool(x)
-
     def filter_text(self, text, kind, pattern, neg):
         pat = wildcard(pattern)
         kw = self.delims()

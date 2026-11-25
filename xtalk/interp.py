@@ -299,20 +299,32 @@ class Interp:
             self.exec_block(fin, fr)
 
     def x_switch(self, st, fr):
-        _, subject, cases, default = st
+        """the first case that matches (else the default) starts; from there every body runs,
+        falling through the cases below, until a break (LIVECODE_FACTS)"""
+        _, subject, cases, default = st[:4]
+        dpos = st[4] if len(st) > 4 else len(cases)
         sv = to_text(self.ev(subject, fr)) if subject else None
+        seq = [body for _, body in cases]
+        if default is not None:
+            seq.insert(dpos, default)
+        start = None
+        for i, (vals, body) in enumerate(cases):
+            if any(self.case_hit(sv, self.ev(v, fr)) for v in vals):
+                start = i + (1 if default is not None and dpos <= i else 0)
+                break
+        if start is None:
+            if default is None:
+                return
+            start = dpos
         try:
-            for vals, body in cases:
-                for v in vals:
-                    x = self.ev(v, fr)
-                    hit = (to_text(x) == sv) if sv is not None else to_bool(x)
-                    if hit:
-                        self.exec_block(body, fr)
-                        return
-            if default is not None:
-                self.exec_block(default, fr)
+            for body in seq[start:]:
+                self.exec_block(body, fr)
         except Break:
             pass
+
+    @staticmethod
+    def case_hit(sv, x):
+        return (to_text(x) == sv) if sv is not None else to_bool(x)
 
     def x_repeat(self, st, fr):
         _, kind, p, body = st

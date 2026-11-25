@@ -453,7 +453,7 @@ class Parser:
     def st_switch(self):
         subject = None if self.peek()[0] == 'nl' else self.expr()
         self.skip_nl()
-        cases, default = [], None
+        cases, default, dpos = [], None, 0
         while self.is_word('case') or self.is_word('default'):
             if self.accept_word('case'):
                 vals = [self.expr()]
@@ -462,10 +462,11 @@ class Parser:
                 cases.append((vals, self.block(('case', 'default', 'end'))))
             else:
                 self.i += 1
+                dpos = len(cases)                  # where the default sits: cases fall through into it
                 default = self.block(('case', 'default', 'end'))
         self.expect_word('end')
         self.expect_word('switch')
-        return ('switch', subject, cases, default)
+        return ('switch', subject, cases, default, dpos)
 
     def st_try(self):
         body = self.block(('catch', 'finally', 'end'))
