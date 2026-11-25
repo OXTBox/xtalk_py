@@ -57,7 +57,7 @@ repeating requirements into `LIB_<Name>` projects.
   re-run it instead of editing them. Mark progress in the interpreter's own test list,
   not in the generated file.
 - Never edit the owner's other projects from here without being asked.
-- Python 3.14 is installed in WSL; pip is not yet. Ask before installing packages.
+- Python 3.14 in WSL; no system pip. Phase 2 packages live in `.venv/` (git-ignored; pip from bootstrap.pypa.io, owner OK 24 Nov): raylib + imgui-bundle, pinned in `requirements.txt`. Core `xtalk/` and its tests stay standard-library only (`python3 -I`). Ask before adding packages.
 
 ## xTalk pitfalls already learned (from the owner's projects)
 

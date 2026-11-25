@@ -1,0 +1,4 @@
+# Phase 2 (stack runtime) only; the interpreter and translator need no packages.
+# Install: python3 -m venv --without-pip .venv; get pip from bootstrap.pypa.io/get-pip.py; .venv/bin/pip install -r requirements.txt
+raylib==6.2.0.0
+imgui-bundle==1.93.0
