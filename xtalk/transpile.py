@@ -14,7 +14,7 @@ kept as parsed xTalk and interpreted (the report counts those).
 import ast, re, warnings
 from .values import XtError
 from .parser import Parser, parse_expr, parse_statements, tokenize
-from .interp import CONST, BUILTINS
+from .interp import CONST, BUILTINS, Interp
 
 __all__ = ['translate_script', 'translate_expr', 'translate_statements', 'TranslateError']
 
@@ -122,7 +122,7 @@ class Gen:
 
     def x_propof(self, e):
         _, name, operand, key = e
-        if operand[0] == 'chunk':              # the textStyle of word 2 of field 1: the interpreter's rule
+        if operand[0] == 'chunk' and Interp.chunk_style_prop(name):   # the textStyle of word 2 of field 1: the interpreter's rule
             return 'rt.e_propof(%r, fr)' % (e,)
         if BUILTINS.get(name) is not None and operand[0] != 'obj':
             return 'B[%s](rt, fr, %s)' % (_r(name), self.ex(operand))
@@ -273,7 +273,7 @@ class Gen:
 
     def s_setprop(self, s, ind):
         _, name, obj, key, e = s
-        if (obj is not None and obj[0] == 'chunk') or (obj is None and key is not None):
+        if (obj is not None and obj[0] == 'chunk' and Interp.chunk_style_prop(name)) or (obj is None and key is not None):
             # set the textStyle of word 2 of field 1 / set the clipboardData["text"]: the interpreter's rule
             self.emit(ind, 'rt.x_setprop(%r, fr)' % (s,))
             return

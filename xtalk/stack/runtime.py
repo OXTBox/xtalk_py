@@ -113,6 +113,7 @@ class StackRuntime:
         self.keys_down = set()         # 'shiftkey', 'optionkey'... while held (the window fills it)
         self.closed = False            # the window sets this: draw frames while a script waits
         self.closing_sent = False      # closeCard / closeStack went out
+        self.opened = set()            # id() of the stacks opened (they got their open messages)
         self.clipboard = ''            # the clipboard's text; the window keeps it in step with the system's
         self.on_clipboard_get = None   # the window: read the system clipboard
         self.on_clipboard_set = None
@@ -201,6 +202,7 @@ class StackRuntime:
         """the stack opens: preOpenStack, preOpenCard, openStack, openCard, all to the current card
         (measured 26 Nov: a card's own `on openStack` runs first, then the stack's)"""
         st = self.default_stack
+        self.opened.add(id(st))
         for m in OPEN_MESSAGES:
             self.message(st.current, m)
 
@@ -220,6 +222,17 @@ class StackRuntime:
             return                     # go to the card already shown: no messages (measured 26 Nov)
         if self.focused is not None and self.focused.card is not card:
             self.set_focus(None)
+        if st is not self.default_stack:
+            self.default_stack = st
+            self.changed = True
+            if id(st) not in self.opened:  # a stack opened the first time: the four open messages to its card
+                self.opened.add(id(st))    # (measured 26 Nov); going back to an open stack sends nothing
+                st.current = card
+                for m in OPEN_MESSAGES:
+                    self.message(card, m)
+                return
+            if st.current is card:
+                return
         if st.current is not None and st.current is not card:
             self.message(st.current, 'closeCard')
         st.current = card
@@ -706,8 +719,12 @@ class StackRuntime:
 
     # ---- the clipboard (the window keeps it in step with the system's; tests use rt.clipboard)
     def get_clipboard(self):
+        """the system's clipboard text when the window can read it, else what was copied here
+        (WSLg does not always hand the text over)"""
         if self.on_clipboard_get is not None:
-            self.clipboard = self.on_clipboard_get() or ''
+            t = self.on_clipboard_get() or ''
+            if t:
+                self.clipboard = t
         return self.clipboard
 
     def set_clipboard(self, text):
@@ -747,7 +764,8 @@ class StackRuntime:
 
     def arrow_card(self, which):
         """an arrowKey no handler took, no field focused (Dictionary, navigationArrows): left/right go to the
-        previous/next card, up/down to the first/last (not measured: keys need a window)"""
+        previous/next card, up/down to the first/last (not measured, Dictionary not checked yet: up/down
+        may be back/forth through recent cards)"""
         st = self.default_stack
         cards = st.children
         if len(cards) < 2:

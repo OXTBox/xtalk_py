@@ -634,6 +634,9 @@ class StackHost(Host):
         if p in ('points', 'relativepoints'):
             self.set_points(o, value, p == 'relativepoints')
             return
+        if p == 'layer' and o.type not in ('card', 'stack') and o.parent is not None:
+            self.set_layer(o, value)
+            return
         if p == 'name':
             o.name = value
             return
@@ -707,7 +710,7 @@ class StackHost(Host):
             o.styles = styled.set_range(o.styles, len(o.text), s, e, p, value)
             self.rt.changed = True
             return
-        raise XtError("set: can't set %s of a chunk" % prop)
+        raise XtError("set: can't set %s of a chunk" % prop)     # only style names come here (interp.CHUNK_PROPS)
 
     def get_chunk_prop(self, desc, s, e, prop):
         o = self.resolve(desc)
@@ -725,6 +728,26 @@ class StackHost(Host):
                 v = to_xtalk(v) if not isinstance(v, str) else v
             return v
         return self.obj_prop(o, p)
+
+    def set_layer(self, o, value):
+        """set the layer to top / bottom / N (measured 26 Nov: N past the top = top; the others close up).
+        A control in a group moves among the group's controls only."""
+        sib = o.parent.children
+        flat = o.card.flat() if o.card is not None else sib
+        v = str(value).strip().lower()
+        sib.remove(o)
+        if v == 'top':
+            i = len(sib)
+        elif v == 'bottom':
+            i = 0
+        else:
+            n = ints(v, 1)[0]
+            first = next((k for k, c in enumerate(flat, 1) if c.parent is o.parent), 1)
+            i = max(0, min(len(sib), n - first))
+        sib.insert(i, o)
+        for k, c in enumerate(o.card.flat() if o.card is not None else sib, 1):
+            c.layer = k
+        self.rt.changed = True
 
     def set_points(self, o, value, relative):
         dx, dy = (o.rect[0], o.rect[1]) if relative else (0, 0)
@@ -923,8 +946,7 @@ class StackHost(Host):
             card = st.children[-1]
         else:
             card = self.resolve(t)
-            if card.type == 'stack':
-                rt.default_stack = card
+            if card.type == 'stack':           # go_card makes it the default stack (after its same-card check)
                 card = card.current
         rt.go_card(card)
         return ''

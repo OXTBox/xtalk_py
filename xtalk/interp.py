@@ -282,7 +282,7 @@ class Interp:
                 return
             self.set_global_prop(name, v)
             return
-        if obj[0] == 'chunk':                  # set the textStyle of word 2 of field "F" to "bold"
+        if obj[0] == 'chunk' and self.chunk_style_prop(name):     # set the textStyle of word 2 of field "F" to "bold"
             r = self.field_chunk(obj, fr)
             if r is not None and hasattr(self.host, 'set_chunk_prop'):
                 self.host.set_chunk_prop(r[0], r[1], r[2], name, to_text(v))
@@ -488,6 +488,15 @@ class Interp:
         it, result = self.host.dialog(kind, sub, icon, prompt, extra, title)
         self.put_var(fr, 'it', it)
         self.result = result
+
+    CHUNK_PROPS = {'textstyle', 'textfont', 'textsize', 'textcolor', 'foregroundcolor', 'forecolor', 'backgroundcolor',
+                   'backcolor', 'textshift', 'htmltext'}
+
+    @classmethod
+    def chunk_style_prop(cls, name):
+        """a property a chunk of a field has of its own (styled text); `effective` ones too"""
+        n = name.lower()
+        return (n[len('effective '):] if n.startswith('effective ') else n) in cls.CHUNK_PROPS
 
     def field_chunk(self, node, fr):
         """a chunk of a field (word 1 of line 2 of field "F") -> (the field, first char, end char), offsets into
@@ -813,7 +822,8 @@ class Interp:
 
     def e_propof(self, e, fr):
         _, name, operand, key = e
-        if operand[0] == 'chunk' and hasattr(self.host, 'get_chunk_prop'):    # the textStyle of word 2 of field 1
+        if operand[0] == 'chunk' and self.chunk_style_prop(name) and hasattr(self.host, 'get_chunk_prop'):
+            # the textStyle of word 2 of field 1 (the length of word 2 of field 1 stays a function)
             r = self.field_chunk(operand, fr)
             if r is not None:
                 return self.host.get_chunk_prop(r[0], r[1], r[2], name)

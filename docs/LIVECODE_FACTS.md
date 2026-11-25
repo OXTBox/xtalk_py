@@ -136,6 +136,8 @@ standalone per library group.
   `on openStack` never ran. No preOpenBackground/openBackground/resumeStack were sent (no groups on that card).
   `go next card`: closeCard (old card), preOpenCard, openCard (new card). **`go` to the card already shown sends
   nothing.** `close stack`: closeCard, then closeStack, both to the card. `the lockMessages` was false.
+  **`go stack "Sub"` (a substack) the first time: the same four open messages to its card**; going back to the
+  mainstack, or to the substack again, sends nothing (both stay open).
 - **`angle` of a regular graphic** (`the effective points`): vertex k sits at angle + k*360/polySides degrees,
   turning clockwise on screen (y down), angle 0 = the first vertex straight right of the centre. Centre =
   (left+right) div 2, (top+bottom) div 2; x radius = width div 2 - 1, y radius = height div 2 - 1 (60x40 gave
@@ -143,7 +145,7 @@ standalone per library group.
   (110.5 -> 111, 129.5 -> 129); the first point is repeated at the end. Rect 100,100,
   140,140, 3 sides: `139,120 111,136 111,104 139,120`; angle 30: `136,129 104,129 120,101 136,129`.
   Setting the angle does not change the rect. 390 reads back 30, -30 reads 330. A rectangle or oval keeps its
-  angle (reads back 45), its rect and style unchanged (the Dictionary: angle turns regular polygons and images).
+  angle (reads back 45), its rect and style unchanged (that it is not drawn turned: from memory, not checked).
 - **htmlText** (field "F"): a plain field gives `<p>line</p>` per line, joined by return. `&` `<` `>` as `&amp;`
   `&lt;` `&gt;`, tab as `&#9;`, a quote stays `"`, é `&eacute;`, € `&euro;`, ” `&rdquo;`, あ `&#12354;`.
   Styles of a run nest as `<i><b><strike><u><font face=".." size=".." color="#RRGGBB" bgcolor="#RRGGBB">`
@@ -160,8 +162,14 @@ standalone per library group.
   word 1`, `before word 2`) and `put after/before field` keep the other styles; the new text takes the style of the
   character just before it, or of the first character when it goes at the very start (`put "y" before` a field
   starting bold: y is bold; `put "X" into word 2` after a plain space: X is plain, though word 2 was bold).
+- **set the layer** (graphics A, B, C on a card, layers read back as A B C): `to top` 312, then `to 1` 123,
+  C `to bottom` 231, C `to 2` 132, A `to 99` 321 (past the top = top; the others close up). Nine-ball's Help menu
+  uses `set the layer of field "instructions" to top`; we ignored it, so the balls drew over the text.
 - A new field: `dontWrap` false (it wraps). `the navigationArrows` = true.
 - **clipboardData:** `set the clipboardData["text"] to "hi there"` reads back; `the clipboard` = `text`; keys
   text, unicode, styles, rtf, html. `set the clipboardData to empty`: `the clipboard` = `empty`.
-- From the Dictionary (not measured: keys need a window): with navigationArrows true and no field focused, an
-  arrowKey that no handler takes goes to the previous / next card (left/right), first / last card (up/down).
+- NOT measured and NOT yet checked in the Dictionary (OXT-Beyond was closed 26 Nov): with navigationArrows true
+  and no field focused, an arrowKey nobody takes goes to the previous / next card (left/right) and, as we do it,
+  first / last card (up/down; this may instead be back/forth through recent cards). Also from memory only:
+  angle turns only regular polygons and images (not rectangles/ovals), and commandKeyDown goes first for
+  Control + a key (Ctrl+C/X/V/A copy, cut, paste, select all when no handler takes it).

@@ -325,7 +325,45 @@ rt.control_key('x')
 check('Ctrl+X cuts', (f.text, rt.clipboard), ('twoone', 'one '))
 R('set the clipboardData["text"] to "Z"\npaste')
 check('the paste command types the clipboard in', f.text, 'Ztwoone')
+R('put "one two three" into field "F"')
+check('functions of a chunk of a field stay functions (length, value)',
+      (E('the length of word 2 of field "F"'), E('the value of "1+2"'), E('the number of chars of line 1 of field "F"')),
+      ('3', '3', '13'))
+env = dict({k: getattr(pyrt, k) for k in dir(pyrt) if not k.startswith('__')})
+exec(translate_statements('put the length of word 2 of field "F" & "|" & the length of word 3 of "a b cde" into tout'), env)
+fr = pyrt.Frame([])
+env['_body'](ObjInterp(rt, rt.default_stack.current), fr)
+check('translator: the length of a chunk', fr.vars.get('tout'), '3|3')
+rt.run('create card "L"')
+for n in 'ABC':
+    rt.run('create graphic "%s"' % n)
+lay = []
+for st in ['set the layer of graphic "A" to top', 'set the layer of graphic "A" to 1', 'set the layer of graphic "C" to bottom',
+           'set the layer of graphic "C" to 2', 'set the layer of graphic "A" to 99']:
+    rt.run(st)
+    lay.append(''.join(rt.eval('the layer of graphic "%s"' % n) for n in 'ABC'))
+check('set the layer: top, 1, bottom, 2, past the top (measured)', lay, ['312', '123', '231', '132', '321'])
 check('no errors in these checks', rt.errors, [])
+
+NINE = os.path.expanduser('~/projects/XTJSON/Scott_Rossi_nine_ball')
+if os.path.isdir(NINE):
+    rt = StackRuntime(NINE, files_dir=os.path.join(ROOT, 'run_files', 'test'))
+    rt.open()
+    about = rt.harvest.stack('About')
+    c = ObjInterp(rt, about.current)
+    c.load(LOGGER)
+    rt.ctx[id(about.current)] = c
+    rt.G['glog'] = ''
+    rt.run('go stack "About"')
+    first = rt.G['glog'].count('/'), rt.default_stack.name
+    rt.G['glog'] = ''
+    rt.run('go stack "nineball"\ngo stack "About"')
+    check('go stack: the first time its four open messages, then none (measured)', (first, rt.G['glog'], rt.default_stack.name),
+          ((4, 'About'), '', 'About'))
+    f = rt.obj('field "Field"')
+    check('nine-ball About: its styled field read from the harvest', rt.get('field "Field"', 'htmltext').count('<font face="Lucida Grande" size="14">'), 2)
+    rt.close_stack()
+    check('nine-ball: no errors opening, going, closing', rt.errors, [])
 
 READER = os.path.expanduser('~/projects/XTJSON/Game_card_reader_11_13_2025')
 if os.path.isdir(READER):
