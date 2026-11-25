@@ -199,3 +199,6 @@ standalone per library group.
   height ceil(w|sin a| + h|cos a|), left/top = floor(centre - size/2): 60x40 at 100,100: 45 -> 94,84,165,155;
   30 -> 94,87,166,152; 90 -> 109,90,150,150 (41 wide: cos 90 is not exactly 0). Angle 0 gives the first rect
   back. formattedWidth/Height stay 60x40. An image with no pixels behaves differently (not used).
+- **Styled field, delete and sort** (htmlText `<p><b>zz</b> bb</p><p><i>cc</i> yy</p><p>aa <font color=red>rr</font></p>`):
+  `delete word 1 of line 1` -> `<p>bb</p>` (the rest keeps its styles); `delete line 2` -> lines 1 and 3 with their
+  styles; `sort lines of field` and `... descending` -> each line moves with its own styles.

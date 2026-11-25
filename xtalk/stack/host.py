@@ -680,6 +680,19 @@ class StackHost(Host):
         text that did not change stay; new text takes the style before it (measured 26 Nov)"""
         o = self.resolve(desc)
         old = o.text
+        if mode == 'sort':
+            last = getattr(self, 'last_sort', None)
+            if last and last[0] == old and o.styles is not None:
+                _, spans, order, d = last
+                st = []
+                for n, i in enumerate(order):
+                    if n:
+                        st += [o.styles[spans[i][0] - 1] if spans[i][0] else styled.PLAIN] * len(d)
+                    st += o.styles[spans[i][0]:spans[i][1]]
+                o.text, o.styles = v, st
+                self.rt.changed = True
+                return
+            mode = 'keep'
         if mode == 'after':
             s, e, new = len(old), len(old), v
         elif mode == 'before':

@@ -258,6 +258,19 @@ check('image angle: the rect is the box around the turned picture; 0 gives it ba
       (im45, im30, im90, rt.get('image "ImT"', 'rect')),
       ('94,84,165,155', '94,87,166,152', '109,90,150,150', '100,100,160,140'))
 rt.run('delete image "ImT"')
+SF = '<p><b>zz</b> bb</p><p><i>cc</i> yy</p><p>aa <font color="#FF0000">rr</font></p>'
+rt.run('create field "SfT"')
+def sf_after(cmd, h=SF):
+    rt.run('set the htmlText of field "SfT" to "%s"' % h.replace('"', '" & quote & "'))
+    rt.run(cmd)
+    return rt.get('field "SfT"', 'htmltext')
+check('styled field: delete line / sort lines keep each line\'s styles (measured)',
+      (sf_after('delete line 2 of field "SfT"'), sf_after('sort lines of field "SfT"'),
+       sf_after('sort lines of field "SfT" descending', '<p><b>zz</b> bb</p><p><i>cc</i> yy</p><p>aa</p>')),
+      ('<p><b>zz</b> bb</p>\n<p>aa <font color="#FF0000">rr</font></p>',
+       '<p>aa <font color="#FF0000">rr</font></p>\n<p><i>cc</i> yy</p>\n<p><b>zz</b> bb</p>',
+       '<p><b>zz</b> bb</p>\n<p><i>cc</i> yy</p>\n<p>aa</p>'))
+rt.run('delete field "SfT"')
 rt.run('set the angle of graphic "G" to 390')
 a1 = rt.eval('the angle of graphic "G"')
 rt.run('set the angle of graphic "G" to -30')

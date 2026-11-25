@@ -236,7 +236,7 @@ class Interp:
             cur = to_text(self.ev(inner, fr))
             a, b = self.range(a, b, fr, kind, cur)
             new = self.cut(cur, kind, a, b)
-            self.assign(inner, new, 'into', fr)
+            self.assign(inner, new, 'keep' if inner[0] == 'obj' else 'into', fr)   # a field keeps its other styles
             return
         if t[0] == 'obj':
             self.host.delete_obj(self.desc(t, fr))
@@ -561,13 +561,15 @@ class Interp:
     def x_sort(self, st, fr):
         _, kind, target, desc, mode, by = st
         text = to_text(self.ev(target, fr))
-        self.assign(target, self.sort_text(fr, kind, text, desc, mode, None if by is None else (lambda: self.ev(by, fr))), 'into', fr)
+        self.assign(target, self.sort_text(fr, kind, text, desc, mode, None if by is None else (lambda: self.ev(by, fr))),
+                    'sort' if target[0] == 'obj' else 'into', fr)     # a field: each line keeps its styles (measured)
 
     def sort_text(self, fr, kind, text, desc, mode, by):
         """sort the chunks of text; by() gives the sort key with `each` set"""
         kw = self.delims()
         d = kw['item_delim'] if kind == 'item' else kw['line_delim']
-        parts = [text[a:b] for a, b in ch.spans(text, kind, **kw)]
+        spans = list(ch.spans(text, kind, **kw))
+        parts = [text[a:b] for a, b in spans]
         def key(p):
             if by is not None:
                 fr.vars['each'] = p
@@ -578,8 +580,9 @@ class Interp:
                 except XtError:
                     return (0, 0)
             return (0, p.lower())
-        parts.sort(key=key, reverse=desc)
-        return d.join(parts)
+        order = sorted(range(len(parts)), key=lambda i: key(parts[i]), reverse=desc)
+        self.host.last_sort = (text, spans, order, d)   # for a field: put_text(..., "sort") moves the styles too
+        return d.join(parts[i] for i in order)
 
     # ------------------------------------------------------------ assignment
     def delims(self):
@@ -632,7 +635,7 @@ class Interp:
         if mode != 'into' and hasattr(self.host, 'put_text'):
             self.host.put_text(desc, v, mode)
             return
-        if mode == 'keep':
+        if mode in ('keep', 'sort'):
             mode = 'into'
         cur = self.host.get_prop(desc, 'text') if mode != 'into' else ''
         self.host.set_prop(desc, 'text', v if mode == 'into' else (cur + v if mode == 'after' else v + cur))

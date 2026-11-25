@@ -251,7 +251,7 @@ class Gen:
             c = self.tmp('c')
             self.emit(ind, '%s = to_text(%s)' % (c, self.ex(inner)))
             self.emit(ind, self.assign(inner, 'rt.cut_chunk(%s, %s, %s, %s)' % (
-                _r(kind), c, self.pos(a), 'None' if b is None else self.pos(b)), 'into'))
+                _r(kind), c, self.pos(a), 'None' if b is None else self.pos(b)), 'keep' if inner[0] == 'obj' else 'into'))
         elif t[0] == 'obj':
             self.emit(ind, 'rt.host.delete_obj(%s)' % self.desc(t))
         else:
@@ -313,7 +313,8 @@ class Gen:
         v = self.tmp('v')
         self.emit(ind, '%s = to_text(%s)' % (v, self.ex(t)))
         byc = 'None' if by is None else 'lambda: %s' % self.ex(by)
-        self.emit(ind, self.assign(t, 'rt.sort_text(fr, %s, %s, %r, %s, %s)' % (_r(kind), v, desc, _r(mode), byc), 'into'))
+        self.emit(ind, self.assign(t, 'rt.sort_text(fr, %s, %s, %r, %s, %s)' % (_r(kind), v, desc, _r(mode), byc),
+                                   'sort' if t[0] == 'obj' else 'into'))
 
     def s_if(self, s, ind, kw='if'):
         _, cond, then, els = s
