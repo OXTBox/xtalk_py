@@ -53,6 +53,19 @@ rt.click('button "R1"')
 check('radio button in a group', (rt.get('button "R1"', 'hilite'), rt.get('button "R2"', 'hilite')), ('true', 'false'))
 rt.run('put " two" after field "F"')
 check('put after a field', rt.get('field 1', 'text'), 'one two')
+rt.obj('field "F"').props['listBehavior'] = 'true'
+rt.run('put "aa" & return & "bb" & return & "cc" into field "F"')
+f = rt.obj('field "F"')
+lh = rt.field_metrics(f)[1]
+rt.click('%d,%d' % (f.rect[0] + 10, int(f.rect[1] + 4 + lh * 1.5)))     # the middle of line 2
+check('list field: a click hilites the line under it', (rt.get('field "F"', 'hilitedLine'), rt.get('field "F"', 'selectedText')),
+      ('2', 'bb'))
+check('list field: the selectedLine (word 2 = the line)', rt.eval('word 2 of the selectedLine of field "F"'), '2')
+rt.run('set the hilitedLine of field "F" to 3')
+check('set the hilitedLine', rt.get('field "F"', 'selectedText'), 'cc')
+rt.run('put "one two" into field "F"')
+rt.obj('field "F"').props['hilitedLines'] = ''
+rt.obj('field "F"').props['listBehavior'] = 'false'
 check('a field used as a value is its text', (rt.eval('field "F"'), rt.eval('word 2 of field "F"'), rt.eval('line 1 to -1 of field 1')),
       ('one two', 'two', 'one two'))
 rt.run('hide button "B"')
@@ -110,9 +123,14 @@ with open(os.path.join(home, 'Documents', 'hello.py'), 'w') as f:
     f.write('open("shell_ran.txt", "w").write("yes")\n')
 if os.path.exists(os.path.join(home, 'Documents', 'shell_ran.txt')):
     os.remove(os.path.join(home, 'Documents', 'shell_ran.txt'))
+os.environ['XTALK_SCRIPT_PYTHON'] = sys.executable     # this Python: the test must not depend on Windows
 rt.run('get shell(specialFolderPath("Documents") & "/hello.py")')
+del os.environ['XTALK_SCRIPT_PYTHON']
 for p in rt.started:
-    p.wait(20)
+    try:
+        p.wait(20)
+    except Exception:
+        p.kill()
 ran = os.path.join(home, 'Documents', 'shell_ran.txt')
 check('shell: a .py file in the sandbox runs with Python', open(ran).read() if os.path.exists(ran) else None, 'yes')
 try:

@@ -342,8 +342,25 @@ class StackHost(Host):
             return 'down' if p in rt.keys_down else 'up'
         return ''
 
+    def hilited_lines(self, o):
+        v = o.props.get('hilitedLines', '')
+        if isinstance(v, (list, tuple)):
+            return [int(x) for x in v]
+        return [int(x) for x in str(v).split(',') if x.strip().isdigit()]
+
     def obj_prop(self, o, p):
         r = o.rect
+        if p in ('hilitedline', 'hilitedlines'):
+            return ','.join(str(n) for n in self.hilited_lines(o))
+        if p == 'selectedline':        # line 3 of field 2 (word 2 = the line)
+            hl = self.hilited_lines(o)
+            if not hl:
+                return ''
+            n = next((i for i, c in enumerate([c for c in o.card.flat() if c.type == 'field'], 1) if c is o), 0)
+            return 'line %d of field %d' % (hl[0], n) if len(hl) == 1 else 'line %d to %d of field %d' % (hl[0], hl[-1], n)
+        if p == 'selectedtext':
+            lines = o.text.split('\n')
+            return '\n'.join(lines[n - 1] for n in self.hilited_lines(o) if 0 < n <= len(lines))
         if p in ('rect', 'rectangle'):
             return '%d,%d,%d,%d' % tuple(r)
         if p == 'left':
@@ -430,6 +447,9 @@ class StackHost(Host):
                 arr = {}
                 o.custom[s] = arr
             arr[key] = value
+            return
+        if p in ('hilitedline', 'hilitedlines'):
+            o.props['hilitedLines'] = ','.join(x.strip() for x in str(value).split(',') if x.strip().isdigit())
             return
         if p in GEOMETRY:
             old = list(o.rect)

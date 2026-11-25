@@ -214,16 +214,9 @@ class View:
                                   if o.props.get('backgroundColor') not in (None, '') else rl.WHITE)
         if self.on(o, 'showBorder'):
             rl.draw_rectangle_lines_ex(rc, 1, colour(self.inherit(o, 'borderColor'), rl.Color(130, 135, 144, 255)))
-        size = self.size(o)
-        lh = size * 4 / 3 + 2
-        try:
-            m = int(float(str(self.prop(o, 'margins')).split(',')[0] or 8))
-        except ValueError:
-            m = 8
-        sbw = int(float(self.prop(o, 'scrollbarWidth') or 16)) if self.on(o, 'vScrollbar') else 0
-        scroll = int(float(self.prop(o, 'vScroll') or 0))
+        size, lh, m, scroll, sbw = self.rt.field_metrics(o)    # one rule for drawing and for clicks
         lines = o.text.split('\n')
-        hl = {int(x) for x in str(self.prop(o, 'hilitedLines')).split(',') if x.strip().isdigit()}
+        hl = set(self.rt.host.hilited_lines(o))
         rl.begin_scissor_mode(int(rc.x + 1), int(rc.y + 1), int(rc.width - 2 - sbw), int(rc.height - 2))
         fg = colour(self.inherit(o, 'foregroundColor'), rl.BLACK)
         y = rc.y + m / 2 - scroll
@@ -370,6 +363,11 @@ class View:
         while ch:
             rt.key(chr(ch))
             ch = rl.get_char_pressed()
+        wheel = rl.get_mouse_wheel_move()
+        if wheel and not busy:
+            o = rt.control_at(x, y)
+            if o is not None and o.type == 'field':
+                rt.scroll_field(o, -wheel * rt.field_metrics(o)[1] * 3)
         rt.tick(rl.get_frame_time() * 1000)
 
     def draw_menu(self):

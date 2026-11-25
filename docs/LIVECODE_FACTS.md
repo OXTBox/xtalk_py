@@ -104,3 +104,8 @@ standalone per library group.
 - `shell()` (not LiveCode's general version, by the owner's word 25 Nov): only starts a .py file from the stack's
   files folder, with a Python that has Tkinter (Windows Python 3.14 + Tk 8.6 today; WSL's has no Tkinter).
   Windows Python started from WSL waits forever on its input unless the input is closed (stdin = nothing).
+- List fields (listBehavior): the owner's TKInter-izer reads `the selectedLine of me` in mouseDown, so the click
+  hilites the line BEFORE mouseDown runs. `the selectedLine` = `line N of field K`. A double click: the second press
+  and release send mouseDoubleDown / mouseDoubleUp instead of mouseDown / mouseUp (common LiveCode knowledge, NOT
+  measured: needs a hand on the mouse). Line height for clicks = the window's drawing rule (size*4/3+2), not
+  measured against LiveCode either.

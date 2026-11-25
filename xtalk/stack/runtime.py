@@ -88,6 +88,9 @@ class StackRuntime:
         self.menus = []                # every menu shown: (button name, [item labels])
         self.swallow_up = False        # a menu opened while the button was down took the release
         self.started = []              # programs shell() started (.py scripts), for tests to wait on
+        self.last_down = None          # (object, clock, x, y) of the last press: a quick second one is a double click
+        self.double = False            # this press is the second of a double click
+        self.scroll_drag = None        # a field whose scrollbar the mouse is dragging
         self.start_programs = True     # False: shell() only notes the script (the survey: no windows pop up)
         self.not_started = []          # the scripts shell() would have started
         self.clock = 0.0               # virtual milliseconds
@@ -220,7 +223,19 @@ class StackRuntime:
         self.button_down = True
         o = self.control_at(x, y) or self.default_stack.current
         self.pressed = o
-        self.message(o, 'mouseDown', [str(button)])
+        last = self.last_down
+        self.double = bool(last and last[0] is o and self.clock - last[1] <= 400 and abs(last[2] - x) <= 4 and abs(last[3] - y) <= 4)
+        self.last_down = None if self.double else (o, self.clock, x, y)
+        if o.type == 'field':
+            if self.in_field_scrollbar(o, x, y):
+                self.scroll_drag = o
+                self.scroll_field_to(o, y)
+                return o
+            if self.host.obj_prop(o, 'listbehavior') == 'true' and self.host.obj_prop(o, 'disabled') != 'true':
+                n = self.field_line_at(o, y)     # the line is hilited before mouseDown (the owner's scripts read it there)
+                o.props['hilitedLines'] = str(n) if n else ''
+                self.changed = True
+        self.message(o, 'mouseDoubleDown' if self.double else 'mouseDown', [str(button)])
         if o.type == 'button' and self.host.obj_prop(o, 'style') == 'menu' and self.visible(o) \
                 and self.host.obj_prop(o, 'menumode') in ('option', 'pulldown', 'combobox') \
                 and self.host.obj_prop(o, 'disabled') != 'true':
@@ -232,6 +247,9 @@ class StackRuntime:
         self.mouse_move(x, y)
         self.button_down = False
         self.pressed = None
+        if self.scroll_drag is not None:     # the release ends a scrollbar drag: no message
+            self.scroll_drag = None
+            return down_on
         if self.swallow_up:              # the menu took this release: no mouseUp / mouseRelease
             self.swallow_up = False
             self._enter_leave()
@@ -253,7 +271,7 @@ class StackRuntime:
             return o
         if o.type == 'button':
             self._auto_hilite(o)
-        self.message(o, 'mouseUp', [str(button)])
+        self.message(o, 'mouseDoubleUp' if self.double else 'mouseUp', [str(button)])
         return o
 
     def _enter_leave(self):
@@ -267,6 +285,75 @@ class StackRuntime:
             self.message(old, 'mouseLeave')
         if now is not None:
             self.message(now, 'mouseEnter')
+
+    # ------------------------------------------------------------ fields: lines, scrolling
+    def inherit(self, o, key):
+        """a text or colour property: the object, its groups, card, stack, then the stack's effective value"""
+        from .host import canon
+        k = canon(key)
+        x = o
+        while x is not None:
+            for pk, v in x.props.items():
+                if canon(pk) == k and v != '':
+                    return v
+            x = x.parent if x.type != 'card' else x.stack
+            if x is not None and x.type == 'stack':
+                for pk, v in x.props.items():
+                    if canon(pk) == k and v != '':
+                        return v
+                return next((v for ek, v in x.effective.items() if canon(ek) == k), None)
+        return None
+
+    def field_metrics(self, o):
+        """(text size, line height, margin, vScroll, scrollbar width) as the window draws the field
+        (line height = size * 4/3 + 2: our drawing, not measured against LiveCode)"""
+        try:
+            size = int(float(self.inherit(o, 'textSize') or 12))
+        except ValueError:
+            size = 12
+        try:
+            m = int(float(str(self.host.obj_prop(o, 'margins')).split(',')[0] or 8))
+        except ValueError:
+            m = 8
+        try:
+            scroll = int(float(self.host.obj_prop(o, 'vscroll') or 0))
+        except ValueError:
+            scroll = 0
+        try:
+            sbw = int(float(self.host.obj_prop(o, 'scrollbarwidth') or 16)) if self.host.obj_prop(o, 'vscrollbar') == 'true' else 0
+        except ValueError:
+            sbw = 16
+        return size, size * 4 / 3 + 2, m, scroll, sbw
+
+    def field_line_at(self, o, y):
+        """the line of field o at window y (0: below the last line)"""
+        size, lh, m, scroll, _ = self.field_metrics(o)
+        n = int((y - (o.rect[1] + m / 2 - scroll)) // lh) + 1
+        return n if 1 <= n <= len(o.text.split('\n')) else 0
+
+    def in_field_scrollbar(self, o, x, y):
+        sbw = self.field_metrics(o)[4]
+        return bool(sbw) and x >= o.rect[2] - sbw - 1
+
+    def field_max_scroll(self, o):
+        size, lh, m, scroll, sbw = self.field_metrics(o)
+        return max(0, int(len(o.text.split('\n')) * lh + m - o.height))
+
+    def scroll_field(self, o, pixels):
+        """the mouse wheel over a field"""
+        top = self.field_max_scroll(o)
+        cur = self.field_metrics(o)[3]
+        new = max(0, min(top, cur + int(pixels)))
+        if new != cur:
+            o.props['vScroll'] = str(new)
+            self.changed = True
+            self.message(o, 'scrollbarDrag', [str(new)])
+
+    def scroll_field_to(self, o, y):
+        """the mouse on the scrollbar strip: the thumb goes where the mouse is"""
+        top = self.field_max_scroll(o)
+        f = (y - o.rect[1]) / max(1, o.height)
+        self.scroll_field(o, int(max(0, min(1, f)) * top) - self.field_metrics(o)[3])
 
     # ------------------------------------------------------------ menus
     @staticmethod
@@ -330,6 +417,9 @@ class StackRuntime:
         self.mouse = (x, y)
         if self.grabbed is not None:
             self._follow(x, y)
+        if self.scroll_drag is not None:
+            self.scroll_field_to(self.scroll_drag, y)
+            return
         if not self.button_down:
             self._enter_leave()
         # mouseMove (Dictionary): to the control under the mouse, or the card; while the button is held,
@@ -383,8 +473,17 @@ class StackRuntime:
             x, y = o.loc
         else:
             x, y = (where if not isinstance(where, str) else [int(v) for v in where.split(',')])
+        self.last_down = None              # one deliberate click: never the second half of a double click
         o = self.mouse_down(x, y)
         self.mouse_up(x, y, down_on=o)
+        return o
+
+    def double_click(self, where):
+        """for tests: two clicks at once: mouseDown, mouseUp, mouseDoubleDown, mouseDoubleUp"""
+        o = self.click(where)
+        x, y = self.mouse
+        o2 = self.mouse_down(x, y)
+        self.mouse_up(x, y, down_on=o2)
         return o
 
     def key(self, ch):
