@@ -248,8 +248,23 @@ class StackRuntime:
         (measured 26 Nov: a card's own `on openStack` runs first, then the stack's)"""
         st = self.default_stack
         self.opened.add(id(st))
+        self.send_open(st.current)
+
+    def send_open(self, card):
+        """a stack opens on card: preOpenStack, [preOpenBackground,] preOpenCard, openStack, [openBackground,]
+        openCard, all to the card; the background ones when it has a background group (measured 25 Nov)"""
+        bg = bool(self.backgrounds(card))
         for m in OPEN_MESSAGES:
-            self.message(st.current, m)
+            if bg and m in ('preOpenCard', 'openCard'):
+                self.message(card, m.replace('Card', 'Background'))
+            self.message(card, m)
+
+    def send_close(self, card):
+        """a stack closes on card: closeCard, [closeBackground,] closeStack, all to the card (measured 25 Nov)"""
+        self.message(card, 'closeCard')
+        if self.backgrounds(card):
+            self.message(card, 'closeBackground')
+        self.message(card, 'closeStack')
 
     def close_stack(self):
         """the window closes (or `close stack`): closeCard, then closeStack, both to the card (measured 26 Nov)"""
@@ -258,8 +273,7 @@ class StackRuntime:
         self.closing_sent = True
         card = self.default_stack.current
         if card is not None:
-            self.message(card, 'closeCard')
-            self.message(card, 'closeStack')
+            self.send_close(card)
 
     def leave_stack(self, st, closing):
         """close or hide a stack that is not the first: closing sends closeCard, closeStack to its card (as a
@@ -268,8 +282,7 @@ class StackRuntime:
         if closing and id(st) in self.opened:
             self.opened.discard(id(st))
             if st.current is not None:
-                self.message(st.current, 'closeCard')
-                self.message(st.current, 'closeStack')
+                self.send_close(st.current)
         if st is not self.default_stack:
             return
         self.shown_before = [x for x in self.shown_before if x is not st]
@@ -291,8 +304,7 @@ class StackRuntime:
             if id(st) not in self.opened:  # a stack opened the first time: the four open messages to its card
                 self.opened.add(id(st))    # (measured 26 Nov); going back to an open stack sends nothing
                 st.current = card
-                for m in OPEN_MESSAGES:
-                    self.message(card, m)
+                self.send_open(card)
                 return
             if st.current is card:
                 return

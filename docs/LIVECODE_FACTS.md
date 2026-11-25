@@ -213,3 +213,6 @@ standalone per library group.
   264,268,336,333 (graphics and images alike). `the loc` = trunc of the middle.
 - `choose browse tool` / `choose "pointer tool"`: written from memory (not measured): we note the tool and
   `the tool` reads it back; nothing else changes.
+- **A stack with a background on its card** (all to the card; `the target` = the card): close/delete
+  `closeCard,closeBackground,closeStack`; open (`go stack`) `preOpenStack,preOpenBackground,preOpenCard,openStack,
+  openBackground,openCard`.

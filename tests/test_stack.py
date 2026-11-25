@@ -498,5 +498,20 @@ if os.path.isdir(LC):
     rt.dialog_answers = ['speed', '9']
     rt.click('button "PropertyArrays"')
     check('cycles: PropertyArrays asks twice, stores key and value', rt.eval('the MyArray["speed"] of button "PropertyArrays"'), '9')
+# a stack opening / closing on a card with a background group (measured 25 Nov)
+rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
+rt.run('set the backgroundBehavior of group "Grp" to true')
+_bgs = ''.join('on %s\nglobal glog\nput "%s," after glog\npass %s\nend %s\n' % (m, m, m, m)
+               for m in ['preOpenBackground', 'openBackground', 'closeBackground'])
+rt.run('set the script of group "Grp" to "%s"' % _bgs.replace('"', '" & quote & "').replace('\n', '" & cr & "'))
+rt.G['glog'] = ''
+rt.open()
+_o = rt.G['glog']
+rt.G['glog'] = ''
+rt.close_stack()
+check('open with a background: preOpenStack, preOpenBackground, ..., openBackground, openCard; close: closeBackground',
+      (_o, rt.G['glog']), ('preOpenStack,preOpenBackground,openBackground,openCard:card id 1002,', 'closeBackground,'))
+
 print('\n%d of %d stack checks pass' % (N[0] - len(BAD), N[0]))
 sys.exit(1 if BAD else 0)
+
