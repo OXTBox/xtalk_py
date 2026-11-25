@@ -139,6 +139,11 @@ try:
 except Exception as e:
     refused = 'only a .py file' in str(e)
 check('shell: any other command is refused', refused, True)
+rt.dialog_answers = ['No', 'Bob', None]
+check('answer: it = the button picked', rt.run('answer "Go?" with "Yes" or "No" titled "T"\nreturn it'), 'No')
+check('ask: it = the text typed', rt.run('ask "Name?" with "x"\nreturn it & "|" & the result'), 'Bob|')
+check('ask cancelled: it empty, the result = cancel (Dictionary)', rt.run('ask "Name?"\nreturn it & "|" & the result'), '|cancel')
+check('no replies left: answer takes its last (default) button', rt.run('answer "Go?" with "A" or "B"\nreturn it'), 'B')
 check('a sandbox write stays where it says', os.path.exists(os.path.join(home, 'Documents', 'in.txt')), True)
 
 READER = os.path.expanduser('~/projects/XTJSON/Game_card_reader_11_13_2025')
@@ -173,5 +178,8 @@ if os.path.isdir(LC):
     check('cycles: S drives the bike down, 2 px a step', (x1 - x0, (y1 - y0) % 2, y1 > y0), (0, 0, True))
     check('cycles: the trail grows', len(rt.get('graphic "PlayerLaserWall"', 'points').split('\n')) > 5, True)
     check('cycles: no script errors', rt.errors, [])
+    rt.dialog_answers = ['speed', '9']
+    rt.click('button "PropertyArrays"')
+    check('cycles: PropertyArrays asks twice, stores key and value', rt.eval('the MyArray["speed"] of button "PropertyArrays"'), '9')
 print('\n%d of %d stack checks pass' % (N[0] - len(BAD), N[0]))
 sys.exit(1 if BAD else 0)

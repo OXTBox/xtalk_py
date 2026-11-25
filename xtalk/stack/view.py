@@ -56,6 +56,7 @@ class View:
         self.textures = {}
         self.icons = {}                # (stack, icon value) -> the image it names
         self.menu = None               # a menu being shown: {'items', 'x', 'y', 'pick', 'opened', 'done'}
+        self.dialog = None             # an answer/ask being shown
         self.down_on = None
         self.panel = True
         imgui.create_context()
@@ -318,18 +319,22 @@ class View:
         io.add_mouse_button_event(0, rl.is_mouse_button_down(0))
         imgui.new_frame()
         rt = self.rt
-        if self.panel and (rt.errors or rt.answers or rt.load_errors):
+        if self.dialog is not None:
+            self.feed_keys(io)
+        if self.panel and (rt.errors or rt.load_errors):
             imgui.set_next_window_size(imgui.ImVec2(360, 120), imgui.Cond_.first_use_ever)
             imgui.begin('Runtime  (F2 hides)')
             for msg, obj, err in rt.errors[-8:]:
                 imgui.text_colored(imgui.ImVec4(1, 0.4, 0.4, 1), '%s in %s: %s' % (msg, obj, err))
             for a in rt.answers[-5:]:
-                imgui.text('answer: ' + a)
+                imgui.text('dialog: ' + a)
             for obj, err in rt.load_errors[:5]:
                 imgui.text_colored(imgui.ImVec4(1, 0.7, 0.3, 1), 'does not compile: %s %s' % (obj, err))
             imgui.end()
         if self.menu is not None:
             self.draw_menu()                     # last, and focused: always in front of the panel
+        if self.dialog is not None:
+            self.draw_dialog()
         imgui.render()
         imgui.backends.opengl3_render_draw_data(imgui.get_draw_data())
         return io.want_capture_mouse
@@ -419,6 +424,91 @@ class View:
         finally:
             self.menu = None
 
+    KEYS = None
+
+    def feed_keys(self, io):
+        """typing goes to ImGui while a dialog is up (characters, and the keys a text box needs)"""
+        if View.KEYS is None:
+            View.KEYS = [(rl.KEY_BACKSPACE, imgui.Key.backspace), (rl.KEY_DELETE, imgui.Key.delete),
+                         (rl.KEY_ENTER, imgui.Key.enter), (rl.KEY_KP_ENTER, imgui.Key.keypad_enter),
+                         (rl.KEY_ESCAPE, imgui.Key.escape), (rl.KEY_LEFT, imgui.Key.left_arrow),
+                         (rl.KEY_RIGHT, imgui.Key.right_arrow), (rl.KEY_HOME, imgui.Key.home),
+                         (rl.KEY_END, imgui.Key.end), (rl.KEY_TAB, imgui.Key.tab),
+                         (rl.KEY_LEFT_CONTROL, imgui.Key.left_ctrl), (rl.KEY_LEFT_SHIFT, imgui.Key.left_shift),
+                         (rl.KEY_A, imgui.Key.a), (rl.KEY_C, imgui.Key.c), (rl.KEY_V, imgui.Key.v), (rl.KEY_X, imgui.Key.x)]
+        for rk, ik in View.KEYS:
+            io.add_key_event(ik, rl.is_key_down(rk))
+        io.add_key_event(imgui.Key.mod_ctrl, rl.is_key_down(rl.KEY_LEFT_CONTROL) or rl.is_key_down(rl.KEY_RIGHT_CONTROL))
+        io.add_key_event(imgui.Key.mod_shift, rl.is_key_down(rl.KEY_LEFT_SHIFT) or rl.is_key_down(rl.KEY_RIGHT_SHIFT))
+        ch = rl.get_char_pressed()
+        while ch:
+            io.add_input_character(ch)
+            ch = rl.get_char_pressed()
+
+    def draw_dialog(self):
+        """answer: the prompt and its buttons (the last is the default: Return); ask: a text box, OK, Cancel
+        (Escape); file/folder: a path in the stack's files folder"""
+        d = self.dialog
+        imgui.set_next_window_pos(imgui.ImVec2(rl.get_screen_width() / 2, rl.get_screen_height() / 3),
+                                  imgui.Cond_.always, imgui.ImVec2(0.5, 0.5))
+        imgui.set_next_window_focus()
+        flags = (imgui.WindowFlags_.no_collapse | imgui.WindowFlags_.always_auto_resize | imgui.WindowFlags_.no_move
+                 | imgui.WindowFlags_.no_saved_settings)
+        imgui.begin((d['title'] or ' ') + '##xtdialog', None, flags)
+        if d['icon']:
+            col = {'error': (1, 0.4, 0.4, 1), 'warning': (1, 0.8, 0.3, 1)}.get(d['icon'], (0.5, 0.8, 1, 1))
+            imgui.text_colored(imgui.ImVec4(*col), d['icon'].upper())
+        imgui.push_text_wrap_pos(420)
+        imgui.text_unformatted(d['prompt'])
+        imgui.pop_text_wrap_pos()
+        if d['typing']:
+            if not d['focused']:
+                imgui.set_keyboard_focus_here()
+                d['focused'] = True
+            fl = imgui.InputTextFlags_.password if d['sub'] == 'password' else 0
+            imgui.set_next_item_width(380)
+            _, d['text'] = imgui.input_text('##xtinput', d['text'], fl)
+        for i, b in enumerate(d['buttons']):
+            if i:
+                imgui.same_line()
+            if imgui.button(b + '##b%d' % i):
+                d['done'] = b
+        imgui.end()
+        if d['done'] is None and (imgui.is_key_pressed(imgui.Key.enter) or imgui.is_key_pressed(imgui.Key.keypad_enter)):
+            d['done'] = d['buttons'][-1]
+        if d['done'] is None and d['typing'] and imgui.is_key_pressed(imgui.Key.escape):
+            d['done'] = 'Cancel'
+
+    def dialog_frames(self, kind, sub, icon, prompt, extra, title):
+        """a script shows answer/ask: draw until a button is clicked (the handler waits) -> (it, the result)"""
+        typing = kind == 'ask' or sub in ('file', 'files', 'folder', 'folders')
+        text = ''
+        if kind == 'ask' and extra and not sub:
+            text = extra[0]
+        if sub in ('file', 'files', 'folder', 'folders'):
+            text = self.rt.host.folders['documents'] + '/'
+        buttons = (extra or ['OK']) if (kind == 'answer' and not sub) else ['Cancel', 'OK']
+        self.dialog = {'kind': kind, 'sub': sub, 'icon': icon, 'prompt': prompt, 'title': title, 'typing': typing,
+                       'text': text, 'buttons': buttons, 'done': None, 'focused': False}
+        try:
+            while not rl.window_should_close() and self.dialog['done'] is None:
+                rl.begin_drawing()
+                self.draw_card()
+                self.draw_panel()
+                rl.end_drawing()
+            done, text = self.dialog['done'], self.dialog['text']
+        finally:
+            self.dialog = None
+        if done is None:                          # the window closed while the dialog was up
+            return '', 'cancel'
+        if kind == 'answer' and not sub:
+            return done, ''
+        if done == 'Cancel':
+            return '', 'cancel'
+        if sub in ('file', 'files', 'folder', 'folders'):
+            return self.rt.host.sandboxed(text), ''
+        return text, ''
+
     def wait_frames(self, ms):
         """a script waits: keep drawing (no clicks or timers, as LiveCode's wait without messages)"""
         end = rl.get_time() + ms / 1000.0
@@ -431,6 +521,7 @@ class View:
     def run(self):
         self.rt.on_wait = self.wait_frames
         self.rt.on_menu = self.menu_frames
+        self.rt.on_dialog = self.dialog_frames
         self.rt.open()
         while not rl.window_should_close() and not self.rt.closed:
             self.frame()

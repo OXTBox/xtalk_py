@@ -109,3 +109,6 @@ standalone per library group.
   and release send mouseDoubleDown / mouseDoubleUp instead of mouseDown / mouseUp (common LiveCode knowledge, NOT
   measured: needs a hand on the mouse). Line height for clicks = the window's drawing rule (size*4/3+2), not
   measured against LiveCode either.
+- `answer` / `ask` (Dictionary; dialogs cannot be measured in the windowless standalone): answer puts the clicked
+  button into `it` (no buttons: OK; the last one named is the default, Return picks it); ask puts the typed text into
+  `it`, Cancel gives `it` empty and the result "cancel". `answer file "p"` is a file dialog (was read as URL file).

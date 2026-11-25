@@ -84,6 +84,8 @@ class StackRuntime:
         self.pressed = None            # the object the button went down on (it gets mouseMove while held)
         self.hover = None              # the control the mouse is in, as far as mouseEnter/mouseLeave go
         self.on_menu = None            # the window: show a menu, return the pick (text) or None
+        self.on_dialog = None          # the window: show answer/ask, return (it, the result)
+        self.dialog_answers = []       # no window (tests): replies to answer/ask in order (None = Cancel)
         self.menu_choices = []         # no window (tests): the picks to make, in order (None = close the menu)
         self.menus = []                # every menu shown: (button name, [item labels])
         self.swallow_up = False        # a menu opened while the button was down took the release

@@ -38,6 +38,15 @@ class Host:
         o = self.objs.setdefault(self.norm(desc), {})
         o[prop if key is None else '%s[%s]' % (prop, key)] = value
 
+    def dialog(self, kind, sub, icon, prompt, extra, title):
+        """no window: answer picks the default (last) button, ask takes its default text"""
+        self.log.append((kind, [('e', prompt)]))
+        if kind == 'answer' and not sub:
+            return (extra[-1] if extra else 'OK'), ''
+        if kind == 'ask' and sub != 'file':
+            return (extra[0] if extra else ''), ''
+        return '', 'cancel'
+
     def shell(self, command):
         raise XtError("expression: can't find function shell")
 

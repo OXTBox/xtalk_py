@@ -196,6 +196,12 @@ class Gen:
             raise TranslateError('statement %s' % s[0])
         m(s, ind)
 
+    def s_dialog(self, s, ind):
+        _, kind, sub, icon, prompt, extra, title = s
+        self.emit(ind, 'rt.do_dialog(fr, %s, %s, %s, to_text(%s), [%s], to_text(%s))' % (
+            _r(kind), _r(sub), _r(icon), self.ex(prompt), ', '.join('to_text(%s)' % self.ex(x) for x in extra),
+            self.ex(title)))
+
     def s_print(self, s, ind):
         self.emit(ind, 'rt.output.append(to_text(%s))' % self.ex(s[1]))
 

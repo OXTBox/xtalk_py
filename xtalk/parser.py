@@ -316,6 +316,50 @@ class Parser:
         self.expect_word('to')
         return ('setprop', ' '.join(words), obj, key, self.list_expr())
 
+    DIALOG_ICONS = ('information', 'question', 'error', 'warning')
+    DIALOG_KINDS = ('file', 'files', 'folder', 'folders', 'color', 'colour', 'printer', 'page', 'effect', 'record', 'password')
+
+    def st_answer(self):
+        return self.dialog('answer')
+
+    def st_ask(self):
+        return self.dialog('ask')
+
+    def dialog(self, kind):
+        """answer [icon] prompt [with b1 or b2 ...] [titled t] [as sheet];
+        ask [icon] prompt [with default] [titled t]; answer file/folder ..., ask password/file ...
+        -> ('dialog', kind, sub, icon, prompt, [buttons or default], title)"""
+        sub = icon = ''
+        if self.peek()[0] == 'id' and self.peek()[1].lower() in self.DIALOG_KINDS:
+            sub = self.next()[1].lower()
+            if sub == 'password':
+                self.accept_word('clear')
+        if self.peek()[0] == 'id' and self.peek()[1].lower() in self.DIALOG_ICONS \
+                and self.peek(1)[0] not in ('nl', 'eof'):
+            icon = self.next()[1].lower()
+        prompt = ('str', '')
+        if self.peek()[0] not in ('nl', 'eof') and not self.is_word('with') and not self.is_word('titled'):
+            prompt = self.expr()
+        extra = []
+        title = ('str', '')
+        while self.peek()[0] not in ('nl', 'eof'):
+            if self.accept_word('with'):
+                if sub in ('file', 'files', 'folder', 'folders', 'color', 'colour'):
+                    self.accept_word('type', 'filter')       # answer file p with type "...": kept as a default
+                if kind == 'answer' and not sub:
+                    extra.append(self.p_and())
+                    while self.accept_word('or'):
+                        extra.append(self.p_and())
+                else:
+                    extra.append(self.expr())
+            elif self.accept_word('titled'):
+                title = self.expr()
+            elif self.accept_word('as'):
+                self.accept_word('sheet')
+            else:
+                self.i += 1                            # anything else on the line: not used here
+        return ('dialog', kind, sub, icon, prompt, extra, title)
+
     def st_return(self):
         if self.peek()[0] in ('nl', 'eof'):
             return ('return', ('str', ''))

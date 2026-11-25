@@ -457,6 +457,18 @@ class Interp:
         keep = [text[a:b] for a, b in ch.spans(text, kind, **kw) if bool(pat.match(text[a:b])) != neg]
         self.assign(dest, d.join(keep), 'into', fr)
 
+    def x_dialog(self, st, fr):
+        _, kind, sub, icon, prompt, extra, title = st
+        self.do_dialog(fr, kind, sub, icon, to_text(self.ev(prompt, fr)),
+                       [to_text(self.ev(x, fr)) for x in extra], to_text(self.ev(title, fr)))
+
+    def do_dialog(self, fr, kind, sub, icon, prompt, extra, title):
+        """answer / ask (Dictionary): it = the button clicked (answer), the text typed (ask), a path (file);
+        on Cancel it is empty and the result is "cancel". The host shows the dialog."""
+        it, result = self.host.dialog(kind, sub, icon, prompt, extra, title)
+        self.put_var(fr, 'it', it)
+        self.result = result
+
     def c_wait(self, parts, fr):
         """wait: the host decides what waiting means (nothing in the plain host)"""
         vals = [(p[0], to_text(self.arg(p[1], fr)) if p[0] == 'e' else p[1]) for p in parts]

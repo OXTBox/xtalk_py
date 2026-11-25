@@ -241,6 +241,22 @@ class StackHost(Host):
         v = val.lower()
         return next((o for o in objs if o.name.lower() == v), None)
 
+    def dialog(self, kind, sub, icon, prompt, extra, title):
+        """answer / ask: the window shows it (rt.on_dialog); with no window, rt.dialog_answers gives the
+        replies in order (None = Cancel); with none left, answer takes its default button, ask its default text"""
+        rt = self.rt
+        rt.answers.append(('%s %s' % (kind, sub)).strip() + ': ' + prompt)
+        if rt.on_dialog is not None:
+            return rt.on_dialog(kind, sub, icon, prompt, extra, title)
+        if rt.dialog_answers:
+            v = rt.dialog_answers.pop(0)
+            if v is None:
+                return '', ('' if kind == 'answer' and not sub else 'cancel')
+            if sub in ('file', 'files', 'folder', 'folders'):
+                v = self.sandboxed(v if v.startswith('/') else os.path.join(self.folders['documents'], v))
+            return v, ''
+        return super().dialog(kind, sub, icon, prompt, extra, title)
+
     def shell(self, command):
         """shell(): in LiveCode the owner's stacks use it to start a Python script. Here only that is done
         (owner, 25 Nov): a .py file inside the stack's files folder starts with Python, as its own program,
@@ -581,9 +597,6 @@ class StackHost(Host):
             return ''
         if name == 'wait':
             rt.wait(self.wait_ms(parts))
-            return ''
-        if name == 'answer':
-            rt.answers.append(' '.join(es))
             return ''
         if name == 'put':
             return ''
