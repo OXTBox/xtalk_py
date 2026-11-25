@@ -72,11 +72,21 @@ class View:
         rt.measure_key = 'font'
         rt.on_clipboard_get = lambda: rl.get_clipboard_text() or ''
         rt.on_clipboard_set = lambda t: rl.set_clipboard_text(t)
+        self.cursor_hidden = False
+        if not hidden:                 # a hidden (test) window never moves the real mouse
+            rt.window_pos = tuple(pos)
+            rt.on_warp = self.warp
         imgui.create_context()
         imgui.get_io().set_ini_filename('')
         imgui.backends.opengl3_init('#version 330')
 
     # ------------------------------------------------------------ helpers
+    def warp(self, x, y):
+        """set the screenMouseLoc: x,y on the screen -> inside this window (where the window is now)"""
+        p = rl.get_window_position()
+        self.rt.window_pos = (int(p.x), int(p.y))
+        rl.set_mouse_position(int(x - p.x), int(y - p.y))
+
     def font(self, o, size, st=None):
         """the font for o's text, or for a styled run st (its face and bold/italic over the field's)"""
         face = (st[1] if st and st[1] else None) or self.prop(o, 'textfont') or self.inherit(o, 'textFont') or ''
@@ -137,7 +147,8 @@ class View:
                 + [(rl.KEY_SPACE, 32), (rl.KEY_LEFT, 65361), (rl.KEY_UP, 65362), (rl.KEY_RIGHT, 65363),
                    (rl.KEY_DOWN, 65364), (rl.KEY_LEFT_SHIFT, 65505), (rl.KEY_RIGHT_SHIFT, 65506),
                    (rl.KEY_LEFT_CONTROL, 65507), (rl.KEY_RIGHT_CONTROL, 65508), (rl.KEY_LEFT_ALT, 65513),
-                   (rl.KEY_ENTER, 65293), (rl.KEY_ESCAPE, 65307), (rl.KEY_TAB, 65289), (rl.KEY_BACKSPACE, 65288)])
+                   (rl.KEY_ENTER, 65293), (rl.KEY_ESCAPE, 65307), (rl.KEY_TAB, 65289), (rl.KEY_BACKSPACE, 65288),
+                   (rl.KEY_GRAVE, 96)])
 
     def prop(self, o, p):
         return self.rt.host.obj_prop(o, p.lower())
@@ -469,6 +480,13 @@ class View:
                 held.add(name)
         rt.keys_down = held | ({'altkey'} if 'optionkey' in held else set())
         rt.held_codes = [code for key, code in self.KEYCODES if rl.is_key_down(key)]   # the keysDown
+        for key, code in self.KEYCODES:            # rawKeyDown (Raycasting_101: Esc / ` free the mouse)
+            if rl.is_key_pressed(key):
+                rt.raw_key(code)
+        hide = str(rt.props.get('cursor', '')).lower() == 'none'
+        if hide != self.cursor_hidden:             # set the cursor to none (a game that captures the mouse)
+            (rl.hide_cursor if hide else rl.show_cursor)()
+            self.cursor_hidden = hide
         if rl.is_key_pressed(rl.KEY_F2):
             self.panel = not self.panel
         ch = rl.get_char_pressed()

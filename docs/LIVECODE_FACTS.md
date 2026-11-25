@@ -227,3 +227,9 @@ standalone per library group.
   field).
 - A handler parameter named like a script-level global is the parameter (the global is not read or changed:
   `ARG-`, global still `G`). `local g` in a handler below `global g` does not compile.
+- From memory (not measured): `rawKeyDown` gets the key code before keyDown (Esc 65307, backtick 96); `set the cursor
+  to none` hides the pointer; `set the screenMouseLoc` moves the real mouse; `globalLoc` / `localLoc` add / take
+  the window's place. Our window: rawKeyDown is sent but does not yet stop keyDown when not passed; a hidden
+  (test) window never moves the mouse.
+- nine-ball's Instructions field (the real stack, a scratch copy): fixedLineHeight true, effective textSize 12,
+  textHeight 16, so its lines are 16 apart (we drew 18 before; the text runs are size 11).

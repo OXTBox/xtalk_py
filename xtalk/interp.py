@@ -311,6 +311,9 @@ class Interp:
     def set_global_prop(self, name, v):
         name = self.ALIAS.get(name, name)
         self.props[name] = v
+        f = getattr(self.host, 'on_global_prop', None)    # the stack runtime acts on some (screenMouseLoc)
+        if f is not None:
+            f(name, v)
         if name == 'numberformat':
             NUMBER_FORMAT[0] = v
 
@@ -982,6 +985,24 @@ class Interp:
 def _n(x):
     return to_num(x)
 
+
+def _window_pos(it):
+    rt = getattr(it.host, 'rt', None)
+    return getattr(rt, 'window_pos', (0, 0))
+
+
+def f_globalloc(it, fr, p):
+    """globalLoc(x,y): a card point -> a screen point (the window's place added)"""
+    x, y = (int(round(to_num(v))) for v in to_text(p).split(',')[:2])
+    wx, wy = _window_pos(it)
+    return '%d,%d' % (x + wx, y + wy)
+
+
+def f_localloc(it, fr, p):
+    x, y = (int(round(to_num(v))) for v in to_text(p).split(',')[:2])
+    wx, wy = _window_pos(it)
+    return '%d,%d' % (x - wx, y - wy)
+
 def _t(x):
     return to_text(x)
 
@@ -1094,6 +1115,8 @@ def f_baseconvert(it, fr, num, frm, to):
 
 BUILTINS = {
     'baseconvert': f_baseconvert,
+    'globalloc': f_globalloc,
+    'localloc': f_localloc,
     'within': lambda it, fr, o, p: it.host.within(_t(o), _t(p)),
     'shell': lambda it, fr, c: it.host.shell(_t(c)),
     'matchtext': lambda it, fr, s_, p_, *r: 'true' if _re_search(p_, s_) else 'false',

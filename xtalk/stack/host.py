@@ -483,6 +483,16 @@ class StackHost(Host):
             return 'down' if p in rt.keys_down else 'up'
         return ''
 
+    def on_global_prop(self, name, v):
+        """set the screenMouseLoc: the window moves the real mouse there (a game keeps it inside)"""
+        rt = self.rt
+        if name == 'screenmouseloc' and rt.on_warp is not None:
+            try:
+                x, y = (int(round(to_num(p))) for p in str(v).split(',')[:2])
+            except (XtError, ValueError):
+                return
+            rt.on_warp(x, y)
+
     def get_global_key(self, p, key):
         """the clipboardData["text"] (text only here; unicode the same; styles/rtf/html: empty)"""
         if p.lower() == 'clipboarddata' and key.lower() in ('text', 'unicode'):

@@ -117,6 +117,8 @@ class StackRuntime:
         self.on_wait = None
         self.keys_down = set()         # 'shiftkey', 'optionkey'... while held (the window fills it)
         self.held_codes = []           # the key codes held now (the keysDown; the window fills it)
+        self.window_pos = (0, 0)       # the window's place on the screen (globalLoc); the window sets it
+        self.on_warp = None            # the window: move the real mouse to a screen point
         self.closed = False            # the window sets this: draw frames while a script waits
         self.closing_sent = False      # closeCard / closeStack went out
         self.opened = set()            # id() of the stacks opened (they got their open messages)
@@ -750,6 +752,12 @@ class StackRuntime:
         self.passed_off = False
         found = self.message(o, msg, args)
         return found is not None and not self.passed_off
+
+    def raw_key(self, code):
+        """a key went down: rawKeyDown with its code to the focused field (else the card), before keyDown.
+        Not done: a rawKeyDown not passed should stop the keyDown (LiveCode); we only send it"""
+        f = self.focused
+        self.handled(f or self.default_stack.current, 'rawKeyDown', [str(code)])
 
     def key(self, ch):
         """a typed character: keyDown to the focused field (else the card); nobody takes it: it is typed"""

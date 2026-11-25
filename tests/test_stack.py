@@ -509,6 +509,20 @@ for _fixed in ('true', 'false'):
         _lh.append(rt.field_metrics(rt.obj('field "LH"'))[1])
 check('line heights, fixed then free, sizes 10 12 14 18 24 (measured)', _lh, [13, 16, 18, 24, 32, 15, 18, 18, 26, 36])
 
+# keysDown, rawKeyDown, globalLoc (a hidden window: window_pos 0,0, no mouse warp)
+rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
+rt.open()
+rt.held_codes = [119, 65362]
+rt.window_pos = (200, 32)
+rt.run('set the script of card 1 to "on rawKeyDown k" & cr & "global glog" & cr & "put k & comma after glog" & cr & "pass rawKeyDown" & cr & "end rawKeyDown"')
+rt.G['glog'] = ''
+rt.raw_key(65307)
+check('the keysDown; rawKeyDown with the code; globalLoc / localLoc add / take the window place',
+      (rt.eval('the keysDown'), rt.G['glog'], rt.eval('globalLoc("10,20")'), rt.eval('localLoc("210,52")')),
+      ('119,65362', '65307,', '210,52', '10,20'))
+rt.run('set the screenMouseLoc to 5,5')          # no window: nothing moves, no error
+check('set the screenMouseLoc with no window: no error', rt.errors, [])
+
 # a stack opening / closing on a card with a background group (measured 25 Nov)
 rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
 rt.run('set the backgroundBehavior of group "Grp" to true')
