@@ -98,6 +98,7 @@ class StackRuntime:
         self.scroll_drag = None        # a field whose scrollbar the mouse is dragging
         self.thumb_drag = None         # a scrollbar / slider whose thumb the mouse is dragging
         self.focused = None            # the field being typed into
+        self.sel_drag = None           # a field the mouse is selecting in (button held)
         self.sel = (0, 0)              # its selection: character offsets (start, end); start == end: the caret
         self.field_changed = False     # typed into since it got the focus (closeField, else exitField)
         self.passed_off = False
@@ -283,7 +284,11 @@ class StackRuntime:
                 if self.focused is not o:
                     self.set_focus(o)
                 p = self.char_at(o, x, y)
-                self.sel = (p, p)
+                if 'shiftkey' in self.keys_down:     # shift-click: the selection grows to here
+                    self.sel = (self.sel[0], p)
+                else:
+                    self.sel = (p, p)
+                self.sel_drag = o                    # moving with the button held selects (mouse_move)
             if self.host.obj_prop(o, 'listbehavior') == 'true' and self.host.obj_prop(o, 'disabled') != 'true':
                 n = self.field_line_at(o, y)     # the line is hilited before mouseDown (the owner's scripts read it there)
                 o.props['hilitedLines'] = str(n) if n else ''
@@ -306,6 +311,7 @@ class StackRuntime:
         self.button_down = False
         self.pressed = None
         self.thumb_drag = None
+        self.sel_drag = None
         if self.scroll_drag is not None:     # the release ends a scrollbar drag: no message
             self.scroll_drag = None
             return down_on
@@ -572,6 +578,9 @@ class StackRuntime:
             return
         if self.thumb_drag is not None:
             self.set_thumb_at(self.thumb_drag, x, y)
+        if self.sel_drag is not None and self.button_down and self.focused is self.sel_drag:
+            self.sel = (self.sel[0], self.char_at(self.sel_drag, x, y))    # drag-select: from where it went down
+            self.changed = True
         if not self.button_down:
             self._enter_leave()
         # mouseMove (Dictionary): to the control under the mouse, or the card; while the button is held,

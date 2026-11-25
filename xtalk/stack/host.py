@@ -330,7 +330,7 @@ class StackHost(Host):
             rt.ctx.pop(id(x), None)
         if rt.focused is not None and id(rt.focused) in gone:
             rt.focused = None
-        for attr in ('hover', 'pressed', 'thumb_drag', 'scroll_drag'):
+        for attr in ('hover', 'pressed', 'thumb_drag', 'scroll_drag', 'sel_drag'):
             if getattr(rt, attr, None) is not None and id(getattr(rt, attr)) in gone:
                 setattr(rt, attr, None)
         if rt.grabbed is not None and id(rt.grabbed[0]) in gone:
