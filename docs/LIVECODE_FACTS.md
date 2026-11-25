@@ -89,3 +89,5 @@ standalone per library group.
   mouse is not inside it. mouseMove goes to the control under the mouse (or the card); while the button is held, to
   the object clicked. mouseEnter/mouseLeave wait while the button is held and come after the release.
   `within(graphic, point)`: the inside counts only if the graphic is filled.
+- **A card's rect is 0,0,<stack width>,<stack height>**; its loc is the middle (stack 400x300: `0,0,400,300`, loc
+  `200,150`). We had 0,0,0,0, so nine-ball's scratched cue ball went back to -205,0, off the window.

@@ -41,6 +41,8 @@ check('custom property', rt.eval('the uFoo of this stack & "," & the uFoo of sta
 check('custom set', rt.eval('the cSet["k"] of this stack'), 'v')
 check('button i of this stack (i is a variable, not a property)',
       rt.run('put 2 into i\nreturn the short name of button i of this stack'), 'R1')
+check('a card fills its stack: rect and loc (measured)', (rt.eval('the rect of this card'), rt.eval('the loc of this card')),
+      ('0,0,300,200', '150,100'))
 check('number/id of card 1', rt.eval('the number of card 1 & "," & the id of card 1'), '1,1002')
 check('the "abc"', rt.eval('the "abc"'), 'abc')
 # not measured in LiveCode, but how the engine is used:

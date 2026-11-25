@@ -56,6 +56,18 @@ class Obj:
     def __repr__(self):
         return '<%s %r id %d>' % (self.type, self.name, self.id)
 
+    @property
+    def rect(self):
+        """a card fills its stack's window: 0,0,width,height (measured 25 Nov)"""
+        if self.type == 'card' and self.stack is not None and self.stack is not self:
+            r = self.stack.rect
+            return [0, 0, r[2] - r[0], r[3] - r[1]]
+        return self._rect
+
+    @rect.setter
+    def rect(self, v):
+        self._rect = v
+
     # ---- where it sits
     @property
     def card(self):
