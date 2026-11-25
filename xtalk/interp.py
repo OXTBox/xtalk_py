@@ -947,5 +947,7 @@ BUILTINS = {
     'average': lambda it, fr, *a: numstr(sum(_n(x) for x in a) / len(a)),
     'isnumber': lambda it, fr, x: 'true' if is_numeric_text(_t(x)) else 'false',
     'specialfolderpath': lambda it, fr, x: it.host.special_folder(_t(x)),
+    'floor': lambda it, fr, x: numstr(math.floor(_n(x))),
+    'ceiling': lambda it, fr, x: numstr(math.ceil(_n(x))),
     'exists': lambda it, fr, x: 'true' if it.host.exists(_t(x)) else 'false',
 }

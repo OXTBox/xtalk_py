@@ -244,6 +244,8 @@ class StackHost(Host):
             return rt.harvest.main.name
         if p == 'tool':
             return 'browse tool'
+        if p in ('optionkey', 'shiftkey', 'commandkey', 'controlkey', 'altkey', 'capslockkey'):
+            return 'down' if p in rt.keys_down else 'up'
         return ''
 
     def obj_prop(self, o, p):
@@ -454,6 +456,14 @@ class StackHost(Host):
                 rt.changed = True
             return ''
         if name in COMMANDS_QUIET:
+            return ''
+        if name in ('enable', 'disable'):
+            if es:
+                self.resolve(es[0]).props['disabled'] = 'true' if name == 'disable' else 'false'
+                rt.changed = True
+            return ''
+        if name == 'close':
+            rt.closed = True               # close stack / close this stack: the window ends
             return ''
         if name == 'wait':
             rt.wait(self.wait_ms(parts))

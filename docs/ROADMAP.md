@@ -98,6 +98,11 @@ They agree on data, not on code.
   Faster output (plain Python locals where a variable is surely text) is a later step.
 - Still open, and Phase 2 work: objects, the message path, `send`/`dispatch`/`pass`, properties, the GUI.
 
+## Where Phase 2 stands (25 Nov 2026)
+- Started (owner's go, 24 Nov night): `xtalk/stack/` + `tools/open_stack.sh`. Two of his harvested stacks open and
+  their buttons work (Game_card_reader, LightCycles3): Phase 2's "done when" is met for those two, not yet for
+  every stack. Gaps and the other harvests: docs/HANDOFF_2026-11-24.md (Phase 2 part).
+
 ## Next concrete step (written 11 Nov; Phase 1 is done)
 
 Phase 1 begins with the value model and chunk expressions (`put`, `char/word/item/line

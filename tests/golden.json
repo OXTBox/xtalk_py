@@ -126,7 +126,12 @@
   "quote & \"a\" & quote": "\"a\"",
   "\"a\" & tab & \"b\"": "a\tb",
   "the number of words in \"one two\" & \" three\"": "2 three",
-  "the \"abc\"": "abc"
+  "the \"abc\"": "abc",
+  "floor(-2.5)": "-3",
+  "ceiling(2.1)": "3",
+  "floor(\"3.7\")": "3",
+  "ceiling(-2.5)": "-2",
+  "floor(5)": "5"
  },
  "script": {
   "put \"a,b,c\" into t\nput \"X\" into item 2 of t\nput t into tOut": "a,X,c",

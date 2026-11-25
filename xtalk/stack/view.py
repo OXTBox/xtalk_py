@@ -319,6 +319,12 @@ class View:
             if rl.is_mouse_button_released(0):
                 rt.mouse_up(x, y, down_on=self.down_on)
                 self.down_on = None
+        held = set()
+        for key, name in ((rl.KEY_LEFT_SHIFT, 'shiftkey'), (rl.KEY_RIGHT_SHIFT, 'shiftkey'), (rl.KEY_LEFT_ALT, 'optionkey'),
+                          (rl.KEY_LEFT_CONTROL, 'controlkey'), (rl.KEY_RIGHT_CONTROL, 'controlkey')):
+            if rl.is_key_down(key):
+                held.add(name)
+        rt.keys_down = held | ({'altkey'} if 'optionkey' in held else set())
         if rl.is_key_pressed(rl.KEY_F2):
             self.panel = not self.panel
         ch = rl.get_char_pressed()
@@ -329,7 +335,7 @@ class View:
 
     def run(self):
         self.rt.open()
-        while not rl.window_should_close():
+        while not rl.window_should_close() and not self.rt.closed:
             self.frame()
         self.close()
 

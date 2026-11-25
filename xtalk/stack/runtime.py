@@ -81,7 +81,9 @@ class StackRuntime:
         self.clock = 0.0               # virtual milliseconds
         self.timers, self._seq = [], 0
         self.changed = True
-        self.on_wait = None            # the window sets this: draw frames while a script waits
+        self.on_wait = None
+        self.keys_down = set()         # 'shiftkey', 'optionkey'... while held (the window fills it)
+        self.closed = False            # the window sets this: draw frames while a script waits
         for st in self.harvest.stacks:
             for o in [st] + st.children + [c for card in st.children for c in card.flat()]:
                 if o.script.strip() and id(o) not in self.ctx:
