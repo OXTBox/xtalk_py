@@ -31,6 +31,8 @@ def spans(text, kind, item_delim=',', line_delim='\n'):
             break
         out.append((i, j))
         i = j + len(d)
+    if len(out) > 1 and out[-1][0] == len(text):   # one trailing delimiter starts no new item/line (measured 25 Nov)
+        out.pop()
     return out
 
 def count(text, kind, **k):
@@ -63,8 +65,8 @@ def put(text, kind, a, b, new, mode='into', **k):
     sp = spans(text, kind, **k)
     n = len(sp)
     d = {'item': k.get('item_delim', ','), 'line': k.get('line_delim', '\n'), 'word': ' ', 'char': ''}[kind]
-    if a > 0 and a > n:                      # beyond the end: pad
-        pad = d * (a - n) if n else d * (a - 1)
+    if a > 0 and a > n:                      # beyond the end: pad (a trailing delimiter counts as one)
+        pad = d * (a - n - (1 if d and text.endswith(d) else 0)) if n else d * (a - 1)
         return text + pad + new
     r = _range(n, a, b)
     if r is None:

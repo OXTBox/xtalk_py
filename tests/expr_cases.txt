@@ -130,3 +130,24 @@ ceiling(2.1)
 floor("3.7")
 ceiling(-2.5)
 floor(5)
+the number of items of "a,b,"
+the number of items of ","
+the number of items of ",,"
+the number of items of "a,,"
+the number of lines of ("a" & cr & "b" & cr)
+the number of lines of cr
+item -1 of "a,b,"
+item 3 of "a,b,"
+item -1 of "a,,"
+not empty
+empty and true
+empty or true
+not "x"
+" true" or false
+"TRUE" and true
+min("5,3,")
+max("5,3,")
+sum("5,3,")
+average("5,3,")
+min(",5")
+min("5,,3")

@@ -316,3 +316,69 @@ break
 default
 put ",cs" after tOut
 end switch
+----
+put "a,b," into t
+put "X" into item 3 of t
+put t into tOut
+----
+put "a,b," into t
+put "X" into item 4 of t
+put t into tOut
+----
+put "a,b," into t
+put "X" into item -1 of t
+put t into tOut
+----
+put "a,b," into t
+delete item 2 of t
+put t into tOut
+----
+put "a,b," into t
+put "X" after item 2 of t
+put t into tOut
+----
+put 0 into n
+repeat for each item s in ",,"
+  add 1 to n
+end repeat
+put n into tOut
+----
+put 0 into n
+repeat for each line s in ("a" & cr & cr)
+  add 1 to n
+end repeat
+put n into tOut
+----
+if false then
+  put 1 into x
+else put 2 into x
+put x & "," into tOut
+if true then
+  if false then
+    put 1 into y
+  else put 2 into y
+  put y & "a" after tOut
+end if
+----
+put 3 into xx'
+put xx' * 2 into yy'
+put yy' & "," & xx' into tOut
+----
+put "" into tOut
+repeat for each item v in "TRUE, true,true ,1,yes,,false"
+  if v then put "T" after tOut
+  else put "F" after tOut
+end repeat
+----
+put 0 into n
+repeat with i = 1 to empty
+  add 1 to n
+end repeat
+put n into tOut
+----
+put 0 into n
+put "" into tEnd
+repeat with i = 0 to tEnd
+  add 1 to n
+end repeat
+put n & "," & i into tOut

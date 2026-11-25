@@ -38,6 +38,9 @@ class Host:
         o = self.objs.setdefault(self.norm(desc), {})
         o[prop if key is None else '%s[%s]' % (prop, key)] = value
 
+    def within(self, desc, point):
+        raise XtError("expression: can't find function within")
+
     def count(self, kind, parent):
         pre = kind.rstrip('s')
         return sum(1 for d in self.objs if d.startswith(pre + ' ') and (not parent or d.endswith(self.norm(parent))))

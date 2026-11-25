@@ -131,7 +131,28 @@
   "ceiling(2.1)": "3",
   "floor(\"3.7\")": "3",
   "ceiling(-2.5)": "-2",
-  "floor(5)": "5"
+  "floor(5)": "5",
+  "the number of items of \"a,b,\"": "2",
+  "the number of items of \",\"": "1",
+  "the number of items of \",,\"": "2",
+  "the number of items of \"a,,\"": "2",
+  "the number of lines of (\"a\" & cr & \"b\" & cr)": "2",
+  "the number of lines of cr": "1",
+  "item -1 of \"a,b,\"": "b",
+  "item 3 of \"a,b,\"": "",
+  "item -1 of \"a,,\"": "",
+  "not empty": "true",
+  "empty and true": "false",
+  "empty or true": "true",
+  "not \"x\"": "true",
+  "\" true\" or false": "false",
+  "\"TRUE\" and true": "true",
+  "min(\"5,3,\")": "3",
+  "max(\"5,3,\")": "5",
+  "sum(\"5,3,\")": "8",
+  "average(\"5,3,\")": "4",
+  "min(\",5\")": "0",
+  "min(\"5,,3\")": "0"
  },
  "script": {
   "put \"a,b,c\" into t\nput \"X\" into item 2 of t\nput t into tOut": "a,X,c",
@@ -186,7 +207,19 @@
   "put empty into tOut\nswitch \"c\"\ncase \"a\"\nput \"A\" after tOut\nbreak\ncase \"c\"\nput \"C\" after tOut\ndefault\nput \"D\" after tOut\nend switch\nswitch\ncase 1 = 2\nput \"x\" after tOut\ncase 1 = 1\nput \"y\" after tOut\ncase 1 = 3\nput \"z\" after tOut\nbreak\ncase 1 = 1\nput \"w\" after tOut\nend switch": "CDyz",
   "put empty into tOut\nrepeat for each item tK in \"b,q,e\"\nswitch tK\ncase \"a\"\ncase \"b\"\nput \"1\" after tOut\nbreak\ndefault\nput \"D\" after tOut\ncase \"e\"\nput \"E\" after tOut\nif tK is \"e\" then break\nput \"!\" after tOut\ncase \"f\"\nput \"F\" after tOut\nend switch\nput \"/\" after tOut\nend repeat": "1/DE!F/E/",
   "put empty into tOut\nswitch \"right\"\ncase \"Right\"\nput \"matched\" after tOut\nbreak\ndefault\nput \"nomatch\" after tOut\nend switch\nput \",\" & the caseSensitive after tOut\nput \",\" & (\"right\" = \"Right\") after tOut\nswitch \"b\"\ncase \"B\"\nput \",B\" after tOut\nbreak\ndefault\nput \",default\" after tOut\nend switch": "matched,false,true,B",
-  "put empty into tOut\nswitch \"1.0\"\ncase 1\nput \"num\" after tOut\nbreak\ndefault\nput \"text\" after tOut\nend switch\nswitch \" b \"\ncase \"b\"\nput \",trim\" after tOut\nbreak\ndefault\nput \",exact\" after tOut\nend switch\nset the caseSensitive to true\nswitch \"b\"\ncase \"B\"\nput \",B\" after tOut\nbreak\ndefault\nput \",cs\" after tOut\nend switch": "text,exact,cs"
+  "put empty into tOut\nswitch \"1.0\"\ncase 1\nput \"num\" after tOut\nbreak\ndefault\nput \"text\" after tOut\nend switch\nswitch \" b \"\ncase \"b\"\nput \",trim\" after tOut\nbreak\ndefault\nput \",exact\" after tOut\nend switch\nset the caseSensitive to true\nswitch \"b\"\ncase \"B\"\nput \",B\" after tOut\nbreak\ndefault\nput \",cs\" after tOut\nend switch": "text,exact,cs",
+  "put \"a,b,\" into t\nput \"X\" into item 3 of t\nput t into tOut": "a,b,X",
+  "put \"a,b,\" into t\nput \"X\" into item 4 of t\nput t into tOut": "a,b,,X",
+  "put \"a,b,\" into t\nput \"X\" into item -1 of t\nput t into tOut": "a,X,",
+  "put \"a,b,\" into t\ndelete item 2 of t\nput t into tOut": "a,",
+  "put \"a,b,\" into t\nput \"X\" after item 2 of t\nput t into tOut": "a,bX,",
+  "put 0 into n\nrepeat for each item s in \",,\"\n  add 1 to n\nend repeat\nput n into tOut": "2",
+  "put 0 into n\nrepeat for each line s in (\"a\" & cr & cr)\n  add 1 to n\nend repeat\nput n into tOut": "2",
+  "if false then\n  put 1 into x\nelse put 2 into x\nput x & \",\" into tOut\nif true then\n  if false then\n    put 1 into y\n  else put 2 into y\n  put y & \"a\" after tOut\nend if": "2,2a",
+  "put 3 into xx'\nput xx' * 2 into yy'\nput yy' & \",\" & xx' into tOut": "6,3",
+  "put \"\" into tOut\nrepeat for each item v in \"TRUE, true,true ,1,yes,,false\"\n  if v then put \"T\" after tOut\n  else put \"F\" after tOut\nend repeat": "TFFFFFF",
+  "put 0 into n\nrepeat with i = 1 to empty\n  add 1 to n\nend repeat\nput n into tOut": "0",
+  "put 0 into n\nput \"\" into tEnd\nrepeat with i = 0 to tEnd\n  add 1 to n\nend repeat\nput n & \",\" & i into tOut": "1,0"
  },
  "lib": {
   "libraries/lib_bit.livecodescript": {
@@ -337,6 +370,26 @@
    "T.CanyonBullet(1.5)": "",
    "Canyon.SegmentMesh(\"0,0\" & return & \"10,0\" & return & \"10,10\", \"0,0\" & return & \"8,0\" & return & \"8,8\", 5)": ""
   },
+  "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Face.livecodescript": {
+   "Face.SegmentsToMesh(\"0,0,0,10,0,0\" & return & \"10,0,0,10,10,0\" & return & \"bad\")": "",
+   "Face.SegmentsToMesh(\"1,2,3,4,5,6\" & return & \"1,2,3,7,8,9\" & return & \"7,8,9,4,5,6\")": ""
+  },
+  "tests/wrap_translator.txt": {
+   "T.ByRef()": "6|6|11|x+y|vy",
+   "T.ByRefKey()": "5",
+   "T.ByRefChunk()": "ERR",
+   "T.Match()": "true|key|42",
+   "T.MatchMiss()": "false|z",
+   "T.Try()": "ac:boom|f",
+   "T.TryReturn()": "rf",
+   "T.TryErr()": "caught",
+   "T.Loops()": "1t4,10,7,4,1",
+   "T.Filter()": "apple+avocado|apple,cherry",
+   "T.SortBy()": "a1,c2,b3|c,b,A",
+   "T.Delete()": "a,c,d|one three|y",
+   "T.Do()": "7|10",
+   "T.Each()": "12"
+  },
   "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt": {
    "Hunter.GemTypes()": "Diamond,#E8F8FF,500,1\nSapphire,#3A7BFF,300,2\nRuby,#FF2A4A,250,3\nEmerald,#22FF88,200,3\nAmethyst,#B455FF,150,4\nTopaz,#FFC21A,100,5",
    "Hunter.Palette()": "#D02090,#FF0000,#FF4500,#FFA500,#FFFF00,#7CFC00,#32CD32,#00FF00,#00FFFF,#6495ED,#1E90FF,#3399FF,#FF00FF,#00FF7F,#FFC0CB,#FF69B4,#00F5FF,#87CEEB,#E6E6FA,#FFFFFF",
@@ -365,26 +418,6 @@
   },
   "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_demo.livecodescript": {
    "Demo.BoatMesh()": ""
-  },
-  "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Face.livecodescript": {
-   "Face.SegmentsToMesh(\"0,0,0,10,0,0\" & return & \"10,0,0,10,10,0\" & return & \"bad\")": "",
-   "Face.SegmentsToMesh(\"1,2,3,4,5,6\" & return & \"1,2,3,7,8,9\" & return & \"7,8,9,4,5,6\")": ""
-  },
-  "tests/wrap_translator.txt": {
-   "T.ByRef()": "6|6|11|x+y|vy",
-   "T.ByRefKey()": "5",
-   "T.ByRefChunk()": "ERR",
-   "T.Match()": "true|key|42",
-   "T.MatchMiss()": "false|z",
-   "T.Try()": "ac:boom|f",
-   "T.TryReturn()": "rf",
-   "T.TryErr()": "caught",
-   "T.Loops()": "1t4,10,7,4,1",
-   "T.Filter()": "apple+avocado|apple,cherry",
-   "T.SortBy()": "a1,c2,b3|c,b,A",
-   "T.Delete()": "a,c,d|one three|y",
-   "T.Do()": "7|10",
-   "T.Each()": "12"
   }
  }
 }

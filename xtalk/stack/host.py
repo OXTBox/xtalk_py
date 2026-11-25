@@ -32,6 +32,24 @@ def canon(p):
 COMMANDS_QUIET = {'lock', 'unlock', 'beep', 'focus', 'select', 'flushevents', 'set'}
 
 
+def _in_polygon(x, y, pts):
+    """even-odd rule"""
+    inside = False
+    for (x1, y1), (x2, y2) in zip(pts, pts[1:] + pts[:1]):
+        if (y1 > y) != (y2 > y) and x < x1 + (y - y1) * (x2 - x1) / (y2 - y1):
+            inside = not inside
+    return inside
+
+
+def _near_polyline(x, y, pts, d):
+    for (x1, y1), (x2, y2) in zip(pts, pts[1:] or pts):
+        dx, dy = x2 - x1, y2 - y1
+        k = 0 if dx == dy == 0 else max(0, min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy)))
+        if (x - x1 - k * dx) ** 2 + (y - y1 - k * dy) ** 2 <= d * d:
+            return True
+    return False
+
+
 def ints(text, n):
     parts = [p for p in str(text).split(',')]
     if len(parts) != n:
@@ -199,6 +217,35 @@ class StackHost(Host):
             return objs[n - 1] if 1 <= n <= len(objs) else None
         v = val.lower()
         return next((o for o in objs if o.name.lower() == v), None)
+
+    def within(self, desc, point):
+        """within(object, point) (Dictionary): a graphic's inside counts only when it is filled;
+        unfilled, only its outline (2 px either side: not measured). Images, tabbed buttons: the rect."""
+        o = self.resolve(desc)
+        x, y = ints(point, 2)
+        l, t, r, b = o.rect
+        if o.type != 'graphic':
+            return 'true' if l <= x < r and t <= y < b else 'false'
+        style = self.obj_prop(o, 'style')
+        filled = self.obj_prop(o, 'filled') == 'true'
+        pts = [q for q in (o.points or []) if q is not None]
+        if style in ('polygon', 'curve', 'line', 'freehand') and pts:
+            if filled and len(pts) > 2 and _in_polygon(x, y, pts):
+                return 'true'
+            return 'true' if _near_polyline(x, y, pts, 2) else 'false'
+        if style == 'oval':
+            rx, ry = (r - l) / 2, (b - t) / 2
+            if rx <= 0 or ry <= 0:
+                return 'false'
+            d = ((x + 0.5 - (l + rx)) / rx) ** 2 + ((y + 0.5 - (t + ry)) / ry) ** 2
+            if filled:
+                return 'true' if d <= 1 else 'false'
+            inner = ((x + 0.5 - (l + rx)) / max(rx - 2, 0.5)) ** 2 + ((y + 0.5 - (t + ry)) / max(ry - 2, 0.5)) ** 2
+            return 'true' if d <= 1 and inner >= 1 else 'false'
+        inside = l <= x < r and t <= y < b
+        if filled or not inside:
+            return 'true' if inside else 'false'
+        return 'true' if min(x - l, r - 1 - x, y - t, b - 1 - y) < 2 else 'false'
 
     def exists(self, desc):
         return self.resolve(desc, must=False) is not None
@@ -478,6 +525,10 @@ class StackHost(Host):
         if name == 'go':
             return self.go(' '.join(v for k, v in parts))
         if name == 'click':
+            return ''
+        if name == 'grab':
+            if es:
+                rt.grab(self.resolve(es[0]))
             return ''
         raise XtError("can't find handler %s" % name)
 

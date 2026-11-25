@@ -67,3 +67,25 @@ standalone per library group.
 - `the "abc"` is just abc (the card reader stack uses `put the "Entrance, Obstacle..." into tItems`).
 - A custom property reads as `the uFoo of stack "x"` and `the uFoo of this stack`.
 - NOT measured: preOpenStack/openCard order (an invisible stack opened from a library sent none of them).
+
+## 25 Nov 2026 (nine-ball stack; standalone, `lcmcp run` and `lcmcp compile`)
+- **Trailing delimiter:** one delimiter at the end starts no new item or line. `the number of items of "a,b,"` = 2,
+  of `","` = 1, of `",,"` = 2, of `"a,,"` = 2; lines of `"a" & cr & "b" & cr` = 2, of `cr` = 1.
+  `item 3 of "a,b,"` is empty, `item -1 of "a,b,"` = b. Writing past the end counts the trailing comma as there:
+  put X into item 3 / item 4 / item -1 of `a,b,` gives `a,b,X` / `a,b,,X` / `a,X,`; `delete item 2` gives `a,`;
+  `put X after item 2` gives `a,bX,`. `repeat for each item` in `",,"` runs 2 times.
+  (Our interpreter said 3: the nine-ball pocket list `pocket1,...,pocket6,` then had a 7th, empty pocket.)
+- **Booleans:** only "true" (any case, no spaces) is true. Empty, "x", " true", "true ", "1", "yes" are false, with
+  NO error, in `if`, `not`, `and`, `or` (`if s then` with s empty takes the else). Our "bad boolean" error was wrong.
+- **One-line else:** `else put 2 into x` ends a multi-line `if` by itself. An `end if` after it is a compile error
+  ("end doesn't match handler name") unless it closes an outer `if`.
+- **Names may contain an apostrophe:** `put 3 into xx'` works (Scott Rossi's `resetVel xx,yy,xx',yy'`).
+- **Lines outside handlers are ignored**, even nonsense: the script compiles, the result of `set the script` is empty,
+  and the handlers before and after still run.
+- `the number of buttons` with no "of" counts on the current card (0 there); `the number of cards` = 1.
+- The standalone has no message box: `put "k" into msg box` fails at run time there, but compiles in scripts.
+- From the Dictionary (mouse events cannot be measured without a hand on the mouse):
+  `grab` returns at once, the control follows the mouse until release, then gets mouseUp; nothing happens if the
+  mouse is not inside it. mouseMove goes to the control under the mouse (or the card); while the button is held, to
+  the object clicked. mouseEnter/mouseLeave wait while the button is held and come after the release.
+  `within(graphic, point)`: the inside counts only if the graphic is filled.

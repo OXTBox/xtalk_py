@@ -72,12 +72,9 @@ def to_text(v):
     return str(v)
 
 def to_bool(v):
-    t = to_text(v).strip().lower()
-    if t == 'true':
-        return True
-    if t == 'false':
-        return False
-    raise XtError("expression: bad boolean")
+    """if / not / and / or: only "true" (any case, no spaces) is true; anything else is false,
+    with no error (measured 25 Nov: empty, "x", " true", "1", "yes" are all false)"""
+    return to_text(v).lower() == 'true'
 
 def is_numeric_text(s):
     return isinstance(s, str) and bool(_NUM.match(s))

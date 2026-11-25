@@ -34,7 +34,7 @@ TOKEN = re.compile(r'''
   | (?P<nl>\n)
   | (?P<str>"[^"\n]*")
   | (?P<num>(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?)
-  | (?P<id>[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)*)
+  | (?P<id>[A-Za-z_][A-Za-z0-9_']*(\.[A-Za-z0-9_]+)*)
   | (?P<op><=|>=|<>|&&|[&+\-*/^=<>(),\[\]])
   | (?P<other>.)
 ''', re.X | re.S)
@@ -156,6 +156,11 @@ class Parser:
                 return
             private = self.accept_word('private')
             kind = (self.accept_word('on', 'command', 'function', 'getprop', 'setprop'))
+            if not kind and not private:       # a line outside any handler: LiveCode ignores it (measured 25 Nov)
+                while self.peek()[0] not in ('nl', 'eof'):
+                    self.i += 1
+                self.skip_nl()
+                return
             if not kind:
                 self.err('expected a handler (on, command, function)')
             name = self.next()[1]
@@ -392,9 +397,8 @@ class Parser:
                     return ('if', cond, then, els)
                 if self.peek()[0] == 'nl':
                     els = self.block(('end',))
-                else:
-                    els = [self.one_stmt()]
-                    self.skip_nl()
+                else:                                   # `else stmt` on one line ends the if: no end if
+                    return ('if', cond, then, [self.one_stmt()])
             self.expect_word('end')
             self.expect_word('if')
             return ('if', cond, then, els)
@@ -696,6 +700,9 @@ class Parser:
             return ('call', s, args)
         if w in CONSTANTS:
             return ('const', w)
+        if w in ('msg', 'message') and self.is_word('box'):
+            self.i += 1                                    # put k into msg box: the same container as msg
+            return ('var', 'msg')
         return self.postfix(('var', s))
 
     def p_add_nochunk_end(self):
@@ -731,10 +738,14 @@ class Parser:
             ref = ('this',)
         else:
             typ = w
-            if self.accept_word('id'):
-                ref = ('id', self.primary())
-            else:
-                ref = self.primary()
+            self.no_prop += 1                # graphic i of this stack: i is the number, not "the i of this stack"
+            try:
+                if self.accept_word('id'):
+                    ref = ('id', self.primary())
+                else:
+                    ref = self.primary()
+            finally:
+                self.no_prop -= 1
         parent = None
         if self.is_word('of'):
             if self.is_word('this', 1) or (self.peek(1)[0] == 'id' and self.peek(1)[1].lower() in OBJTYPES):
@@ -786,6 +797,8 @@ class Parser:
                 self.expect_word_in('in', 'of')
                 return ('count', 'char', self.p_un())
             if ck in OBJPLURAL:
+                if not (self.is_word('in') or self.is_word('of')):
+                    return ('countobj', ck, ('str', ''))     # the number of buttons: this card
                 self.expect_word_in('in', 'of')
                 return ('countobj', ck, self.p_un())
             self.err('unknown "the number of"')

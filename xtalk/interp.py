@@ -598,7 +598,7 @@ class Interp:
 
     # ------------------------------------------------------------ expressions
     def truth(self, v):
-        return to_text(v).strip().lower() == 'true'
+        return to_bool(v)
 
     def ev(self, e, fr):
         return getattr(self, 'e_' + e[0])(e, fr)
@@ -818,17 +818,23 @@ def _n(x):
 def _t(x):
     return to_text(x)
 
+def _list(a):
+    """min/max/sum/average: several arguments, or one comma list (a trailing comma adds no item,
+    an empty item counts as 0: measured 25 Nov)"""
+    if len(a) > 1:
+        return [_n(x) for x in a]
+    t = _t(a[0])
+    return [_n(t[i:j]) for i, j in ch.spans(t, 'item')]
+
 def f_round(it, fr, x, places='0'):
     p = int(_n(places))
     return numstr(rnd_half_away(_n(x), p))
 
 def f_min(it, fr, *a):
-    vals = [_n(x) for x in (a if len(a) > 1 else [p for p in _t(a[0]).split(',')])]
-    return numstr(min(vals))
+    return numstr(min(_list(a)))
 
 def f_max(it, fr, *a):
-    vals = [_n(x) for x in (a if len(a) > 1 else [p for p in _t(a[0]).split(',')])]
-    return numstr(max(vals))
+    return numstr(max(_list(a)))
 
 def f_offset(it, fr, needle, hay, skip='0'):
     s = int(_n(skip))
@@ -921,6 +927,7 @@ def f_baseconvert(it, fr, num, frm, to):
 
 BUILTINS = {
     'baseconvert': f_baseconvert,
+    'within': lambda it, fr, o, p: it.host.within(_t(o), _t(p)),
     'matchtext': lambda it, fr, s_, p_, *r: 'true' if _re_search(p_, s_) else 'false',
     'replacetext': f_replacetext, 'format': f_format,
     'numtocodepoint': lambda it, fr, n: chr(int(_n(n))),
@@ -943,8 +950,8 @@ BUILTINS = {
     'param': f_param, 'paramcount': lambda it, fr: str(len(fr.args)), 'value': f_value,
     'base64encode': lambda it, fr, x: base64.b64encode(_t(x).encode('utf-8')).decode(),
     'base64decode': lambda it, fr, x: base64.b64decode(_t(x)).decode('utf-8', 'replace'),
-    'sum': lambda it, fr, *a: numstr(sum(_n(x) for x in (a if len(a) > 1 else _t(a[0]).split(',')))),
-    'average': lambda it, fr, *a: numstr(sum(_n(x) for x in a) / len(a)),
+    'sum': lambda it, fr, *a: numstr(sum(_list(a))),
+    'average': lambda it, fr, *a: numstr(sum(_list(a)) / len(_list(a))),
     'isnumber': lambda it, fr, x: 'true' if is_numeric_text(_t(x)) else 'false',
     'specialfolderpath': lambda it, fr, x: it.host.special_folder(_t(x)),
     'floor': lambda it, fr, x: numstr(math.floor(_n(x))),
