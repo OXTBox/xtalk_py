@@ -87,6 +87,9 @@ class StackRuntime:
         self.menu_choices = []         # no window (tests): the picks to make, in order (None = close the menu)
         self.menus = []                # every menu shown: (button name, [item labels])
         self.swallow_up = False        # a menu opened while the button was down took the release
+        self.started = []              # programs shell() started (.py scripts), for tests to wait on
+        self.start_programs = True     # False: shell() only notes the script (the survey: no windows pop up)
+        self.not_started = []          # the scripts shell() would have started
         self.clock = 0.0               # virtual milliseconds
         self.timers, self._seq = [], 0
         self.changed = True

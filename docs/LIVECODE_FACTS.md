@@ -98,3 +98,9 @@ standalone per library group.
 - From the Dictionary: `popup button [at point]` pauses the handler while the menu shows; a pick sends menuPick to
   the button. NOT measured (needs a hand on the mouse): whether an option menu also gets mouseUp after a pick
   (we send none), and menuPick's order against the rest of the handler (we send it before the handler goes on).
+- **A field used as a value is its text:** `field "F"`, `word 2 of field "F"`, `line 1 to -1 of field "F"` give
+  `one two` / `two` / `one two` (measured 25 Nov). We gave the field's name, so TKInter-izer's Run wrote the words
+  `field "Program"` into its .py file. Commands (hide, send to, popup...) still get the object itself.
+- `shell()` (not LiveCode's general version, by the owner's word 25 Nov): only starts a .py file from the stack's
+  files folder, with a Python that has Tkinter (Windows Python 3.14 + Tk 8.6 today; WSL's has no Tkinter).
+  Windows Python started from WSL waits forever on its input unless the input is closed (stdin = nothing).

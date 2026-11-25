@@ -267,7 +267,7 @@ class Interp:
         if obj is None:
             self.set_global_prop(name, v)
             return
-        self.host.set_prop(to_text(self.ev(obj, fr)), name, v, None if key is None else to_text(self.ev(key, fr)))
+        self.host.set_prop(self.desc(obj, fr), name, v, None if key is None else to_text(self.ev(key, fr)))
 
     @staticmethod
     def setprop_value(raw, of_object):
@@ -426,7 +426,7 @@ class Interp:
         m = getattr(self, 'c_' + name, None)
         if m:
             return m(parts, fr)
-        vals = [(p[0], to_text(self.ev(p[1], fr)) if p[0] == 'e' else p[1]) for p in parts]
+        vals = [(p[0], to_text(self.arg(p[1], fr)) if p[0] == 'e' else p[1]) for p in parts]
         self.result = to_text(self.host.command(name, vals) or '')
 
     def check_byref(self, name, kinds):
@@ -459,7 +459,7 @@ class Interp:
 
     def c_wait(self, parts, fr):
         """wait: the host decides what waiting means (nothing in the plain host)"""
-        vals = [(p[0], to_text(self.ev(p[1], fr)) if p[0] == 'e' else p[1]) for p in parts]
+        vals = [(p[0], to_text(self.arg(p[1], fr)) if p[0] == 'e' else p[1]) for p in parts]
         self.host.command('wait', vals)
 
     def x_sort(self, st, fr):
@@ -518,10 +518,10 @@ class Interp:
             self.assign(inner, self.put_chunk(kind, cur, av, bv, value, mode), 'into', fr)
             return
         if k == 'obj':
-            self.put_obj(to_text(self.ev(target, fr)), value, mode)
+            self.put_obj(self.desc(target, fr), value, mode)
             return
         if k == 'propof':
-            self.host.set_prop(to_text(self.ev(target[2], fr)), target[1], to_text(value))
+            self.host.set_prop(self.desc(target[2], fr), target[1], to_text(value))
             return
         if k == 'url':
             self.host.write_url(target[1], to_text(self.ev(target[2], fr)), to_text(value))
@@ -669,8 +669,21 @@ class Interp:
             return base
         return to_text(self.ev(e, fr))
 
+    CONTAINER_OBJS = ('field', 'fld', 'button', 'btn')
+
+    def obj_value(self, typ, desc):
+        """an object used as a value: a field or button is its text (line 1 of field "F", put field "F" into x);
+        any other object stands for itself"""
+        if typ in self.CONTAINER_OBJS:
+            return self.host.get_prop(desc, 'text')
+        return desc
+
     def e_obj(self, e, fr):
-        return self.desc(e, fr)
+        return self.obj_value(e[1], self.desc(e, fr))
+
+    def arg(self, n, fr):
+        """a built-in command's argument: an object reference stays the object (hide field "F")"""
+        return self.desc(n, fr) if n[0] == 'obj' else self.ev(n, fr)
 
     def e_exists(self, e, fr):
         ok = self.host.exists(self.desc(e[1], fr))
@@ -792,6 +805,8 @@ class Interp:
         name = e[1]
         n = name.lower()
         args = [self.ev(a, fr) for a in e[2]]
+        if n == 'within' and e[2] and e[2][0][0] == 'obj':      # within(field "F", pt): the object, not its text
+            args[0] = self.desc(e[2][0], fr)
         hf = self.lookup(n)[1]
         if hf is not None and hf[0] == 'function':
             r = self.invoke(name, args)
@@ -930,6 +945,7 @@ def f_baseconvert(it, fr, num, frm, to):
 BUILTINS = {
     'baseconvert': f_baseconvert,
     'within': lambda it, fr, o, p: it.host.within(_t(o), _t(p)),
+    'shell': lambda it, fr, c: it.host.shell(_t(c)),
     'matchtext': lambda it, fr, s_, p_, *r: 'true' if _re_search(p_, s_) else 'false',
     'replacetext': f_replacetext, 'format': f_format,
     'numtocodepoint': lambda it, fr, n: chr(int(_n(n))),

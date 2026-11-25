@@ -5,7 +5,7 @@ of stack "X"`, `field 1`); this host finds the object, reads and sets its proper
 engine's commands (show, hide, send, dispatch, go, answer...). Rules measured in LiveCode are in
 docs/LIVECODE_FACTS.md ("Objects and messages").
 """
-import math, os, re
+import math, os, re, subprocess, sys
 from ..host import Host
 from ..values import XtError, to_num
 from ..parser import tokenize, ORDINALS
@@ -48,6 +48,29 @@ def _near_polyline(x, y, pts, d):
         if (x - x1 - k * dx) ** 2 + (y - y1 - k * dy) ** 2 <= d * d:
             return True
     return False
+
+
+_SCRIPT_PYTHON = []
+
+
+def script_python():
+    """the Python that shell() starts scripts with: XTALK_SCRIPT_PYTHON, else this one if it has Tkinter
+    (TKInter-izer's programs are Tk windows), else a Windows Python (WSL has none with Tkinter today)"""
+    if os.environ.get('XTALK_SCRIPT_PYTHON'):
+        return os.environ['XTALK_SCRIPT_PYTHON']
+    if not _SCRIPT_PYTHON:
+        import glob, importlib.util
+        found = sys.executable
+        if importlib.util.find_spec('tkinter') is None:
+            for pat in ('/mnt/c/Users/*/AppData/Local/python/pythoncore-*/python.exe',
+                        '/mnt/c/Users/*/AppData/Local/Programs/Python/Python3*/python.exe',
+                        '/mnt/c/Program Files/Python3*/python.exe'):
+                hits = sorted(glob.glob(pat))
+                if hits:
+                    found = hits[-1]
+                    break
+        _SCRIPT_PYTHON.append(found)
+    return _SCRIPT_PYTHON[0]
 
 
 def ints(text, n):
@@ -217,6 +240,28 @@ class StackHost(Host):
             return objs[n - 1] if 1 <= n <= len(objs) else None
         v = val.lower()
         return next((o for o in objs if o.name.lower() == v), None)
+
+    def shell(self, command):
+        """shell(): in LiveCode the owner's stacks use it to start a Python script. Here only that is done
+        (owner, 25 Nov): a .py file inside the stack's files folder starts with Python, as its own program,
+        and the stack goes on (LiveCode's shell waits). Any other command is refused.
+        Which Python: XTALK_SCRIPT_PYTHON if set (one with Tkinter, say), else the one running this."""
+        path = command.strip().strip('"').replace('\\', '/')
+        full = self.sandboxed(path)
+        if not path.lower().endswith('.py') or full != os.path.abspath(path) or not os.path.isfile(full):
+            raise XtError('shell: only a .py file in the stack\'s files folder is started (owner, 25 Nov): %s' % command)
+        if not self.rt.start_programs:
+            self.rt.not_started.append(full)
+            return ''
+        python = script_python()
+        target = full
+        if python.lower().endswith('.exe'):          # Windows Python: it wants a Windows path
+            target = subprocess.run(['wslpath', '-w', full], capture_output=True, text=True).stdout.strip() or full
+        log = open(os.path.splitext(full)[0] + '.log', 'w', encoding='utf-8')
+        p = subprocess.Popen([python, target], cwd=os.path.dirname(full), stdin=subprocess.DEVNULL,
+                             stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+        self.rt.started.append(p)
+        return ''
 
     def within(self, desc, point):
         """within(object, point) (Dictionary): a graphic's inside counts only when it is filled;

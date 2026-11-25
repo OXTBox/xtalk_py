@@ -38,6 +38,9 @@ class Host:
         o = self.objs.setdefault(self.norm(desc), {})
         o[prop if key is None else '%s[%s]' % (prop, key)] = value
 
+    def shell(self, command):
+        raise XtError("expression: can't find function shell")
+
     def within(self, desc, point):
         raise XtError("expression: can't find function within")
 

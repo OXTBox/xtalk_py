@@ -53,6 +53,8 @@ rt.click('button "R1"')
 check('radio button in a group', (rt.get('button "R1"', 'hilite'), rt.get('button "R2"', 'hilite')), ('true', 'false'))
 rt.run('put " two" after field "F"')
 check('put after a field', rt.get('field 1', 'text'), 'one two')
+check('a field used as a value is its text', (rt.eval('field "F"'), rt.eval('word 2 of field "F"'), rt.eval('line 1 to -1 of field 1')),
+      ('one two', 'two', 'one two'))
 rt.run('hide button "B"')
 check('hide', rt.get('button "B"', 'visible'), 'false')
 check('hidden: a click there hits the card', rt.control_at(160, 20), None)
@@ -103,6 +105,22 @@ rt.run('put "y" into URL ("file:" & specialFolderPath("Documents") & "/in.txt")'
 home = rt.host.folders['home']
 check('a write outside the sandbox is redirected into it',
       (os.path.exists('/tmp/escape_test.txt'), os.path.exists(os.path.join(home, 'elsewhere', 'tmp', 'escape_test.txt'))), (False, True))
+os.makedirs(os.path.join(home, 'Documents'), exist_ok=True)
+with open(os.path.join(home, 'Documents', 'hello.py'), 'w') as f:
+    f.write('open("shell_ran.txt", "w").write("yes")\n')
+if os.path.exists(os.path.join(home, 'Documents', 'shell_ran.txt')):
+    os.remove(os.path.join(home, 'Documents', 'shell_ran.txt'))
+rt.run('get shell(specialFolderPath("Documents") & "/hello.py")')
+for p in rt.started:
+    p.wait(20)
+ran = os.path.join(home, 'Documents', 'shell_ran.txt')
+check('shell: a .py file in the sandbox runs with Python', open(ran).read() if os.path.exists(ran) else None, 'yes')
+try:
+    rt.run('get shell("dir")')
+    refused = False
+except Exception as e:
+    refused = 'only a .py file' in str(e)
+check('shell: any other command is refused', refused, True)
 check('a sandbox write stays where it says', os.path.exists(os.path.join(home, 'Documents', 'in.txt')), True)
 
 READER = os.path.expanduser('~/projects/XTJSON/Game_card_reader_11_13_2025')

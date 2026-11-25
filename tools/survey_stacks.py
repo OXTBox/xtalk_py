@@ -83,6 +83,7 @@ def survey(folder, seconds, log):
     cards = list(first.default_stack.children)
     for ci in range(len(cards)):
         rt = StackRuntime(folder, files_dir=FILES)
+        rt.start_programs = False          # shell() of a .py: noted, never started (no windows on the screen)
         card = rt.default_stack.children[ci]
         try:
             timed(seconds, rt.open)

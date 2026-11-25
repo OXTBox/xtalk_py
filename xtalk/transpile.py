@@ -106,7 +106,7 @@ class Gen:
         return base
 
     def x_obj(self, e):
-        return self.desc(e)
+        return 'rt.obj_value(%s, %s)' % (_r(e[1]), self.desc(e))
 
     def x_exists(self, e):
         return "('true' if rt.host.exists(%s) != %r else 'false')" % (self.desc(e[1]), e[2])
@@ -155,7 +155,9 @@ class Gen:
 
     def x_call(self, e):
         name, args = e[1], e[2]
-        return 'rt.fn(fr, %s, [%s], [%s])' % (_r(name), ', '.join(self.ex(a) for a in args),
+        ex = [self.desc(a) if (i == 0 and name.lower() == 'within' and a[0] == 'obj') else self.ex(a)
+              for i, a in enumerate(args)]
+        return 'rt.fn(fr, %s, [%s], [%s])' % (_r(name), ', '.join(ex),
                                                ', '.join(self.setter(a) for a in args))
 
     # ------------------------------------------------------------ assignment (an expression)
@@ -175,7 +177,7 @@ class Gen:
         if k == 'obj':
             return 'rt.put_obj(%s, %s, %s)' % (self.desc(t), v, _r(mode))
         if k == 'propof':
-            return 'rt.host.set_prop(to_text(%s), %s, to_text(%s))' % (self.ex(t[2]), _r(t[1]), v)
+            return 'rt.host.set_prop(%s, %s, to_text(%s))' % (self.desc(t[2]), _r(t[1]), v)
         if k == 'url':
             return 'rt.host.write_url(%s, to_text(%s), to_text(%s))' % (_r(t[1]), self.ex(t[2]), v)
         return 'rt.cant_put(%s)' % v
@@ -258,7 +260,7 @@ class Gen:
             self.emit(ind, 'rt.set_global_prop(%s, %s)' % (_r(name), v))
         else:
             kc = 'None' if key is None else 'to_text(%s)' % self.ex(key)
-            self.emit(ind, 'rt.host.set_prop(to_text(%s), %s, %s, %s)' % (self.ex(obj), _r(name), v, kc))
+            self.emit(ind, 'rt.host.set_prop(%s, %s, %s, %s)' % (self.desc(obj), _r(name), v, kc))
 
     def s_return(self, s, ind):
         self.emit(ind, 'return %s' % self.ex(s[1]))
@@ -445,7 +447,7 @@ class Gen:
         nodes = [p[1] for p in parts if p[0] == 'e']
         words = [None if p[0] == 'e' else p[1] for p in parts]
         generic = 'rt.cmd(fr, %s, [%s], [%s], %s)' % (
-            _r(name), ', '.join(self.ex(n) for n in nodes),
+            _r(name), ', '.join(self.desc(n) if n[0] == 'obj' else self.ex(n) for n in nodes),
             ', '.join(self.setter(n) if n[0] in ('var', 'idx', 'chunk') else 'None' for n in nodes), _r(words))
         own = getattr(self, 'c_' + name, None)
         if own is None:
