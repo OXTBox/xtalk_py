@@ -548,6 +548,15 @@ class StackHost(Host):
         return ''
 
     # ------------------------------------------------------------ files
+    def sandboxed(self, p):
+        home = os.path.abspath(self.folders.get('home', 'run_files'))
+        full = os.path.abspath(p) if not re.match(r'^[A-Za-z]:/|^[a-z]+:', p) else None
+        if full is not None and (full == home or full.startswith(home + os.sep)):
+            return full
+        safe = re.sub(r'[^A-Za-z0-9._/-]', '_', p.lstrip('/'))
+        safe = '/'.join(x for x in safe.split('/') if x not in ('', '.', '..'))
+        return os.path.join(home, 'elsewhere', safe or 'unnamed')
+
     def special_folder(self, name):
         return self.folders.get(name.lower(), '')
 
@@ -560,7 +569,8 @@ class StackHost(Host):
         return open(p, encoding='utf-8', errors='replace').read() if os.path.exists(p) else ''
 
     def write_url(self, kind, ref, text):
-        p = self._path(ref)
+        """writes stay in the sandbox (run_files): any other path is redirected under run_files/elsewhere/"""
+        p = self.sandboxed(self._path(ref))
         d = os.path.dirname(p)
         if d:
             os.makedirs(d, exist_ok=True)

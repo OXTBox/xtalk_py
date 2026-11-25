@@ -645,7 +645,8 @@ class Parser:
             name = w + ' ' + self.next()[1].lower()
             self.i += 1
             return ('propof', name, self.p_un(), None)
-        if w in ('url', 'file', 'binfile') and (self.peek()[0] == 'str' or (self.peek()[0] == 'id' and not self.is_word('into') and not self.is_word('is') and not self.is_word('and'))):
+        if w in ('url', 'file', 'binfile') and (self.peek()[0] == 'str' or (w == 'url' and self.is_op('('))
+                                                 or (self.peek()[0] == 'id' and not self.is_word('into') and not self.is_word('is') and not self.is_word('and'))):
             return ('url', w, self.primary())
         if w == 'there' and self.is_word('is'):
             self.i += 1

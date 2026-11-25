@@ -13,11 +13,12 @@ card, the card's stack, the mainstack. `pass` hands it on; `send`/`dispatch` sta
 """
 import heapq, os
 from ..pyrt import Runtime
-from ..interp import Frame
+from ..interp import Frame, Thrown, ExitRepeat, NextRepeat, Break
 from ..values import XtError
 from .model import Harvest
 from .host import StackHost
 
+SCRIPT_ERRORS = (XtError, Thrown, ExitRepeat, NextRepeat, Break, RecursionError, ValueError, KeyError, IndexError, TypeError, ZeroDivisionError, OverflowError, OSError, AttributeError)   # a script error never ends the window: it goes to rt.errors (the panel)
 OPEN_MESSAGES = ('preOpenStack', 'preOpenCard', 'openStack', 'openCard')   # order NOT measured (LIVECODE_FACTS)
 
 
@@ -120,8 +121,8 @@ class StackRuntime:
             if n in c.handlers:
                 try:
                     return c.invoke(msg, list(args))
-                except (XtError, RecursionError) as e:
-                    self.errors.append((msg, self.host.name_of(o, 'long'), str(e)))
+                except SCRIPT_ERRORS as e:
+                    self.errors.append((msg, self.host.name_of(o, 'long'), '%s: %s' % (type(e).__name__, e)))
                     return ''
         return None
 
@@ -160,8 +161,8 @@ class StackRuntime:
             self.clock = max(self.clock, t)
             try:
                 self.send_text(o, text)
-            except (XtError, RecursionError) as e:
-                self.errors.append((text, self.host.name_of(o, 'long'), str(e)))
+            except SCRIPT_ERRORS as e:
+                self.errors.append((text, self.host.name_of(o, 'long'), '%s: %s' % (type(e).__name__, e)))
         self.clock = end
 
     # ------------------------------------------------------------ cards and events

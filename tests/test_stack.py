@@ -62,6 +62,12 @@ rt.G['glog'] = ''
 rt.run('go card "Two"')
 check('go card', rt.G['glog'], 'openCard:Two,')
 check('no script errors', rt.errors, [])
+rt.run('put "x" into URL "file:/tmp/escape_test.txt"')
+rt.run('put "y" into URL ("file:" & specialFolderPath("Documents") & "/in.txt")')
+home = rt.host.folders['home']
+check('a write outside the sandbox is redirected into it',
+      (os.path.exists('/tmp/escape_test.txt'), os.path.exists(os.path.join(home, 'elsewhere', 'tmp', 'escape_test.txt'))), (False, True))
+check('a sandbox write stays where it says', os.path.exists(os.path.join(home, 'Documents', 'in.txt')), True)
 
 READER = os.path.expanduser('~/projects/XTJSON/Game_card_reader_11_13_2025')
 if os.path.isdir(READER):

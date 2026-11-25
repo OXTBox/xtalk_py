@@ -333,7 +333,17 @@ class View:
             ch = rl.get_char_pressed()
         rt.tick(rl.get_frame_time() * 1000)
 
+    def wait_frames(self, ms):
+        """a script waits: keep drawing (no clicks or timers, as LiveCode's wait without messages)"""
+        end = rl.get_time() + ms / 1000.0
+        while rl.get_time() < end and not rl.window_should_close():
+            rl.begin_drawing()
+            self.draw_card()
+            self.draw_panel()
+            rl.end_drawing()
+
     def run(self):
+        self.rt.on_wait = self.wait_frames
         self.rt.open()
         while not rl.window_should_close() and not self.rt.closed:
             self.frame()
