@@ -33,7 +33,21 @@ def main(a):
             print('script error:', *e)
         print('saved', out)
         return
+    import time
+    t0 = time.time()
+    rt.log_clicks = []                     # what was clicked, for the report at the end
     View(rt).run()
+    print('--- report: window open %.0f s, %d clicks' % (time.time() - t0, len(rt.log_clicks)))
+    for c in rt.log_clicks[-30:]:
+        print('  click:', c)
+    for e in rt.errors:
+        print('script error:', *e)
+    for o, e in rt.load_errors:
+        print('does not compile:', o, e)
+    for m in rt.menus[-10:]:
+        print('menu shown:', m)
+    for p in rt.not_started + [' '.join(map(str, p.args)) for p in rt.started]:
+        print('program:', p)
 
 if __name__ == '__main__':
     main(sys.argv[1:])

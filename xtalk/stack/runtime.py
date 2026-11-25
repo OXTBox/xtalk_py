@@ -223,6 +223,8 @@ class StackRuntime:
         self.button_down = True
         o = self.control_at(x, y) or self.default_stack.current
         self.pressed = o
+        if hasattr(self, 'log_clicks'):
+            self.log_clicks.append('%s at %d,%d' % (self.host.name_of(o, 'short'), x, y))
         last = self.last_down
         self.double = bool(last and last[0] is o and self.clock - last[1] <= 400 and abs(last[2] - x) <= 4 and abs(last[3] - y) <= 4)
         self.last_down = None if self.double else (o, self.clock, x, y)
