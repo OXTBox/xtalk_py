@@ -97,6 +97,10 @@ def survey(folder, seconds, log):
             log.append('  card %d: opening it broke the runtime: %s' % (ci + 1, e))
             res['runtime bug'] += 1
             continue
+        if rt.closed:                      # the window would end right after opening (he saw it "open and quit")
+            log.append('  card %d: the window closes itself while opening' % (ci + 1))
+            causes['(window) closes itself while opening'] += 1
+            res['errors'] += 1
         for err in rt.errors:
             log.append('  card %d open: %s' % (ci + 1, ' | '.join(err)))
             causes[cause(err[2])] += 1

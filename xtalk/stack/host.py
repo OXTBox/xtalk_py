@@ -946,7 +946,9 @@ class StackHost(Host):
                 return ''
         if name == 'close':
             o = self.resolve(es[0], must=False) if es else rt.default_stack
-            if o is not None and o.type == 'stack' and o is not rt.first_stack:
+            if o is None:                      # a stack that is not here (close stack "Message box", an IDE
+                return ''                      # window): nothing to close, the game goes on
+            if o.type == 'stack' and o is not rt.first_stack:
                 rt.leave_stack(o, closing=True)    # a substack closes: back to the stack shown before it
                 return ''
             rt.close_stack()

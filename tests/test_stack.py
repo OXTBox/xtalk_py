@@ -526,6 +526,11 @@ check('the keysDown; rawKeyDown with the code; globalLoc / localLoc add / take t
 rt.run('set the screenMouseLoc to 5,5')          # no window: nothing moves, no error
 check('set the screenMouseLoc with no window: no error', rt.errors, [])
 
+rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
+rt.open()
+rt.run('close stack "Message box"')
+check('close stack of a stack that is not here (the IDE Message box): the window stays open', rt.closed, False)
+
 # a stack opening / closing on a card with a background group (measured 25 Nov)
 rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
 rt.run('set the backgroundBehavior of group "Grp" to true')
