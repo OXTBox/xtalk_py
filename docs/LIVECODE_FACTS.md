@@ -165,6 +165,9 @@ standalone per library group.
 - **set the layer** (graphics A, B, C on a card, layers read back as A B C): `to top` 312, then `to 1` 123,
   C `to bottom` 231, C `to 2` 132, A `to 99` 321 (past the top = top; the others close up). Nine-ball's Help menu
   uses `set the layer of field "instructions" to top`; we ignored it, so the balls drew over the text.
+- **A stack is found by its name, not its title**: title "Zz T" on stack "zzT": `exists(stack "Zz T")` false,
+  `exists(stack "zzT")` true. So nine-ball's Preferences scripts (`card 1 of stack "nine ball"`; the stack is named
+  nineball, titled "Nine Ball") stop with an error in LiveCode too.
 - A new field: `dontWrap` false (it wraps). `the navigationArrows` = true.
 - **clipboardData:** `set the clipboardData["text"] to "hi there"` reads back; `the clipboard` = `text`; keys
   text, unicode, styles, rtf, html. `set the clipboardData to empty`: `the clipboard` = `empty`.
