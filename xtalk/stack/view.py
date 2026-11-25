@@ -371,9 +371,9 @@ class View:
         tex = self.texture(o)
         rc = self.rect(o)
         a = to_num(self.prop(o, 'angle') or 0) % 360
-        if tex is not None and a:                 # turned counterclockwise about the centre (measured)
-            un = getattr(o, 'unturned', None)
-            w, h = (un[2] - un[0], un[3] - un[1]) if un else (tex.width, tex.height)
+        un = getattr(o, 'unturned', None)
+        if tex is not None and a and un:          # turned by a script: counterclockwise about the centre (measured)
+            w, h = un[2] - un[0], un[3] - un[1]
             cx, cy = rc.x + rc.width / 2.0, rc.y + rc.height / 2.0
             rl.draw_texture_pro(tex, rl.Rectangle(0, 0, tex.width, tex.height), rl.Rectangle(cx, cy, w, h),
                                 rl.Vector2(w / 2.0, h / 2.0), -a, rl.WHITE)

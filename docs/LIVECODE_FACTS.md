@@ -207,3 +207,9 @@ standalone per library group.
   3->1 `closeCard,preOpenBackground,preOpenCard,openBackground,openCard`. The group's handler ran with `me` = the
   group (a card's path: card, its background groups, stack). Not measured: several background groups at once,
   and whether a card's own handler sees them first (we send them to the card).
+- **A turned image moved** (`set the loc` at angle 30): the picture goes along (angle 0 then gives a 60x40 rect around
+  the new place: 270,281,330,321). `set the width` while turned is ignored (rect and formattedWidth unchanged).
+- **set the loc with an odd size**: left = x - (width div 2): 71 wide at 300 -> 265,265,336,336; 72x65 at 300,300 ->
+  264,268,336,333 (graphics and images alike). `the loc` = trunc of the middle.
+- `choose browse tool` / `choose "pointer tool"`: written from memory (not measured): we note the tool and
+  `the tool` reads it back; nothing else changes.

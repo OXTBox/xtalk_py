@@ -632,7 +632,10 @@ class StackHost(Host):
             a = to_num(value) % 360
             value = str(int(a)) if a == int(a) else str(a)
             if o.type == 'image':
-                self.turn_image(o, a)
+                self.turn_image(o, a)          # before the angle is stored: it reads the old one
+            o.custom.pop(next((k for k in o.custom if k.lower() == 'angle'), None), None)
+            o.props[next((k for k in o.props if k.lower() == 'angle'), 'angle')] = value
+            return
         if p in ('hilitedline', 'hilitedlines'):
             o.props['hilitedLines'] = ','.join(x.strip() for x in str(value).split(',') if x.strip().isdigit())
             return
@@ -642,6 +645,8 @@ class StackHost(Host):
             self.move_points(o, old)
             if o.type == 'image' and not to_num(o.props.get('angle', 0) or 0) % 360:
                 o.unturned = None              # moved/resized while not turned: the next turn starts from here
+            elif o.type == 'image' and getattr(o, 'unturned', None):
+                self.move_turned(o, old)
             return
         if p in ('points', 'relativepoints'):
             self.set_points(o, value, p == 'relativepoints')
@@ -774,14 +779,25 @@ class StackHost(Host):
             c.layer = k
         self.rt.changed = True
 
+    def move_turned(self, o, old):
+        """a turned image moved (loc, left, rect...): its picture goes along; a new size is ignored (measured 25 Nov:
+        set the width while turned leaves rect and formattedWidth as they were)"""
+        if [o.rect[2] - o.rect[0], o.rect[3] - o.rect[1]] != [old[2] - old[0], old[3] - old[1]]:
+            o.rect = list(old)
+            return
+        un = o.unturned
+        w, h = un[2] - un[0], un[3] - un[1]
+        cx, cy = (o.rect[0] + o.rect[2]) / 2.0, (o.rect[1] + o.rect[3]) / 2.0
+        L, T = int(math.floor(cx - w / 2.0 + 0.5)), int(math.floor(cy - h / 2.0 + 0.5))
+        o.unturned = [L, T, L + w, T + h]
+
     def turn_image(self, o, a):
         """an image's angle turns it counterclockwise about its centre; its rect becomes the box around the
         turned picture, ceil(w|cos| + h|sin|) wide; angle 0 gives the first rect back (measured 25 Nov)"""
         un = getattr(o, 'unturned', None)
         if un is None:
             if to_num(o.props.get('angle', 0) or 0) % 360 != 0:
-                o.unturned = list(o.rect)      # harvested already turned: its picture size is not known here
-                return
+                return                         # harvested already turned: the picture is drawn as exported
             un = o.unturned = list(o.rect)
         w, h = un[2] - un[0], un[3] - un[1]
         if a == 0:
@@ -854,7 +870,7 @@ class StackHost(Host):
             o.rect = [l, v - h, r, v]
         elif p in ('loc', 'location'):
             x, y = ints(value, 2)
-            l, t = math.floor(x - w / 2), math.floor(y - h / 2)
+            l, t = x - w // 2, y - h // 2      # odd sizes: 71 wide at 300 -> left 265 (measured 25 Nov)
             o.rect = [l, t, l + w, t + h]
         elif p == 'topleft':
             x, y = ints(value, 2)

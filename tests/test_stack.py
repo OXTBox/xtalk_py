@@ -257,7 +257,20 @@ rt.run('set the angle of image "ImT" to 0')
 check('image angle: the rect is the box around the turned picture; 0 gives it back (measured)',
       (im45, im30, im90, rt.get('image "ImT"', 'rect')),
       ('94,84,165,155', '94,87,166,152', '109,90,150,150', '100,100,160,140'))
+rt.run('set the angle of image "ImT" to 30\nset the loc of image "ImT" to 300,300')
+_m1 = rt.get('image "ImT"', 'rect')
+rt.run('set the angle of image "ImT" to 45')
+_m2 = rt.get('image "ImT"', 'rect')
+rt.run('set the angle of image "ImT" to 30\nset the width of image "ImT" to 100')
+_m3 = rt.get('image "ImT"', 'rect')
+rt.run('set the angle of image "ImT" to 0')
+check('a turned image moved takes its picture along; a new width is ignored (measured)',
+      (_m1, _m2, _m3, rt.get('image "ImT"', 'rect')),
+      ('264,268,336,333', '264,265,335,336', '264,268,336,333', '270,281,330,321'))
 rt.run('delete image "ImT"')
+rt.run('create graphic "LocT"\nset the rect of graphic "LocT" to 0,0,71,71\nset the loc of graphic "LocT" to 300,300')
+check('set the loc, odd size: left = x - (width div 2) (measured)', rt.get('graphic "LocT"', 'rect'), '265,265,336,336')
+rt.run('delete graphic "LocT"')
 SF = '<p><b>zz</b> bb</p><p><i>cc</i> yy</p><p>aa <font color="#FF0000">rr</font></p>'
 rt.run('create field "SfT"')
 def sf_after(cmd, h=SF):
