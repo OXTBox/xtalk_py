@@ -77,6 +77,13 @@ rt.tick(50)
 check('send in: not yet', rt.G['glog'], '')
 rt.tick(300)
 check('send in: runs, and sends again', rt.G['glog'], 'tick1,tick2,tick3,')
+rt.run('global gMid\nsend "tickTock 9,8" to this stack in 5 seconds\nput the result into gMid')
+mid = rt.G['gmid']
+pm = rt.eval('the pendingMessages').split('\n')
+check('pendingMessages: id,due,name,long id of target (measured)', (pm[0].split(',')[0] == mid, pm[0].split(',', 3)[2:]),
+      (True, ['tickTock', 'stack "%s"' % rt.default_stack.name]))
+rt.run('cancel ' + mid)
+check('cancel <id>: the message is gone', rt.eval('the pendingMessages'), '')
 rt.G['glog'] = ''
 rt.run('go card "Two"')
 check('go card', rt.G['glog'], 'openCard:Two,')
@@ -234,6 +241,11 @@ check('an ellipse, not a circle (measured 60x40)', regular_points([100, 100, 160
       [[159, 120], [130, 139], [101, 120], [130, 101], [159, 120]])
 check('6 sides at 90 (measured)', regular_points([100, 100, 200, 200], 6, 90),
       [[150, 199], [108, 174], [108, 126], [150, 101], [192, 126], [192, 174], [150, 199]])
+rt.run('create graphic "PolyT"\nset the style of graphic "PolyT" to "polygon"\nset the points of graphic "PolyT" to "10,20,30,40,50,60,10,20"')
+check('points as one comma list: paired (measured)', rt.get('graphic "PolyT"', 'points'), '10,20\n30,40\n50,60\n10,20')
+rt.run('set the points of graphic "PolyT" to "1,2" & cr & "3,4,5,6"')
+check('points: lines with two pairs (measured)', rt.get('graphic "PolyT"', 'points'), '1,2\n3,4\n5,6')
+rt.run('delete graphic "PolyT"')
 rt.run('set the angle of graphic "G" to 390')
 a1 = rt.eval('the angle of graphic "G"')
 rt.run('set the angle of graphic "G" to -30')

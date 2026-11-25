@@ -387,3 +387,16 @@ put "a" into A["x"]
 put "b" into A["y"]
 put the the keys of A into tOut
 sort lines of tOut
+----
+global gZQdel
+put 5 into gZQdel
+delete global gZQdel
+put "[" & gZQdel & "]" into tOut
+----
+put "a" into tV["k"]
+delete local tV
+put (tV is an array) & "," & the number of elements of tV into tOut
+----
+put sin(pi) into a[1]
+put a into b
+put (1/a[1]) & "," & (1/b[1]) & "," & (a[1] = 0) into tOut

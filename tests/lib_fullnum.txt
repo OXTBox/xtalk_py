@@ -1,0 +1,13 @@
+-- a number keeps its full value through parameters, return values and arrays (measured 25 Nov 2026)
+function fnRet
+   return sin(pi)
+end fnRet
+
+function fnPar p
+   return 1/p
+end fnPar
+
+function fnArr
+   put sin(pi) into a["k"]
+   return a
+end fnArr

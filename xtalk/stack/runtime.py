@@ -11,7 +11,7 @@ Every scripted object has its own script context (its handlers and script locals
 shared. A message goes to its target, then along the message path: the control, its groups, the
 card, the card's stack, the mainstack. `pass` hands it on; `send`/`dispatch` start a new one.
 """
-import heapq, os, re
+import heapq, os, re, time
 from ..pyrt import Runtime
 from ..interp import Frame, Thrown, ExitRepeat, NextRepeat, Break
 from ..values import XtError
@@ -109,6 +109,7 @@ class StackRuntime:
         self.not_started = []          # the scripts shell() would have started
         self.clock = 0.0               # virtual milliseconds
         self.timers, self._seq = [], 0
+        self.t0 = time.time()          # real seconds at virtual time 0 (the pendingMessages shows due times)
         self.changed = True
         self.on_wait = None
         self.keys_down = set()         # 'shiftkey', 'optionkey'... while held (the window fills it)
@@ -179,8 +180,27 @@ class StackRuntime:
             self.target = saved
 
     def after(self, ms, o, text):
+        """send text to o in ms; returns the message id (`the result` after `send ... in`, measured)"""
         self._seq += 1
         heapq.heappush(self.timers, (self.clock + ms, self._seq, o, text))
+        return self._seq
+
+    def cancel(self, mid):
+        """cancel <id>: that pending message is dropped (an unknown id: nothing happens)"""
+        keep = [t for t in self.timers if str(t[1]) != str(mid).strip()]
+        if len(keep) != len(self.timers):
+            heapq.heapify(keep)
+            self.timers = keep
+
+    def pending_messages(self):
+        """one line per pending message, soonest first: id,due time in long seconds,message name,long id of
+        the target (measured 25 Nov: the name only, its parameters left out)"""
+        out = []
+        for due, mid, o, text in sorted(self.timers):
+            when = round(self.t0 + due / 1000.0, 3)
+            out.append('%d,%s,%s,%s' % (mid, ('%.3f' % when).rstrip('0').rstrip('.'),
+                                        (text.split() or [''])[0], self.host.long_id(o)))
+        return '\n'.join(out)
 
     def wait(self, ms):
         """`wait`: time passes; a window keeps drawing (on_wait), timers wait for the next tick"""

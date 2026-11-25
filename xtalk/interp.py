@@ -45,6 +45,7 @@ class Interp:
         self.handlers = {}
         self.G = {}                     # global variables
         self.S = {}                     # script-level locals and constants (shared by all handlers)
+        self.SG = {}                    # handler name -> the script-level globals declared above it
         self.host = Host()
         self.props = {'itemdelimiter': ',', 'linedelimiter': '\n', 'numberformat': '0.######',
                       'casesensitive': 'false'}
@@ -61,6 +62,7 @@ class Interp:
         h = parse_script(script)
         top = h.pop('#top', [])
         self.load_errors = h.pop('#errors', [])
+        self.SG.update(h.pop('#sglobals', {}))
         self.handlers.update(h)
         fr = Frame([])
         for st in top:                  # script-level local / global / constant lines
@@ -112,15 +114,16 @@ class Interp:
             self.depth = 0
             raise XtError('handler: stack overflow')
         fr = Frame(args)
+        fr.globals.update(self.SG.get(name.lower(), ()))
         import copy
         for i, p in enumerate(params):
-            fr.vars[p.lower()] = copy.deepcopy(plain(args[i])) if i < len(args) else ''
+            fr.vars[p.lower()] = copy.deepcopy(args[i]) if i < len(args) else ''   # full number kept (measured)
         try:
             if pyfn is not None:
-                return plain(pyfn(self, fr))
+                return pyfn(self, fr)
             self.exec_block(body, fr)
         except Return as r:
-            return plain(r.v)
+            return r.v               # a returned number keeps its full value (measured 25 Nov)
         except Pass:
             return self.after_pass(name, args)
         except ExitHandler:
@@ -209,11 +212,21 @@ class Interp:
         n = name.lower()
         return n not in fr.vars and n not in fr.globals and n not in self.S
 
+    def delete_var(self, fr, name):
+        """delete variable / local / global x: a handler variable goes; a script local or a global is
+        emptied (measured: `delete local sA` leaves sA empty, not an array)"""
+        n = name.lower()
+        if n in fr.vars:
+            fr.vars.pop(n)
+        elif n in fr.globals:
+            self.G[n] = ''
+        elif n in self.S:
+            self.S[n] = ''
+
     def x_delete(self, st, fr):
         t = st[1]
         if t[0] == 'var':
-            n = t[1].lower()
-            fr.vars.pop(n, None)
+            self.delete_var(fr, t[1])
             return
         if t[0] == 'idx':
             self.del_idx(fr, t[1], self.key(t[2][:], fr))
@@ -647,7 +660,7 @@ class Interp:
             arr = nxt
         last = keys[-1]
         if mode == 'into':
-            arr[last] = copy.deepcopy(value) if isinstance(value, dict) else plain(value)
+            arr[last] = copy.deepcopy(value) if isinstance(value, dict) else to_text(value)   # full number kept (measured)
         else:
             cur = to_text(arr.get(last, ''))
             arr[last] = cur + to_text(value) if mode == 'after' else to_text(value) + cur
@@ -718,6 +731,8 @@ class Interp:
             return self.props[n]
         if n in ('seconds',):
             return numstr(int(time.time()))
+        if n == 'long seconds':
+            return numstr(round(time.time(), 3))
         if n in ('milliseconds', 'millisecs', 'ticks'):
             return numstr(int(time.time() * (60 if n == 'ticks' else 1000)))
         if n == 'paramcount':
@@ -727,7 +742,7 @@ class Interp:
             return h
         raise XtError('expression: unknown property "the %s"' % n)
 
-    MAY_BE_EMPTY = {'focusedobject', 'selection', 'selectedtext', 'selectedfield', 'selectedline', 'selectedchunk',
+    MAY_BE_EMPTY = {'pendingmessages', 'focusedobject', 'selection', 'selectedtext', 'selectedfield', 'selectedline', 'selectedchunk',
                     'target', 'mousecontrol', 'clicktext', 'clickline', 'clickchunk', 'clickfield', 'foundtext'}
 
     def e_idx(self, e, fr):

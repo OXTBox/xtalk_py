@@ -1,0 +1,20 @@
+-- a script-level global reaches only the handlers below its line (measured 25 Nov 2026)
+command sgSet
+   global gSgT
+   put 7 into gSgT
+end sgSet
+
+function sgBefore
+   return gSgT
+end sgBefore
+
+global gSgT
+
+function sgAfter
+   return gSgT
+end sgAfter
+
+function sgBoth
+   sgSet
+   return sgBefore() & "|" & sgAfter()
+end sgBoth

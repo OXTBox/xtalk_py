@@ -474,7 +474,9 @@ class StackHost(Host):
         if p == 'navigationarrows':
             return rt.props.get('navigationarrows', 'true')
         if p == 'tool':
-            return 'browse tool'
+            return getattr(rt, 'tool', 'browse tool')
+        if p == 'pendingmessages':
+            return rt.pending_messages()
         if p in ('optionkey', 'shiftkey', 'commandkey', 'controlkey', 'altkey', 'capslockkey'):
             return 'down' if p in rt.keys_down else 'up'
         return ''
@@ -756,8 +758,11 @@ class StackHost(Host):
             if line.strip() == '':
                 pts.append(None)
                 continue
-            x, y = ints(line, 2)
-            pts.append([x + dx, y + dy])
+            nums = [int(math.floor(to_num(p) + 0.5)) for p in line.split(',')]
+            for k in range(0, len(nums) - 1, 2):      # "x,y,x,y..." on one line: pairs (measured 25 Nov)
+                pts.append([nums[k] + dx, nums[k + 1] + dy])
+            if len(nums) % 2:                         # an odd number left over: a break (an empty line)
+                pts.append(None)
         while pts and pts[-1] is None:
             pts.pop()
         o.points = pts
@@ -883,6 +888,16 @@ class StackHost(Host):
             return ''
         if name in ('send', 'dispatch'):
             return self.send(name, parts)
+        if name == 'choose':                   # choose browse tool / choose "pointer tool": noted only (the
+            t = ' '.join([v for k, v in parts]).strip().lower()   # runtime has no editing tools)
+            if t and not t.endswith('tool'):
+                t = t.replace('tool ', '').strip() + ' tool'   # choose tool "browse"
+            rt.tool = t or 'browse tool'
+            return ''
+        if name == 'cancel':
+            if es:
+                rt.cancel(es[0])
+            return ''
         if name == 'go':
             return self.go(' '.join(v for k, v in parts))
         if name == 'click':
@@ -925,8 +940,7 @@ class StackHost(Host):
             rt.dispatch(target, msg, args)
             return ''
         if delay is not None:
-            rt.after(delay, target, msg)
-            return ''
+            return str(rt.after(delay, target, msg))
         rt.send_text(target, msg)
         return ''
 

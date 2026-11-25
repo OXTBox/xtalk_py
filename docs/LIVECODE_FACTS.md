@@ -176,3 +176,19 @@ standalone per library group.
   first / last card (up/down; this may instead be back/forth through recent cards). Also from memory only:
   angle turns only regular polygons and images (not rectangles/ovals), and commandKeyDown goes first for
   Control + a key (Ctrl+C/X/V/A copy, cut, paste, select all when no handler takes it).
+
+## Phase 2 thorough, harvests to 100% (standalone, `lcmcp run --server`)
+- **A script-level `global` line reaches only the handlers BELOW it.** A handler above it reads the name as an
+  unset variable (its own name: `gSgT`). Our interpreter had ignored script-level globals altogether; that was the
+  900 "bad operand" errors in the survey (tests/lib_sglobals.txt).
+- **A number keeps its full value** through array elements, parameters, return values, `the result` and copies
+  of arrays, not only plain variables: `put sin(pi) into a[1]`, then `1/a[1]` = 8165619676597685; `a[1] = 0` is
+  true; only text made from it shows 0 (tests/lib_fullnum.txt).
+- `this wd` = `this window` = this stack (same height). `delete local sA` / `delete global gZ` empty the variable
+  (not an array, 0 elements). `the graphic ID x`: a `the` before an object reference is allowed.
+- **the pendingMessages**: one line each, soonest first: `id,due time in long seconds,message name,long id of
+  target` (`107,1795638528.773,zzTick,stack "xtPM"`; parameters left out; a button shows
+  `button id 1003 of card id 1002 of stack "xtPM"`). `the result` after `send ... in` = that id; `cancel id`
+  removes it; `cancel` of an unknown id does nothing (the result unchanged).
+- **set the points** to `"10,20,30,40,50,60"` (one line): pairs, read back one point a line. `"1,2,3"`: `1,2` and an
+  empty line (the odd number left over makes a break). `"1,2" & cr & "3,4,5,6"`: three points.

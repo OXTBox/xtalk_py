@@ -177,3 +177,8 @@ tests/wrap_translator.txt	T.SortBy()
 tests/wrap_translator.txt	T.Delete()
 tests/wrap_translator.txt	T.Do()
 tests/wrap_translator.txt	T.Each()
+tests/lib_sglobals.txt	sgBoth()
+tests/lib_sglobals.txt	sgAfter()
+tests/lib_fullnum.txt	1/fnRet()
+tests/lib_fullnum.txt	fnPar(sin(pi))
+tests/lib_fullnum.txt	1/fnArr()["k"]

@@ -14,7 +14,7 @@ ORDINALS = {'first': 1, 'second': 2, 'third': 3, 'fourth': 4, 'fifth': 5, 'sixth
             'eighth': 8, 'ninth': 9, 'tenth': 10, 'last': -1, 'middle': 0, 'any': 0}
 OBJTYPES = {'button', 'btn', 'field', 'fld', 'graphic', 'grc', 'image', 'img', 'group', 'grp', 'card', 'cd',
             'stack', 'background', 'bkgnd', 'bg', 'player', 'scrollbar', 'widget', 'control', 'audioclip',
-            'videoclip', 'menu', 'sprite'}
+            'videoclip', 'menu', 'sprite', 'window', 'wd'}     # this wd = this window = this stack (measured)
 OBJPLURAL = {'buttons', 'fields', 'graphics', 'images', 'groups', 'cards', 'controls', 'players', 'stacks',
              'scrollbars', 'widgets', 'backgrounds'}
 PREPS = {'to', 'in', 'of', 'with', 'into', 'from', 'by', 'at', 'for', 'after', 'before', 'as', 'on', 'without',
@@ -125,6 +125,7 @@ class Parser:
     # ---- script
     def script(self):
         handlers, top, errors = {}, [], []
+        self.sglobals, self.sg_of = [], {}    # script-level globals so far; each handler's list
         self.skip_nl()
         while self.peek()[0] != 'eof':
             start = self.i
@@ -141,6 +142,8 @@ class Parser:
             handlers['#top'] = top
         if errors:
             handlers['#errors'] = errors
+        if self.sg_of:
+            handlers['#sglobals'] = self.sg_of
         return handlers
 
     def one_item(self, handlers, top):
@@ -151,7 +154,10 @@ class Parser:
                 self.skip_nl()
                 return
             if self.is_word('global') or self.is_word('local') or self.is_word('constant'):
-                top.append(self.statement())
+                st = self.statement()
+                top.append(st)
+                if st[0] == 'global':
+                    self.sglobals.extend(n.lower() for n in st[1] if n.lower() not in self.sglobals)
                 self.skip_nl()
                 return
             private = self.accept_word('private')
@@ -178,6 +184,8 @@ class Parser:
             self.skip_nl()
             kind = 'function' if kind == 'function' else 'command'
             handlers[name.lower()] = (kind, name, params, body, byref)
+            if self.sglobals:                 # a script-level global reaches only the handlers below it (measured)
+                self.sg_of[name.lower()] = tuple(self.sglobals)
 
     def block(self, stops):
         """statements until a line starting with one of the stop words"""
@@ -308,7 +316,7 @@ class Parser:
         return ('create', typ, invisible, name, group)
 
     def st_delete(self):
-        self.accept_word('variable')
+        self.accept_word('variable', 'local', 'global')     # delete local sA (measured: empties it)
         return ('delete', self.expr())
 
     def st_replace(self):
@@ -828,6 +836,8 @@ class Parser:
                     ref = self.primary()
             finally:
                 self.no_prop -= 1
+        if typ in ('window', 'wd'):                  # this wd = this window = this stack (measured)
+            typ = 'stack'
         parent = None
         if self.is_word('of'):
             if self.is_word('this', 1) or (self.peek(1)[0] == 'id' and self.peek(1)[1].lower() in OBJTYPES):
@@ -859,6 +869,12 @@ class Parser:
             self.i += 1
             return ('str', s)
         w = s.lower() if k == 'id' else ''
+        if w in OBJTYPES and w not in ('menu', 'window', 'wd'):   # the graphic ID x: "the" before an object (measured)
+            self.i += 1
+            if self.obj_follows(w):
+                self.i -= 1
+                return self.obj_ref()
+            self.i -= 1
         if w == 'current' and self.peek(1)[0] == 'id' and self.peek(1)[1].lower() in OBJTYPES:
             self.i += 1
             return ('obj', self.next()[1].lower(), ('this',), None)

@@ -243,7 +243,7 @@ class Gen:
     def s_delete(self, s, ind):
         t = s[1]
         if t[0] == 'var':
-            self.emit(ind, 'fr.vars.pop(%s, None)' % _r(t[1].lower()))
+            self.emit(ind, 'rt.delete_var(fr, %s)' % _r(t[1].lower()))
         elif t[0] == 'idx':
             self.emit(ind, 'rt.del_idx(fr, %s, rt.key_vals([%s]))' % (_r(t[1]), ', '.join(self.ex(x) for x in t[2])))
         elif t[0] == 'chunk':
@@ -542,6 +542,7 @@ def translate_script(text, source='<script>'):
     handlers = p.script()
     top = handlers.pop('#top', [])
     parse_errors = handlers.pop('#errors', [])
+    sglobals = handlers.pop('#sglobals', {})
     report = {'translated': [], 'interpreted': [], 'parse_errors': parse_errors}
     used = set()
     out = ['"""Generated from %s by xtalk_py/xtalk/transpile.py. Do not edit: the xTalk script is the source."""' % source,
@@ -576,6 +577,8 @@ def translate_script(text, source='<script>'):
     g.emit(1, 'fr = Frame([])')
     for line in table:
         g.lines.append(line)
+    for key, names in sglobals.items():          # script-level globals declared above each handler
+        g.emit(1, 'rt.SG[%s] = %s' % (_r(key), _r(tuple(names))))
     for st in top:
         if st[0] == 'local':
             for n, init in zip(st[1], st[2]):

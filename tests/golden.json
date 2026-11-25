@@ -222,7 +222,10 @@
   "put \"\" into tOut\nrepeat for each item v in \"TRUE, true,true ,1,yes,,false\"\n  if v then put \"T\" after tOut\n  else put \"F\" after tOut\nend repeat": "TFFFFFF",
   "put 0 into n\nrepeat with i = 1 to empty\n  add 1 to n\nend repeat\nput n into tOut": "0",
   "put 0 into n\nput \"\" into tEnd\nrepeat with i = 0 to tEnd\n  add 1 to n\nend repeat\nput n & \",\" & i into tOut": "1,0",
-  "put \"a\" into A[\"x\"]\nput \"b\" into A[\"y\"]\nput the the keys of A into tOut\nsort lines of tOut": "x\ny"
+  "put \"a\" into A[\"x\"]\nput \"b\" into A[\"y\"]\nput the the keys of A into tOut\nsort lines of tOut": "x\ny",
+  "global gZQdel\nput 5 into gZQdel\ndelete global gZQdel\nput \"[\" & gZQdel & \"]\" into tOut": "[]",
+  "put \"a\" into tV[\"k\"]\ndelete local tV\nput (tV is an array) & \",\" & the number of elements of tV into tOut": "false,0",
+  "put sin(pi) into a[1]\nput a into b\nput (1/a[1]) & \",\" & (1/b[1]) & \",\" & (a[1] = 0) into tOut": "8165619676597685,8165619676597685,true"
  },
  "lib": {
   "libraries/lib_bit.livecodescript": {
@@ -421,6 +424,15 @@
    "T.Delete()": "a,c,d|one three|y",
    "T.Do()": "7|10",
    "T.Each()": "12"
+  },
+  "tests/lib_sglobals.txt": {
+   "sgBoth()": "gSgT|7",
+   "sgAfter()": "7"
+  },
+  "tests/lib_fullnum.txt": {
+   "1/fnRet()": "8165619676597685",
+   "fnPar(sin(pi))": "8165619676597685",
+   "1/fnArr()[\"k\"]": "ERR"
   }
  }
 }
