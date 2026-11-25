@@ -1,0 +1,522 @@
+"""transpile: xTalk text -> Python source (the translator, second after the interpreter).
+
+    from xtalk.transpile import translate_script
+    py, report = translate_script(open('lib_bit.livecodescript').read(), 'lib_bit.livecodescript')
+    from xtalk.pyrt import Runtime
+    rt = Runtime(); rt.install(py); rt.call('Bit.Blank', 3, 2)
+
+xTalk stays the source; the Python is generated ("do not edit"). Control flow (if, repeat, switch,
+try, handlers) becomes plain Python; values go through the same rules the interpreter uses
+(xtalk/pyrt.py), so a translated script answers exactly as an interpreted one. `do` and value()
+of text made at run time are interpreted. A handler the translator cannot turn into Python yet is
+kept as parsed xTalk and interpreted (the report counts those).
+"""
+import ast, re, warnings
+from .values import XtError
+from .parser import Parser, parse_expr, parse_statements, tokenize
+from .interp import CONST, BUILTINS
+
+__all__ = ['translate_script', 'translate_expr', 'translate_statements', 'TranslateError']
+
+
+class TranslateError(Exception):
+    pass
+
+
+def _r(x):
+    return repr(x)
+
+
+def _tt(code):
+    """to_text(code), left out when code is already a text literal"""
+    try:
+        if isinstance(ast.literal_eval(code), str):
+            return code
+    except (ValueError, SyntaxError):
+        pass
+    return 'to_text(%s)' % code
+
+
+def _lit(code):
+    try:
+        return isinstance(ast.literal_eval(code), str)
+    except (ValueError, SyntaxError):
+        return False
+
+
+class Gen:
+    def __init__(self):
+        self.lines = []
+        self.n = 0
+        self.loops = 0          # how many repeat loops we are inside (break / continue are allowed)
+        self.in_switch = []     # for each open switch: does it need to catch a Break?
+
+    def tmp(self, base='t'):
+        self.n += 1
+        return '_%s%d' % (base, self.n)
+
+    def emit(self, ind, text):
+        self.lines.append('    ' * ind + text)
+
+    # ------------------------------------------------------------ expressions
+    def ex(self, e):
+        k = e[0]
+        m = getattr(self, 'x_' + k, None)
+        if m is None:
+            raise TranslateError('expression kind %s' % k)
+        return m(e)
+
+    def x_str(self, e):
+        return _r(e[1])
+
+    def x_num(self, e):
+        return _r(e[1])
+
+    def x_const(self, e):
+        return "K['pi']" if e[1] == 'pi' else _r(CONST[e[1]])     # pi keeps its full value
+
+    def x_var(self, e):
+        return 'rt.getvar(fr, %s)' % _r(e[1])
+
+    def x_prop(self, e):
+        return "rt.e_prop(('prop', %s), fr)" % _r(e[1])
+
+    def x_idx(self, e):
+        return 'rt.get_idx(fr, %s, rt.key_vals([%s]))' % (_r(e[1]), ', '.join(self.ex(x) for x in e[2]))
+
+    def x_join(self, e):
+        return 'rt.join([%s])' % ', '.join(self.ex(x) for x in e[1])
+
+    def desc(self, e):
+        """code for the text naming an object (button "OK" of card 2)"""
+        if e[0] != 'obj':
+            return 'to_text(%s)' % self.ex(e)
+        _, typ, ref, parent = e
+        if ref[0] == 'this':
+            base = 'rt.this_obj(%s)' % _r(typ)
+        elif ref[0] == 'ord':
+            base = _r('%s %s' % (ref[1], typ))
+        elif ref[0] == 'id':
+            base = '(%s + to_text(%s))' % (_r(typ + ' id '), self.ex(ref[1]))
+        else:
+            base = 'rt.obj_name(%s, %s)' % (_r(typ), self.ex(ref))
+        if parent is not None:
+            p = self.desc(parent) if parent[0] == 'obj' else 'to_text(%s)' % self.ex(parent[1])
+            base = '(%s + " of " + %s)' % (base, p)
+        return base
+
+    def x_obj(self, e):
+        return self.desc(e)
+
+    def x_exists(self, e):
+        return "('true' if rt.host.exists(%s) != %r else 'false')" % (self.desc(e[1]), e[2])
+
+    def x_countobj(self, e):
+        return 'str(rt.host.count(%s, to_text(%s)))' % (_r(e[1]), self.ex(e[2]))
+
+    def x_url(self, e):
+        return 'rt.host.read_url(%s, to_text(%s))' % (_r(e[1]), self.ex(e[2]))
+
+    def x_propof(self, e):
+        _, name, operand, key = e
+        if BUILTINS.get(name) is not None and operand[0] != 'obj':
+            return 'B[%s](rt, fr, %s)' % (_r(name), self.ex(operand))
+        kc = 'None' if key is None else 'to_text(%s)' % self.ex(key)
+        return 'rt.host.get_prop(%s, %s, %s)' % (self.desc(operand), _r(name), kc)
+
+    def x_isa(self, e):
+        return 'rt.isa(%s, %s)' % (self.ex(e[1]), _r(e[2]))
+
+    def x_count(self, e):
+        return 'str(ch.count(to_text(%s), %s, **rt.delims()))' % (self.ex(e[2]), _r(e[1]))
+
+    def pos(self, e):
+        return _r(tuple(e)) if e[0] == 'ord' else self.ex(e)
+
+    def x_chunk(self, e):
+        _, kind, a, b, inner = e
+        return 'rt.get_chunk(%s, %s, %s, %s)' % (_r(kind), self.ex(inner), self.pos(a),
+                                                  'None' if b is None else self.pos(b))
+
+    def x_un(self, e):
+        return 'rt.unop(%s, %s)' % (_r(e[1]), self.ex(e[2]))
+
+    def x_bin(self, e):
+        op = e[1]
+        if op in ('and', 'or'):
+            return "('true' if (rt.truth(%s) %s rt.truth(%s)) else 'false')" % (self.ex(e[2]), op, self.ex(e[3]))
+        return 'rt.binop(%s, %s, %s)' % (_r(op), self.ex(e[2]), self.ex(e[3]))
+
+    def setter(self, node):
+        """(kind, lambda that puts a value into node) for by-reference and matchText arguments"""
+        if node[0] not in ('var', 'idx', 'chunk', 'obj', 'propof', 'url'):
+            return 'None'
+        return '(%s, lambda _v: %s)' % (_r(node[0]), self.assign(node, '_v', 'into'))
+
+    def x_call(self, e):
+        name, args = e[1], e[2]
+        return 'rt.fn(fr, %s, [%s], [%s])' % (_r(name), ', '.join(self.ex(a) for a in args),
+                                               ', '.join(self.setter(a) for a in args))
+
+    # ------------------------------------------------------------ assignment (an expression)
+    def assign(self, t, v, mode):
+        k = t[0]
+        if k == 'var':
+            return 'rt.put_var(fr, %s, %s, %s)' % (_r(t[1]), v, _r(mode))
+        if k == 'idx':
+            return 'rt.put_idx(fr, %s, rt.key_vals([%s]), %s, %s)' % (
+                _r(t[1]), ', '.join(self.ex(x) for x in t[2]), v, _r(mode))
+        if k == 'chunk':
+            _, kind, a, b, inner = t
+            cur = 'rt.cur_text(fr, %s)' % _r(inner[1]) if inner[0] == 'var' else 'to_text(%s)' % self.ex(inner)
+            new = 'rt.put_chunk(%s, %s, %s, %s, %s, %s)' % (_r(kind), cur, self.pos(a),
+                                                            'None' if b is None else self.pos(b), v, _r(mode))
+            return self.assign(inner, new, 'into')
+        if k == 'obj':
+            return 'rt.put_obj(%s, %s, %s)' % (self.desc(t), v, _r(mode))
+        if k == 'propof':
+            return 'rt.host.set_prop(to_text(%s), %s, to_text(%s))' % (self.ex(t[2]), _r(t[1]), v)
+        if k == 'url':
+            return 'rt.host.write_url(%s, to_text(%s), to_text(%s))' % (_r(t[1]), self.ex(t[2]), v)
+        return 'rt.cant_put(%s)' % v
+
+    # ------------------------------------------------------------ statements
+    def block(self, body, ind):
+        start = len(self.lines)
+        for st in body:
+            self.st(st, ind)
+        if len(self.lines) == start:
+            self.emit(ind, 'pass')
+
+    def st(self, s, ind):
+        m = getattr(self, 's_' + s[0], None)
+        if m is None:
+            raise TranslateError('statement %s' % s[0])
+        m(s, ind)
+
+    def s_print(self, s, ind):
+        self.emit(ind, 'rt.output.append(to_text(%s))' % self.ex(s[1]))
+
+    def s_global(self, s, ind):
+        self.emit(ind, 'rt.declare_global(fr, %s)' % _r(list(s[1])))
+
+    def s_local(self, s, ind):
+        for n, init in zip(s[1], s[2]):
+            key = _r(n.lower())
+            if init is not None:
+                self.emit(ind, 'fr.vars[%s] = to_text(%s)' % (key, self.ex(init)))
+            else:
+                self.emit(ind, 'fr.vars[%s] = fr.vars.get(%s, "")' % (key, key))
+
+    def s_constant(self, s, ind):
+        self.emit(ind, 'rt.S[%s] = to_text(%s)' % (_r(s[1].lower()), self.ex(s[2])))
+
+    def s_put(self, s, ind):
+        code = self.ex(s[1])
+        if _lit(code):                                   # a constant value needs no temporary
+            self.emit(ind, self.assign(s[3], code, s[2]))
+            return
+        v = self.tmp('v')
+        self.emit(ind, '%s = %s' % (v, code))
+        self.emit(ind, self.assign(s[3], v, s[2]))
+
+    def s_arith(self, s, ind):
+        op, e, t = s[1], s[2], s[3]
+        a, c = self.tmp('a'), self.tmp('c')
+        self.emit(ind, '%s = %s' % (a, self.ex(e)))
+        self.emit(ind, '%s = %s' % (c, 'rt.cur_raw(fr, %s)' % _r(t[1]) if t[0] == 'var' else self.ex(t)))
+        self.emit(ind, self.assign(t, 'rt.arith(%s, %s, %s)' % (_r(op), a, c), 'into'))
+
+    def s_delete(self, s, ind):
+        t = s[1]
+        if t[0] == 'var':
+            self.emit(ind, 'fr.vars.pop(%s, None)' % _r(t[1].lower()))
+        elif t[0] == 'idx':
+            self.emit(ind, 'rt.del_idx(fr, %s, rt.key_vals([%s]))' % (_r(t[1]), ', '.join(self.ex(x) for x in t[2])))
+        elif t[0] == 'chunk':
+            _, kind, a, b, inner = t
+            c = self.tmp('c')
+            self.emit(ind, '%s = to_text(%s)' % (c, self.ex(inner)))
+            self.emit(ind, self.assign(inner, 'rt.cut_chunk(%s, %s, %s, %s)' % (
+                _r(kind), c, self.pos(a), 'None' if b is None else self.pos(b)), 'into'))
+        else:
+            self.emit(ind, 'raise XtError("delete: can\'t delete that")')
+
+    def s_replace(self, s, ind):
+        a, b, c = self.tmp('a'), self.tmp('b'), self.tmp('c')
+        self.emit(ind, '%s = %s' % (a, _tt(self.ex(s[1]))))
+        self.emit(ind, '%s = %s' % (b, _tt(self.ex(s[2]))))
+        self.emit(ind, '%s = to_text(%s)' % (c, self.ex(s[3])))
+        self.emit(ind, 'if %s != "":' % a)
+        self.emit(ind + 1, self.assign(s[3], '%s.replace(%s, %s)' % (c, a, b), 'into'))
+
+    def s_setprop(self, s, ind):
+        _, name, obj, key, e = s
+        v = self.tmp('v')
+        self.emit(ind, '%s = %s' % (v, _tt(self.ex(e))))
+        if obj is None:
+            self.emit(ind, 'rt.set_global_prop(%s, %s)' % (_r(name), v))
+        else:
+            kc = 'None' if key is None else 'to_text(%s)' % self.ex(key)
+            self.emit(ind, 'rt.host.set_prop(to_text(%s), %s, %s, %s)' % (self.ex(obj), _r(name), v, kc))
+
+    def s_return(self, s, ind):
+        self.emit(ind, 'return %s' % self.ex(s[1]))
+
+    def s_exit(self, s, ind):
+        if s[1] == 'repeat':
+            self.emit(ind, 'break' if self.loops else 'raise ExitRepeat()')
+        else:
+            self.emit(ind, "return ''")
+
+    def s_next(self, s, ind):
+        self.emit(ind, 'continue' if self.loops else 'raise NextRepeat()')
+
+    def s_pass(self, s, ind):
+        self.emit(ind, "return ''")
+
+    def s_break(self, s, ind):
+        if self.in_switch:
+            self.in_switch[-1] = True
+        self.emit(ind, 'raise Break()')
+
+    def s_throw(self, s, ind):
+        self.emit(ind, 'raise Thrown(to_text(%s))' % self.ex(s[1]))
+
+    def s_sort(self, s, ind):
+        _, kind, t, desc, mode, by = s
+        v = self.tmp('v')
+        self.emit(ind, '%s = to_text(%s)' % (v, self.ex(t)))
+        byc = 'None' if by is None else 'lambda: %s' % self.ex(by)
+        self.emit(ind, self.assign(t, 'rt.sort_text(fr, %s, %s, %r, %s, %s)' % (_r(kind), v, desc, _r(mode), byc), 'into'))
+
+    def s_if(self, s, ind, kw='if'):
+        _, cond, then, els = s
+        self.emit(ind, '%s to_bool(%s):' % (kw, self.ex(cond)))
+        self.block(then, ind + 1)
+        if len(els) == 1 and els[0][0] == 'if':
+            self.s_if(els[0], ind, 'elif')
+        elif els:
+            self.emit(ind, 'else:')
+            self.block(els, ind + 1)
+
+    def s_repeat(self, s, ind):
+        _, kind, p, body = s
+        if kind == 'forever':
+            self.emit(ind, 'while True:')
+        elif kind == 'times':
+            self.emit(ind, 'for _ in range(int(to_num(to_text(%s)))):' % self.ex(p))
+        elif kind == 'while':
+            self.emit(ind, 'while to_bool(%s):' % self.ex(p))
+        elif kind == 'until':
+            self.emit(ind, 'while not to_bool(%s):' % self.ex(p))
+        elif kind == 'with':
+            v, a, b, step, down = p
+            x, e, st = self.tmp('x'), self.tmp('e'), self.tmp('s')
+            self.emit(ind, '%s = to_num(to_text(%s))' % (x, self.ex(a)))
+            self.emit(ind, '%s = to_num(to_text(%s))' % (e, self.ex(b)))
+            self.emit(ind, '%s = %s' % (st, 'to_num(to_text(%s))' % self.ex(step) if step is not None else ('-1' if down else '1')))
+            # a step that points away from the end gives no passes; LiveCode runs one step past the end (LIVECODE_FACTS)
+            self.emit(ind, 'while (%s) and %s:' % (('%s < 0' % st) if down else ('%s > 0' % st),
+                                                  ('%s > %s + %s' % (x, e, st)) if down else ('%s < %s + %s' % (x, e, st))))
+            self.emit(ind + 1, 'rt.setvar(fr, %s, numstr(%s))' % (_r(v), x))
+            self.emit(ind + 1, '%s += %s' % (x, st))
+        elif kind == 'each':
+            ck, v, e = p
+            kind2 = ck.rstrip('s') if ck not in ('chars',) else 'char'
+            if kind2 == 'key':
+                k = self.tmp('k')
+                self.emit(ind, 'for %s in list(%s):' % (k, self.ex(e)))
+                self.emit(ind + 1, 'rt.setvar(fr, %s, %s)' % (_r(v), k))
+            else:
+                kind2 = {'character': 'char', 'chars': 'char'}.get(ck, kind2)
+                t, a, b = self.tmp('t'), self.tmp('a'), self.tmp('b')
+                self.emit(ind, '%s = to_text(%s)' % (t, self.ex(e)))
+                self.emit(ind, 'for %s, %s in ch.spans(%s, %s, **rt.delims()):' % (a, b, t, _r(kind2)))
+                self.emit(ind + 1, 'rt.setvar(fr, %s, %s[%s:%s])' % (_r(v), t, a, b))
+        else:
+            raise TranslateError('repeat %s' % kind)
+        self.loops += 1                  # (a break inside the loop still belongs to the switch around it)
+        self.block(body, ind + 1)
+        self.loops -= 1
+
+    def s_switch(self, s, ind):
+        _, subject, cases, default = s
+        sv = self.tmp('sv')
+        mark = len(self.lines)
+        self.emit(ind + 1, '%s = %s' % (sv, 'to_text(%s)' % self.ex(subject) if subject else 'None'))
+        self.in_switch.append(False)
+        first = True
+        for vals, body in cases:
+            if body and body[-1][0] == 'break':
+                body = body[:-1]                         # the usual break at the end of a case
+            cond = ' or '.join('rt.case_hit(%s, %s)' % (sv, self.ex(v)) for v in vals)
+            self.emit(ind + 1, '%s %s:' % ('if' if first else 'elif', cond))
+            self.block(body, ind + 2)
+            first = False
+        if default is not None:
+            if default and default[-1][0] == 'break':
+                default = default[:-1]
+            if first:
+                self.block(default, ind + 1)
+            else:
+                self.emit(ind + 1, 'else:')
+                self.block(default, ind + 2)
+        catches = self.in_switch.pop()
+        body = self.lines[mark:]
+        del self.lines[mark:]
+        if catches:
+            self.emit(ind, 'try:')
+            self.lines.extend(body)
+            self.emit(ind, 'except Break:')
+            self.emit(ind + 1, 'pass')
+        else:
+            self.lines.extend(l[4:] for l in body)
+
+    def s_try(self, s, ind):
+        _, body, var, catch, fin = s
+        has_catch = not (var is None and not catch)
+        if not has_catch and not fin:
+            self.block(body, ind)
+            return
+        if fin:
+            self.emit(ind, 'try:')
+            ind += 1
+        if has_catch:
+            e = self.tmp('e')
+            self.emit(ind, 'try:')
+            self.block(body, ind + 1)
+            self.emit(ind, 'except (Thrown, XtError) as %s:' % e)
+            if var:
+                self.emit(ind + 1, 'rt.setvar(fr, %s, %s.v if isinstance(%s, Thrown) else str(%s))' % (_r(var), e, e, e))
+            self.block(catch, ind + 1)
+        else:
+            self.block(body, ind)
+        if fin:
+            ind -= 1
+            self.emit(ind, 'finally:')
+            self.block(fin, ind + 1)
+
+    # ---- commands
+    def s_cmd(self, s, ind):
+        name, parts = s[1], s[2]
+        nodes = [p[1] for p in parts if p[0] == 'e']
+        words = [None if p[0] == 'e' else p[1] for p in parts]
+        generic = 'rt.cmd(fr, %s, [%s], [%s], %s)' % (
+            _r(name), ', '.join(self.ex(n) for n in nodes),
+            ', '.join(self.setter(n) if n[0] in ('var', 'idx', 'chunk') else 'None' for n in nodes), _r(words))
+        own = getattr(self, 'c_' + name, None)
+        if own is None:
+            self.emit(ind, generic)
+            return
+        self.emit(ind, 'if rt.has_handler(%s):' % _r(name))     # the script may define its own `filter`
+        self.emit(ind + 1, generic)
+        self.emit(ind, 'else:')
+        start = len(self.lines)
+        own(parts, ind + 1)
+        if len(self.lines) == start:
+            self.emit(ind + 1, 'pass')
+
+    def c_do(self, parts, ind):
+        if not parts or parts[0][0] != 'e':
+            raise TranslateError('do without code')
+        self.emit(ind, 'rt.do_text(fr, to_text(%s))' % self.ex(parts[0][1]))
+
+    def c_wait(self, parts, ind):
+        pass
+
+    def c_filter(self, parts, ind):
+        i, kind = 0, 'line'
+        if parts[0][0] == 'e' and parts[0][1][0] == 'var' and parts[0][1][1].lower() in ('lines', 'items') \
+                and len(parts) > 1 and parts[1] == ('w', 'of'):
+            kind = parts[0][1][1].lower().rstrip('s')
+            i = 2
+        try:
+            target = parts[i][1]
+            rest = parts[i + 1:]
+            neg = rest[0] == ('w', 'without')
+            pat = rest[1][1]
+            dest = rest[3][1] if len(rest) >= 4 and rest[2] == ('w', 'into') else target
+        except IndexError:
+            raise TranslateError('filter form')
+        p, t = self.tmp('p'), self.tmp('t')
+        self.emit(ind, '%s = %s' % (p, _tt(self.ex(pat))))
+        self.emit(ind, '%s = to_text(%s)' % (t, self.ex(target)))
+        self.emit(ind, self.assign(dest, 'rt.filter_text(%s, %s, %s, %r)' % (t, _r(kind), p, neg), 'into'))
+
+
+def _pyname(name, used):
+    base = 'h_' + re.sub(r'\W', '_', name).lower()
+    n, i = base, 2
+    while n in used:
+        n, i = '%s_%d' % (base, i), i + 1
+    used.add(n)
+    return n
+
+
+def translate_expr(text):
+    """an xTalk expression -> a Python expression (names rt and fr must exist where it runs)"""
+    return Gen().ex(parse_expr(text))
+
+
+def translate_statements(text, fname='_body'):
+    """xTalk statements -> `def fname(rt, fr):` (as if they were a handler's body)"""
+    g = Gen()
+    g.emit(0, 'def %s(rt, fr):' % fname)
+    g.block(parse_statements(text), 1)
+    g.emit(1, "return ''")
+    return '\n'.join(g.lines) + '\n'
+
+
+def translate_script(text, source='<script>'):
+    """a whole script -> a Python module with install(rt). Returns (python text, report).
+    report: {'translated': [names], 'interpreted': [(name, why)], 'parse_errors': [...]}"""
+    p = Parser(text)
+    handlers = p.script()
+    top = handlers.pop('#top', [])
+    parse_errors = handlers.pop('#errors', [])
+    report = {'translated': [], 'interpreted': [], 'parse_errors': parse_errors}
+    used = set()
+    out = ['"""Generated from %s by xtalk_py/xtalk/transpile.py. Do not edit: the xTalk script is the source."""' % source,
+           'from xtalk.pyrt import *  # noqa: F401,F403', '', '']
+    table = []
+    for key, (kind, name, params, body, byref) in handlers.items():
+        g = Gen()
+        fn = _pyname(name, used)
+        try:
+            g.emit(0, 'def %s(rt, fr):' % fn)
+            g.emit(1, '# %s %s %s' % ('function' if kind == 'function' else 'on', name, ', '.join(params)))
+            g.block(body, 1)
+            if not g.lines[-1].startswith('    return '):
+                g.emit(1, "return ''")
+            src = '\n'.join(g.lines)
+            with warnings.catch_warnings():          # `return` inside `finally` is what the xTalk said
+                warnings.simplefilter('ignore', SyntaxWarning)
+                compile(src, fn, 'exec')
+        except (TranslateError, XtError, SyntaxError, KeyError, IndexError, TypeError) as e:
+            report['interpreted'].append((name, '%s: %s' % (type(e).__name__, e)))
+            table.append('    rt.handlers[%s] = %s' % (_r(key), _r((kind, name, params, body, byref))))
+            continue
+        report['translated'].append(name)
+        out.append(src)
+        out.append('')
+        out.append('')
+        table.append('    rt.handlers[%s] = (%s, %s, %s, None, %s, %s)' % (
+            _r(key), _r(kind), _r(name), _r(list(params)), _r(list(byref)), fn))
+    g = Gen()
+    g.emit(0, 'def install(rt):')
+    g.emit(1, '"""add these handlers to rt, then run the script-level local/global/constant lines"""')
+    g.emit(1, 'fr = Frame([])')
+    for line in table:
+        g.lines.append(line)
+    for st in top:
+        if st[0] == 'local':
+            for n, init in zip(st[1], st[2]):
+                g.emit(1, 'rt.S[%s] = %s' % (_r(n.lower()), "to_text(%s)" % g.ex(init) if init is not None else "''"))
+        elif st[0] == 'global':
+            for n in st[1]:
+                g.emit(1, 'rt.G.setdefault(%s, "")' % _r(n.lower()))
+        else:
+            g.st(st, 1)
+    out.extend(g.lines)
+    return '\n'.join(out) + '\n', report

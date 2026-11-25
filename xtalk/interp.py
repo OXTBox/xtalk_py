@@ -89,7 +89,8 @@ class Interp:
         h = self.handlers.get(name.lower())
         if h is None:
             raise XtError("handler: can't find handler %s" % name)
-        kind, _, params, body, byref = h
+        kind, _, params, body, byref = h[:5]
+        pyfn = h[5] if len(h) > 5 else None     # a handler the translator turned into Python
         self.refs = {}
         self.depth += 1
         if self.depth > 400:
@@ -100,6 +101,8 @@ class Interp:
         for i, p in enumerate(params):
             fr.vars[p.lower()] = copy.deepcopy(plain(args[i])) if i < len(args) else ''
         try:
+            if pyfn is not None:
+                return plain(pyfn(self, fr))
             self.exec_block(body, fr)
         except Return as r:
             return plain(r.v)
@@ -165,8 +168,13 @@ class Interp:
 
     def x_arith(self, st, fr):
         op, e, target = st[1], st[2], st[3]
-        a = to_num(to_text(self.ev(e, fr)))
+        a = self.ev(e, fr)
         cur = self.ev(target, fr) if not (target[0] == 'var' and self.undefined(fr, target[1])) else ''
+        self.assign(target, self.arith(op, a, cur), 'into', fr)
+
+    def arith(self, op, a, cur):
+        """add/subtract/multiply/divide: a is the operand, cur what the target holds"""
+        a = to_num(to_text(a))
         b = to_num(to_text(cur))
         if op == 'add':
             r = b + a
@@ -178,7 +186,7 @@ class Interp:
             if a == 0:
                 raise XtError('divide: divide by zero')
             r = b / a
-        self.assign(target, numstr(r), 'into', fr)
+        return numstr(r)
 
     def undefined(self, fr, name):
         n = name.lower()
@@ -191,12 +199,7 @@ class Interp:
             fr.vars.pop(n, None)
             return
         if t[0] == 'idx':
-            arr = self.getvar_arr(fr, t[1])
-            if arr is not None:
-                key = self.key(t[2][:], fr)
-                for kk in key[:-1]:
-                    arr = arr.get(kk, {})
-                arr.pop(key[-1], None)
+            self.del_idx(fr, t[1], self.key(t[2][:], fr))
             return
         if t[0] == 'chunk':
             kind, a, b, inner = t[1], t[2], t[3], t[4]
@@ -206,6 +209,13 @@ class Interp:
             self.assign(inner, new, 'into', fr)
             return
         raise XtError("delete: can't delete that")
+
+    def del_idx(self, fr, name, key):
+        arr = self.getvar_arr(fr, name)
+        if arr is not None:
+            for kk in key[:-1]:
+                arr = arr.get(kk, {})
+            arr.pop(key[-1], None)
 
     def cut(self, text, kind, a, b):
         kw = self.delims()
@@ -238,12 +248,15 @@ class Interp:
         _, name, obj, key, ex = st
         v = to_text(self.ev(ex, fr))
         if obj is None:
-            name = self.ALIAS.get(name, name)
-            self.props[name] = v
-            if name == 'numberformat':
-                NUMBER_FORMAT[0] = v
+            self.set_global_prop(name, v)
             return
         self.host.set_prop(to_text(self.ev(obj, fr)), name, v, None if key is None else to_text(self.ev(key, fr)))
+
+    def set_global_prop(self, name, v):
+        name = self.ALIAS.get(name, name)
+        self.props[name] = v
+        if name == 'numberformat':
+            NUMBER_FORMAT[0] = v
 
     def x_return(self, st, fr):
         raise Return(self.ev(st[1], fr))
@@ -395,13 +408,17 @@ class Interp:
     def x_sort(self, st, fr):
         _, kind, target, desc, mode, by = st
         text = to_text(self.ev(target, fr))
+        self.assign(target, self.sort_text(fr, kind, text, desc, mode, None if by is None else (lambda: self.ev(by, fr))), 'into', fr)
+
+    def sort_text(self, fr, kind, text, desc, mode, by):
+        """sort the chunks of text; by() gives the sort key with `each` set"""
         kw = self.delims()
         d = kw['item_delim'] if kind == 'item' else kw['line_delim']
         parts = [text[a:b] for a, b in ch.spans(text, kind, **kw)]
         def key(p):
             if by is not None:
                 fr.vars['each'] = p
-                p = to_text(self.ev(by, fr))
+                p = to_text(by())
             if mode == 'numeric':
                 try:
                     return (0, to_num(p))
@@ -409,7 +426,7 @@ class Interp:
                     return (0, 0)
             return (0, p.lower())
         parts.sort(key=key, reverse=desc)
-        self.assign(target, d.join(parts), 'into', fr)
+        return d.join(parts)
 
     # ------------------------------------------------------------ assignment
     def delims(self):
@@ -421,77 +438,106 @@ class Interp:
         return v if isinstance(v, dict) else None
 
     def key(self, keys, fr):
-        out, cur = [], []
-        for k in keys:
-            cur.append(to_text(self.ev(k, fr)))
+        return self.key_vals([self.ev(k, fr) for k in keys])
+
+    @staticmethod
+    def key_vals(vals):
+        cur = [to_text(v) for v in vals]
         return [''.join(cur)] if len(cur) > 1 and ',' in cur else cur
 
     def assign(self, target, value, mode, fr):
         k = target[0]
         if k == 'var':
-            if mode == 'into':                  # LiveCode copies an array on put: no sharing
-                self.setvar(fr, target[1], copy.deepcopy(value) if isinstance(value, dict) else to_text(value))
-            else:
-                cur = to_text(self.getvar(fr, target[1])) if not self.undefined(fr, target[1]) else ''
-                v = to_text(value)
-                self.setvar(fr, target[1], cur + v if mode == 'after' else v + cur)
+            self.put_var(fr, target[1], value, mode)
             return
         if k == 'idx':
-            n = target[1].lower()
-            store = self.G if n in fr.globals else (self.S if n not in fr.vars and n in self.S else fr.vars)
-            arr = store.get(n)
-            if not isinstance(arr, dict):
-                arr = {}
-                store[n] = arr
-            keys = self.key(target[2], fr)
-            for kk in keys[:-1]:
-                nxt = arr.get(kk)
-                if not isinstance(nxt, dict):
-                    nxt = {}
-                    arr[kk] = nxt
-                arr = nxt
-            last = keys[-1]
-            if mode == 'into':
-                arr[last] = copy.deepcopy(value) if isinstance(value, dict) else plain(value)
-            else:
-                cur = to_text(arr.get(last, ''))
-                arr[last] = cur + to_text(value) if mode == 'after' else to_text(value) + cur
+            self.put_idx(fr, target[1], self.key(target[2], fr), value, mode)
             return
         if k == 'chunk':
             _, kind, a, b, inner = target
             cur = to_text(self.ev(inner, fr)) if not (inner[0] == 'var' and self.undefined(fr, inner[1])) else ''
-            a2, b2 = self.range(a, b, fr, kind, cur)
-            new = ch.put(cur, kind, a2, b2, to_text(value), mode, **self.delims())
-            self.assign(inner, new, 'into', fr)
+            av = self.chunk_arg(a, fr)
+            bv = None if b is None else self.chunk_arg(b, fr)
+            self.assign(inner, self.put_chunk(kind, cur, av, bv, value, mode), 'into', fr)
             return
-        if k == 'obj' or k == 'prop' or k == 'propof':
-            desc = to_text(self.ev(target, fr)) if k == 'obj' else None
-            if k == 'obj':
-                cur = self.host.get_prop(desc, 'text') if mode != 'into' else ''
-                v = to_text(value)
-                self.host.set_prop(desc, 'text', v if mode == 'into' else (cur + v if mode == 'after' else v + cur))
-                return
-            name = target[1]
-            if k == 'propof':
-                self.host.set_prop(to_text(self.ev(target[2], fr)), name, to_text(value))
-                return
+        if k == 'obj':
+            self.put_obj(to_text(self.ev(target, fr)), value, mode)
+            return
+        if k == 'propof':
+            self.host.set_prop(to_text(self.ev(target[2], fr)), target[1], to_text(value))
+            return
         if k == 'url':
             self.host.write_url(target[1], to_text(self.ev(target[2], fr)), to_text(value))
             return
         raise XtError("put: can't put into that")
 
-    def range(self, a, b, fr, kind=None, text=''):
-        av = self.chunk_index(a, fr, kind, text)
-        bv = av if b is None else self.chunk_index(b, fr, kind, text)
-        return av, bv
+    def put_obj(self, desc, value, mode='into'):
+        """put into a field (or any object): its text"""
+        cur = self.host.get_prop(desc, 'text') if mode != 'into' else ''
+        v = to_text(value)
+        self.host.set_prop(desc, 'text', v if mode == 'into' else (cur + v if mode == 'after' else v + cur))
 
-    def chunk_index(self, e, fr, kind, text):
-        if e[0] == 'ord':
+    def put_var(self, fr, name, value, mode='into'):
+        if mode == 'into':                  # LiveCode copies an array on put: no sharing
+            self.setvar(fr, name, copy.deepcopy(value) if isinstance(value, dict) else to_text(value))
+        else:
+            cur = to_text(self.getvar(fr, name)) if not self.undefined(fr, name) else ''
+            v = to_text(value)
+            self.setvar(fr, name, cur + v if mode == 'after' else v + cur)
+
+    def put_idx(self, fr, name, keys, value, mode='into'):
+        n = name.lower()
+        store = self.G if n in fr.globals else (self.S if n not in fr.vars and n in self.S else fr.vars)
+        arr = store.get(n)
+        if not isinstance(arr, dict):
+            arr = {}
+            store[n] = arr
+        for kk in keys[:-1]:
+            nxt = arr.get(kk)
+            if not isinstance(nxt, dict):
+                nxt = {}
+                arr[kk] = nxt
+            arr = nxt
+        last = keys[-1]
+        if mode == 'into':
+            arr[last] = copy.deepcopy(value) if isinstance(value, dict) else plain(value)
+        else:
+            cur = to_text(arr.get(last, ''))
+            arr[last] = cur + to_text(value) if mode == 'after' else to_text(value) + cur
+
+    # chunk positions: a value, or ('ord', 'middle'|'any') that needs the text to resolve
+    def chunk_arg(self, e, fr):
+        return e if e[0] == 'ord' else self.ev(e, fr)
+
+    def chunk_idx(self, v, kind, text):
+        if isinstance(v, tuple):
             n = ch.count(text, kind, **self.delims())
-            if e[1] == 'any':
+            if v[1] == 'any':
                 return random.randint(1, max(n, 1))
             return (n + 1) // 2 if n else 1
-        return int(math.floor(to_num(to_text(self.ev(e, fr)))))
+        return int(math.floor(to_num(to_text(v))))
+
+    def put_chunk(self, kind, cur, a, b, value, mode):
+        """cur with chunk a..b set"""
+        a2 = self.chunk_idx(a, kind, cur)
+        b2 = a2 if b is None else self.chunk_idx(b, kind, cur)
+        return ch.put(cur, kind, a2, b2, to_text(value), mode, **self.delims())
+
+    def cut_chunk(self, kind, cur, a, b):
+        a2 = self.chunk_idx(a, kind, cur)
+        b2 = a2 if b is None else self.chunk_idx(b, kind, cur)
+        return self.cut(cur, kind, a2, b2)
+
+    def get_chunk(self, kind, text, a, b):
+        text = to_text(text)
+        a2 = self.chunk_idx(a, kind, text)
+        b2 = a2 if b is None else self.chunk_idx(b, kind, text)
+        return ch.get(text, kind, a2, b2, **self.delims())
+
+    def range(self, a, b, fr, kind=None, text=''):
+        av = self.chunk_idx(self.chunk_arg(a, fr), kind, text)
+        bv = av if b is None else self.chunk_idx(self.chunk_arg(b, fr), kind, text)
+        return av, bv
 
     # ------------------------------------------------------------ expressions
     def truth(self, v):
@@ -530,10 +576,14 @@ class Interp:
         raise XtError('expression: unknown property "the %s"' % n)
 
     def e_idx(self, e, fr):
-        arr = self.getvar_arr(fr, e[1])
+        if self.getvar_arr(fr, e[1]) is None:
+            return ''
+        return self.get_idx(fr, e[1], self.key(e[2], fr))
+
+    def get_idx(self, fr, name, keys):
+        arr = self.getvar_arr(fr, name)
         if arr is None:
             return ''
-        keys = self.key(e[2], fr)
         cur = arr
         for kk in keys:
             if not isinstance(cur, dict):
@@ -583,8 +633,9 @@ class Interp:
         return self.host.get_prop(self.desc(operand, fr), name, None if key is None else to_text(self.ev(key, fr)))
 
     def e_isa(self, e, fr):
-        raw = self.ev(e[1], fr)
-        t = e[2]
+        return self.isa(self.ev(e[1], fr), e[2])
+
+    def isa(self, raw, t):
         if t == 'array':
             return 'true' if isinstance(raw, dict) else 'false'
         if isinstance(raw, dict):
@@ -610,8 +661,9 @@ class Interp:
         return ch.get(text, kind, a2, b2, **self.delims())
 
     def e_un(self, e, fr):
-        op = e[1]
-        v = self.ev(e[2], fr)
+        return self.unop(e[1], self.ev(e[2], fr))
+
+    def unop(self, op, v):
         if op == 'not':
             return 'false' if to_bool(v) else 'true'
         n = to_num(to_text(v))
@@ -623,10 +675,10 @@ class Interp:
             return 'true' if (self.truth(self.ev(e[2], fr)) and self.truth(self.ev(e[3], fr))) else 'false'
         if op == 'or':
             return 'true' if (self.truth(self.ev(e[2], fr)) or self.truth(self.ev(e[3], fr))) else 'false'
-        l = self.ev(e[2], fr)
-        r = self.ev(e[3], fr)
-        if op == 'among' or op == 'in':
-            pass
+        return self.binop(op, self.ev(e[2], fr), self.ev(e[3], fr))
+
+    def binop(self, op, l, r):
+        """every two-sided operator but and/or (those stop early)"""
         if op in ('&', '&&'):
             ls, rs = to_text(l), to_text(r)
             return ls + (' ' if op == '&&' else '') + rs
