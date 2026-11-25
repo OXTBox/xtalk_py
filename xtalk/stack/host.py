@@ -285,6 +285,8 @@ class StackHost(Host):
             return '%d,%d' % rt.mouse
         if p in ('mouseh', 'mousev'):
             return str(rt.mouse[0 if p == 'mouseh' else 1])
+        if p == 'mouse':                   # the mouse / mouse(1): up or down
+            return 'down' if rt.button_down else 'up'
         if p == 'screenrect':
             return '0,0,1536,864'
         if p == 'mainstacks':
@@ -525,6 +527,12 @@ class StackHost(Host):
         if name == 'go':
             return self.go(' '.join(v for k, v in parts))
         if name == 'click':
+            return ''
+        if name == 'popup':
+            if es:
+                o = self.resolve(es[0])
+                x, y = ints(es[1], 2) if len(es) > 1 else rt.mouse
+                rt.show_menu(o, x, y)
             return ''
         if name == 'grab':
             if es:

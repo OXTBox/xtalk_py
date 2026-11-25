@@ -151,3 +151,5 @@ sum("5,3,")
 average("5,3,")
 min(",5")
 min("5,,3")
+item 2 "p,q,r"
+word 2 "aa bb cc"

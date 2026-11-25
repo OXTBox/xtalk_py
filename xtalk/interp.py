@@ -800,6 +800,8 @@ class Interp:
                     self.assign(e[2][i], v, 'into', fr)
             return r
         f = BUILTINS.get(n)
+        if f is None and (not args or n == 'mouse'):          # mouseLoc() is the mouseLoc (measured 25 Nov)
+            return self.e_prop(('prop', n), fr)
         if f is None:
             raise XtError("expression: can't find function %s" % name)
         if n == 'matchtext':                                   # captures go into the variables named after the pattern

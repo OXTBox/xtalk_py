@@ -1,6 +1,6 @@
 {"format": "livecode-harvest", "formatVersion": 2, "mainStack": "xtM1",
- "note": "hand-made test stack for tests/test_stack.py: the stack measured in LiveCode on 24 Nov (docs/LIVECODE_FACTS.md, Objects and messages); card Two: grab test buttons (Dictionary rules, not measured)",
- "stacks": [{"name": "xtM1", "role": "main", "file": "stack_xtM1.json", "cards": 2, "controls": 7}],
+ "note": "hand-made test stack for tests/test_stack.py: the stack measured in LiveCode on 24 Nov (docs/LIVECODE_FACTS.md, Objects and messages); card Two: grab, mouse and menu test buttons (Dictionary rules, not measured)",
+ "stacks": [{"name": "xtM1", "role": "main", "file": "stack_xtM1.json", "cards": 2, "controls": 10}],
  "typeDefaults": {"graphic": {"visible": true, "showName": false, "style": "rectangle"},
                   "button": {"visible": true, "showName": true, "style": "standard", "autoHilite": true},
                   "field": {"visible": true}},

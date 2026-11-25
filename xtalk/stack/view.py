@@ -55,6 +55,7 @@ class View:
         self.fonts = {}
         self.textures = {}
         self.icons = {}                # (stack, icon value) -> the image it names
+        self.menu = None               # a menu being shown: {'items', 'x', 'y', 'pick', 'opened', 'done'}
         self.down_on = None
         self.panel = True
         imgui.create_context()
@@ -334,6 +335,8 @@ class View:
             for obj, err in rt.load_errors[:5]:
                 imgui.text_colored(imgui.ImVec4(1, 0.7, 0.3, 1), 'does not compile: %s %s' % (obj, err))
             imgui.end()
+        if self.menu is not None:
+            self.draw_menu()                     # last, and focused: always in front of the panel
         imgui.render()
         imgui.backends.opengl3_render_draw_data(imgui.get_draw_data())
         return io.want_capture_mouse
@@ -369,6 +372,55 @@ class View:
             ch = rl.get_char_pressed()
         rt.tick(rl.get_frame_time() * 1000)
 
+    def draw_menu(self):
+        """the menu as a borderless window at x,y; submenus are ImGui menus. A click outside closes it,
+        once the mouse has been up (the click that opened it does not count)"""
+        m = self.menu
+        if not imgui.is_mouse_down(0):
+            m['armed'] = True
+        imgui.set_next_window_pos(imgui.ImVec2(m['x'], m['y']), imgui.Cond_.always)
+        imgui.set_next_window_focus()
+        flags = (imgui.WindowFlags_.no_title_bar | imgui.WindowFlags_.always_auto_resize | imgui.WindowFlags_.no_move
+                 | imgui.WindowFlags_.no_saved_settings | imgui.WindowFlags_.no_collapse)
+        imgui.begin('##xtmenu', None, flags)
+        items, i = m['items'], 0
+        while i < len(items):
+            label, pick, enabled, sub = items[i]
+            kids = []
+            while i + 1 + len(kids) < len(items) and items[i + 1 + len(kids)][3]:
+                kids.append(items[i + 1 + len(kids)])
+            if label == '-':
+                imgui.separator()
+            elif kids:
+                if imgui.begin_menu(label, enabled):
+                    for kl, kp, ke, _ in kids:
+                        if kl == '-':
+                            imgui.separator()
+                        elif imgui.menu_item(kl, '', False, ke)[0]:
+                            m['pick'] = kp
+                    imgui.end_menu()
+            elif imgui.menu_item(label, '', False, enabled)[0]:
+                m['pick'] = pick
+            i += 1 + len(kids)
+        imgui.end()
+        if m.get('armed') and imgui.is_mouse_clicked(0) and not imgui.get_io().want_capture_mouse:
+            m['done'] = True                     # a click outside the menu: closed, no pick
+        if rl.is_key_pressed(rl.KEY_ESCAPE):
+            m['done'] = True
+
+    def menu_frames(self, items, x, y):
+        """a script shows a menu: draw until a pick or the menu closes (the handler waits)"""
+        self.menu = {'items': items, 'x': x, 'y': y, 'pick': None, 'done': False}
+        try:
+            while not rl.window_should_close() and self.menu['pick'] is None and not self.menu['done']:
+                rl.begin_drawing()
+                self.draw_card()
+                self.draw_panel()
+                rl.end_drawing()
+            return self.menu['pick']
+        finally:
+            self.menu = None
+
     def wait_frames(self, ms):
         """a script waits: keep drawing (no clicks or timers, as LiveCode's wait without messages)"""
         end = rl.get_time() + ms / 1000.0
@@ -380,6 +432,7 @@ class View:
 
     def run(self):
         self.rt.on_wait = self.wait_frames
+        self.rt.on_menu = self.menu_frames
         self.rt.open()
         while not rl.window_should_close() and not self.rt.closed:
             self.frame()

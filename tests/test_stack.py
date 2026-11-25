@@ -79,6 +79,24 @@ rt.mouse_move(120, 30)
 rt.mouse_move(120, 30)
 rt.mouse_move(300, 300)
 check('mouseMove once a move; mouseEnter / mouseLeave', rt.G['glog'], 'in;mv:120/30;out;')
+rt.G['glog'] = ''
+rt.menu_choices = ['Three']
+rt.click('button "P"')                # popup in mouseUp: the handler waits for the pick (Dictionary)
+check('popup: the items shown', rt.menus[-1], ('PM', ['One', '-', 'Two', 'Three', 'More', 'Deep']))
+check('popup: menuPick to the menu button, then the handler goes on', rt.G['glog'], 'pick:Three;after;')
+check('popup: menuHistory', rt.get('button "PM"', 'menuHistory'), '4')
+rt.G['glog'] = ''
+rt.menu_choices = ['More|Deep']
+rt.click('button "P"')
+check('popup: a submenu pick is Parent|Child', rt.G['glog'], 'pick:More|Deep;after;')
+rt.G['glog'] = ''
+rt.click('button "P"')                # no pick: the menu closed
+check('popup closed without a pick: no menuPick', rt.G['glog'], 'after;')
+rt.G['glog'] = ''
+rt.menu_choices = ['Green']
+rt.click('button "OM"')
+check('option menu: opens on the click, label = pick, no mouseUp after it',
+      (rt.G['glog'], rt.get('button "OM"', 'label')), ('om:Green;', 'Green'))
 check('no script errors', rt.errors, [])
 rt.run('put "x" into URL "file:/tmp/escape_test.txt"')
 rt.run('put "y" into URL ("file:" & specialFolderPath("Documents") & "/in.txt")')

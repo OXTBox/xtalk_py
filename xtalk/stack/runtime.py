@@ -11,7 +11,7 @@ Every scripted object has its own script context (its handlers and script locals
 shared. A message goes to its target, then along the message path: the control, its groups, the
 card, the card's stack, the mainstack. `pass` hands it on; `send`/`dispatch` start a new one.
 """
-import heapq, os
+import heapq, os, re
 from ..pyrt import Runtime
 from ..interp import Frame, Thrown, ExitRepeat, NextRepeat, Break
 from ..values import XtError
@@ -83,6 +83,10 @@ class StackRuntime:
         self.grabbed = None            # `grab`: (control, x offset, y offset) until the button comes up
         self.pressed = None            # the object the button went down on (it gets mouseMove while held)
         self.hover = None              # the control the mouse is in, as far as mouseEnter/mouseLeave go
+        self.on_menu = None            # the window: show a menu, return the pick (text) or None
+        self.menu_choices = []         # no window (tests): the picks to make, in order (None = close the menu)
+        self.menus = []                # every menu shown: (button name, [item labels])
+        self.swallow_up = False        # a menu opened while the button was down took the release
         self.clock = 0.0               # virtual milliseconds
         self.timers, self._seq = [], 0
         self.changed = True
@@ -214,12 +218,21 @@ class StackRuntime:
         o = self.control_at(x, y) or self.default_stack.current
         self.pressed = o
         self.message(o, 'mouseDown', [str(button)])
+        if o.type == 'button' and self.host.obj_prop(o, 'style') == 'menu' and self.visible(o) \
+                and self.host.obj_prop(o, 'menumode') in ('option', 'pulldown', 'combobox') \
+                and self.host.obj_prop(o, 'disabled') != 'true':
+            l, t, r, b = o.rect                  # a menu button opens its list under itself
+            self.show_menu(o, l, b)
         return o
 
     def mouse_up(self, x, y, button=1, down_on=None):
         self.mouse_move(x, y)
         self.button_down = False
         self.pressed = None
+        if self.swallow_up:              # the menu took this release: no mouseUp / mouseRelease
+            self.swallow_up = False
+            self._enter_leave()
+            return down_on
         o = self._release(button, down_on)
         self._enter_leave()            # held back while the button was down (Dictionary, mouseEnter/mouseLeave)
         return o
@@ -251,6 +264,53 @@ class StackRuntime:
             self.message(old, 'mouseLeave')
         if now is not None:
             self.message(now, 'mouseEnter')
+
+    # ------------------------------------------------------------ menus
+    @staticmethod
+    def menu_items(text):
+        """a menu button's text -> [(label, pick, enabled)], ('-', None, False) for a line;
+        a tab-indented line belongs to the item above it (picked as "Parent|Child")"""
+        out, parent = [], None
+        for raw in str(text).split('\n'):
+            if raw.strip() == '':
+                continue
+            sub = raw.startswith('\t')
+            line = raw.strip('\t')
+            if line == '-':
+                out.append(('-', None, False, sub))
+                continue
+            enabled = not line.startswith('(')
+            line = line.lstrip('(')
+            while line[:2] in ('!c', '!n', '!r', '!u', '!C', '!N', '!R', '!U'):
+                line = line[2:]
+            line = re.sub(r'(?<!/)/[^/]$', '', line)          # Save/S: the shortcut is not shown
+            label = line.replace('//', '/').replace('&&', '\0').replace('&', '').replace('\0', '&')
+            if not sub:
+                parent = label
+            out.append((label, (parent + '|' + label) if sub and parent else label, enabled, sub))
+        return out
+
+    def show_menu(self, o, x, y):
+        """show o's menu (Dictionary, popup: the handler pauses while it is shown); a pick sets the
+        menuHistory (an option menu shows it as its label) and sends menuPick to the button.
+        Order of menuPick against the rest of the handler: not measured."""
+        items = self.menu_items(o.text)
+        self.menus.append((o.name, [i[0] for i in items]))
+        if self.button_down:
+            self.swallow_up = True
+        if self.on_menu is not None:
+            pick = self.on_menu(items, x, y)
+        else:
+            pick = self.menu_choices.pop(0) if self.menu_choices else None
+        if pick is None:
+            return
+        n = next((k + 1 for k, i in enumerate(i for i in items if not i[3]) if i[1] == pick.split('|')[0]), 0)
+        if n:
+            o.props['menuHistory'] = str(n)
+        if self.host.obj_prop(o, 'menumode') in ('option', 'combobox'):
+            o.props['label'] = pick
+            self.changed = True
+        self.message(o, 'menuPick', [pick])
 
     def grab(self, o):
         """`grab o` (LiveCode Dictionary): only while the button is down and the mouse is inside o;

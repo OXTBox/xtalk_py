@@ -91,3 +91,10 @@ standalone per library group.
   `within(graphic, point)`: the inside counts only if the graphic is filled.
 - **A card's rect is 0,0,<stack width>,<stack height>**; its loc is the middle (stack 400x300: `0,0,400,300`, loc
   `200,150`). We had 0,0,0,0, so nine-ball's scratched cue ball went back to -205,0, off the window.
+- **"of" may be left out** (TKInter-izer compiles with these): `item 2 "p,q,r"` = q, `word 2 "aa bb cc"` = bb,
+  `item 1 the loc of this stack`; `set the width button "x" to 50` and `the width button "x"` both work.
+- `the the keys of A` = the keys (a doubled "the" is one). `return 5 into q` returns 5; the `into q` does nothing.
+- `mouseLoc()` = the mouseLoc; `the mouse` and `mouse(1)` = up/down (a "the" function can be called with brackets).
+- From the Dictionary: `popup button [at point]` pauses the handler while the menu shows; a pick sends menuPick to
+  the button. NOT measured (needs a hand on the mouse): whether an option menu also gets mouseUp after a pick
+  (we send none), and menuPick's order against the rest of the handler (we send it before the handler goes on).

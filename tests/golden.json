@@ -152,7 +152,9 @@
   "sum(\"5,3,\")": "8",
   "average(\"5,3,\")": "4",
   "min(\",5\")": "0",
-  "min(\"5,,3\")": "0"
+  "min(\"5,,3\")": "0",
+  "item 2 \"p,q,r\"": "q",
+  "word 2 \"aa bb cc\"": "bb"
  },
  "script": {
   "put \"a,b,c\" into t\nput \"X\" into item 2 of t\nput t into tOut": "a,X,c",
@@ -219,7 +221,8 @@
   "put 3 into xx'\nput xx' * 2 into yy'\nput yy' & \",\" & xx' into tOut": "6,3",
   "put \"\" into tOut\nrepeat for each item v in \"TRUE, true,true ,1,yes,,false\"\n  if v then put \"T\" after tOut\n  else put \"F\" after tOut\nend repeat": "TFFFFFF",
   "put 0 into n\nrepeat with i = 1 to empty\n  add 1 to n\nend repeat\nput n into tOut": "0",
-  "put 0 into n\nput \"\" into tEnd\nrepeat with i = 0 to tEnd\n  add 1 to n\nend repeat\nput n & \",\" & i into tOut": "1,0"
+  "put 0 into n\nput \"\" into tEnd\nrepeat with i = 0 to tEnd\n  add 1 to n\nend repeat\nput n & \",\" & i into tOut": "1,0",
+  "put \"a\" into A[\"x\"]\nput \"b\" into A[\"y\"]\nput the the keys of A into tOut\nsort lines of tOut": "x\ny"
  },
  "lib": {
   "libraries/lib_bit.livecodescript": {
@@ -370,26 +373,6 @@
    "T.CanyonBullet(1.5)": "",
    "Canyon.SegmentMesh(\"0,0\" & return & \"10,0\" & return & \"10,10\", \"0,0\" & return & \"8,0\" & return & \"8,8\", 5)": ""
   },
-  "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Face.livecodescript": {
-   "Face.SegmentsToMesh(\"0,0,0,10,0,0\" & return & \"10,0,0,10,10,0\" & return & \"bad\")": "",
-   "Face.SegmentsToMesh(\"1,2,3,4,5,6\" & return & \"1,2,3,7,8,9\" & return & \"7,8,9,4,5,6\")": ""
-  },
-  "tests/wrap_translator.txt": {
-   "T.ByRef()": "6|6|11|x+y|vy",
-   "T.ByRefKey()": "5",
-   "T.ByRefChunk()": "ERR",
-   "T.Match()": "true|key|42",
-   "T.MatchMiss()": "false|z",
-   "T.Try()": "ac:boom|f",
-   "T.TryReturn()": "rf",
-   "T.TryErr()": "caught",
-   "T.Loops()": "1t4,10,7,4,1",
-   "T.Filter()": "apple+avocado|apple,cherry",
-   "T.SortBy()": "a1,c2,b3|c,b,A",
-   "T.Delete()": "a,c,d|one three|y",
-   "T.Do()": "7|10",
-   "T.Each()": "12"
-  },
   "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Hunter.livecodescript+tests/wrap_g_hunter.txt": {
    "Hunter.GemTypes()": "Diamond,#E8F8FF,500,1\nSapphire,#3A7BFF,300,2\nRuby,#FF2A4A,250,3\nEmerald,#22FF88,200,3\nAmethyst,#B455FF,150,4\nTopaz,#FFC21A,100,5",
    "Hunter.Palette()": "#D02090,#FF0000,#FF4500,#FFA500,#FFFF00,#7CFC00,#32CD32,#00FF00,#00FFFF,#6495ED,#1E90FF,#3399FF,#FF00FF,#00FF7F,#FFC0CB,#FF69B4,#00F5FF,#87CEEB,#E6E6FA,#FFFFFF",
@@ -418,6 +401,26 @@
   },
   "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_demo.livecodescript": {
    "Demo.BoatMesh()": ""
+  },
+  "engines/Vibecode3D_engine_stack_script.livecodescript|games/vibecode3d/Vibecode3D_Play_Face.livecodescript": {
+   "Face.SegmentsToMesh(\"0,0,0,10,0,0\" & return & \"10,0,0,10,10,0\" & return & \"bad\")": "",
+   "Face.SegmentsToMesh(\"1,2,3,4,5,6\" & return & \"1,2,3,7,8,9\" & return & \"7,8,9,4,5,6\")": ""
+  },
+  "tests/wrap_translator.txt": {
+   "T.ByRef()": "6|6|11|x+y|vy",
+   "T.ByRefKey()": "5",
+   "T.ByRefChunk()": "ERR",
+   "T.Match()": "true|key|42",
+   "T.MatchMiss()": "false|z",
+   "T.Try()": "ac:boom|f",
+   "T.TryReturn()": "rf",
+   "T.TryErr()": "caught",
+   "T.Loops()": "1t4,10,7,4,1",
+   "T.Filter()": "apple+avocado|apple,cherry",
+   "T.SortBy()": "a1,c2,b3|c,b,A",
+   "T.Delete()": "a,c,d|one three|y",
+   "T.Do()": "7|10",
+   "T.Each()": "12"
   }
  }
 }

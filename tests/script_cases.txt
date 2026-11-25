@@ -382,3 +382,8 @@ repeat with i = 0 to tEnd
   add 1 to n
 end repeat
 put n & "," & i into tOut
+----
+put "a" into A["x"]
+put "b" into A["y"]
+put the the keys of A into tOut
+sort lines of tOut

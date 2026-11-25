@@ -169,6 +169,63 @@
       60,
       140
      ]
+    },
+    {
+     "type": "button",
+     "name": "PM",
+     "id": 1034,
+     "layer": 4,
+     "rect": [
+      200,
+      150,
+      280,
+      170
+     ],
+     "text": "One\n-\n(Two\nThree\nMore\n\tDeep",
+     "props": {
+      "style": "menu",
+      "menuMode": "popup",
+      "visible": false
+     },
+     "script": {
+      "file": "scripts/xtM1__button_1034_PM.livecodescript"
+     }
+    },
+    {
+     "type": "button",
+     "name": "P",
+     "id": 1035,
+     "layer": 5,
+     "rect": [
+      200,
+      20,
+      260,
+      40
+     ],
+     "script": {
+      "file": "scripts/xtM1__button_1035_P.livecodescript"
+     }
+    },
+    {
+     "type": "button",
+     "name": "OM",
+     "id": 1036,
+     "layer": 6,
+     "rect": [
+      200,
+      60,
+      280,
+      80
+     ],
+     "text": "Red\nGreen",
+     "props": {
+      "style": "menu",
+      "menuMode": "option",
+      "label": "Red"
+     },
+     "script": {
+      "file": "scripts/xtM1__button_1036_OM.livecodescript"
+     }
     }
    ]
   }

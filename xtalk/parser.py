@@ -297,7 +297,8 @@ class Parser:
     def st_set(self):
         self.accept_word('the')
         words = []
-        while self.peek()[0] == 'id' and not self.is_word('of') and not self.is_word('to') and len(words) < 3:
+        while self.peek()[0] == 'id' and not self.is_word('of') and not self.is_word('to') and len(words) < 3 \
+                and not (words and self.obj_no_of()):
             words.append(self.next()[1].lower())
         if not words:
             self.err('expected a property name')
@@ -310,13 +311,18 @@ class Parser:
         if self.accept_word('of'):
             self.accept_word('of')                       # LiveCode lets a doubled "of of" through
             obj = self.p_un()
+        elif self.obj_no_of():                           # set the top field "P" to ...: "of" left out (measured)
+            obj = self.p_un()
         self.expect_word('to')
         return ('setprop', ' '.join(words), obj, key, self.list_expr())
 
     def st_return(self):
         if self.peek()[0] in ('nl', 'eof'):
             return ('return', ('str', ''))
-        return ('return', self.list_expr())
+        e = self.list_expr()
+        if self.accept_word('into'):            # return 5 into q: LiveCode returns 5, the "into q" does nothing (measured)
+            self.expr()
+        return ('return', e)
 
     def st_global(self):
         names = [self.next()[1]]
@@ -709,8 +715,11 @@ class Parser:
         return self.p_add()
 
     def chunk_rest(self, kind, a, b):
-        if not self.accept_word('of'):
-            if not (self.is_word('the') or (self.peek()[0] == 'id' and self.is_word('of', 1))):
+        if not self.accept_word('of'):        # "of" may be left out: item 2 "p,q", line N field "F" (measured 25 Nov)
+            if not (self.is_word('the') or (self.peek()[0] == 'id' and self.is_word('of', 1))
+                    or self.peek()[0] == 'str' or self.is_op('(')
+                    or (self.peek()[0] == 'id' and self.peek(1)[0] == 'op' and self.peek(1)[1] == '(')   # item 2 mouseloc()
+                    or (self.obj_starts() and self.peek(1)[0] in ('str', 'num', 'id'))):
                 self.err('expected "of"')
         inner = self.p_un() if not self.is_word('the') else self.p_un()
         return ('chunk', kind, a, b, inner)
@@ -722,6 +731,11 @@ class Parser:
         k, s, _ = self.peek()
         return k in ('num', 'str') or (k == 'op' and s == '(') or (k == 'id' and s.lower() not in PREPS
                                                                    and s.lower() not in ('then', 'else', 'is', 'mod', 'div'))
+
+    def obj_no_of(self, o=0):
+        """an object reference starts here with a name or number after its type (button "x", field 3)"""
+        k, s, _ = self.peek(o)
+        return k == 'id' and s.lower() in OBJTYPES and self.peek(o + 1)[0] in ('str', 'num')
 
     def obj_starts(self, o=0):
         k, s, _ = self.peek(o)
@@ -770,6 +784,8 @@ class Parser:
         return base
 
     def the_form(self):
+        while self.is_word('the'):             # the the keys of A (measured: one "the")
+            self.i += 1
         k, s, _ = self.peek()
         if k == 'str':                                   # `the "abc"` is just "abc" (LIVECODE_FACTS)
             self.i += 1
@@ -822,6 +838,9 @@ class Parser:
             self.i += j + 1
             self.accept_word('of')
             return ('propof', ' '.join(words), self.p_un(), None)
+        if self.peek()[0] == 'id' and self.obj_no_of(1):  # the width button "x": "of" left out (measured)
+            w2 = self.next()[1].lower()
+            return ('propof', w2, self.p_un(), None)
         self.i += 1
         key = None
         if self.is_op('['):
