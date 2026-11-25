@@ -123,3 +123,8 @@ standalone per library group.
   **`the tProp of x` with tProp a variable reads the property named by its value** (tProp = "a1" gave a1's value).
   We do this only when the name is not one of LiveCode's own properties (width, loc...).
 - `set the style of it to "Line"` is stored as `line`; "RadioButton" as `radiobutton` (measured).
+- Typing (Dictionary; keys cannot be measured in the windowless standalone): an unlocked field (lockText false,
+  not a list) gets the focus on a click: openField; leaving it: closeField if its text changed, else exitField.
+  Keys go to the focused field (keyDown, backspaceKey, deleteKey, returnInField, enterInField, arrowKey, tabKey) and
+  along the path; when no handler takes one (or it is passed past the last handler) the field types / deletes /
+  moves the caret. NOT done: arrow keys with no field focused would change cards in LiveCode (we only send arrowKey).

@@ -29,7 +29,7 @@ def canon(p):
     return SYNONYM.get(p, p)
 
 
-COMMANDS_QUIET = {'lock', 'unlock', 'beep', 'focus', 'select', 'flushevents', 'set'}
+COMMANDS_QUIET = {'lock', 'unlock', 'beep', 'flushevents', 'set'}
 
 
 def _in_polygon(x, y, pts):
@@ -258,6 +258,22 @@ class StackHost(Host):
         v = val.lower()
         return next((o for o in objs if o.name.lower() == v), None)
 
+    def select(self, desc, mode, s, e):
+        """select ... of field F: the focus goes there with the caret / selection; select empty: no focus"""
+        rt = self.rt
+        if desc is None:
+            rt.set_focus(None)
+            return
+        o = self.resolve(desc)
+        if o.type != 'field':
+            return
+        if rt.focused is not o:
+            rt.set_focus(o)
+        if (s, e) == (0, 0):                   # "text of field": the whole text
+            s, e = 0, len(o.text)
+        rt.sel = (e, e) if mode == 'after' else (s, s) if mode == 'before' else (s, e)
+        rt.changed = True
+
     def create(self, typ, name, invisible, group):
         """create (measured 25 Nov): a new object with the next id of the stack, on top of the current card
         (or in the group); 128x32 centred on the card unless the template's rect was changed; the template's
@@ -311,6 +327,8 @@ class StackHost(Host):
         for x in [o] + o.flat():
             o.stack.ids.pop(x.id, None)
             rt.ctx.pop(id(x), None)
+        if rt.focused is not None and id(rt.focused) in gone:
+            rt.focused = None
         for attr in ('hover', 'pressed', 'thumb_drag', 'scroll_drag'):
             if getattr(rt, attr, None) is not None and id(getattr(rt, attr)) in gone:
                 setattr(rt, attr, None)
@@ -419,6 +437,13 @@ class StackHost(Host):
         rt = self.rt
         if p in self.TEMPLATES:            # the templateGraphic: names itself, resolve() finds it
             return p
+        if p == 'focusedobject':
+            return self.name_of(rt.focused, 'long') if rt.focused is not None else ''
+        if p in ('selection', 'selectedtext'):
+            if rt.focused is None:
+                return ''
+            s, e = sorted(rt.sel)
+            return rt.focused.text[s:e]
         if p == 'target':
             return self.name_of(rt.target) if rt.target is not None else ''
         if p in ('defaultstack', 'topstack'):
@@ -455,6 +480,9 @@ class StackHost(Host):
                 return ''
             n = next((i for i, c in enumerate([c for c in o.card.flat() if c.type == 'field'], 1) if c is o), 0)
             return 'line %d of field %d' % (hl[0], n) if len(hl) == 1 else 'line %d to %d of field %d' % (hl[0], hl[-1], n)
+        if p == 'selectedtext' and self.rt.focused is o and self.obj_prop(o, 'listbehavior') != 'true':
+            s, e = sorted(self.rt.sel)
+            return o.text[s:e]
         if p == 'selectedtext':
             lines = o.text.split('\n')
             return '\n'.join(lines[n - 1] for n in self.hilited_lines(o) if 0 < n <= len(lines))
@@ -691,6 +719,15 @@ class StackHost(Host):
             return ''
         if name == 'create' and words[:1] == ['folder'] and es:
             os.makedirs(self.sandboxed(self._path(es[0])), exist_ok=True)     # create folder: inside the sandbox
+            return ''
+        if name == 'focus':                    # focus on field "F" / focus on nothing
+            if not es or es[0].strip().lower() in ('nothing', ''):
+                rt.set_focus(None)
+            else:
+                o = self.resolve(es[0])
+                rt.set_focus(o if rt.editable(o) else None)
+            return ''
+        if name == 'select':
             return ''
         if name == 'reset':                  # reset the templateGraphic: back to the plain one
             if es and es[0].lower().replace('the ', '') in self.TEMPLATES:

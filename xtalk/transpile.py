@@ -458,6 +458,9 @@ class Gen:
     # ---- commands
     def s_cmd(self, s, ind):
         name, parts = s[1], s[2]
+        if name == 'select':                   # needs the field and the chunk, not their text: interpreted
+            self.emit(ind, 'rt.x_cmd(%r, fr)' % (s,))
+            return
         nodes = [p[1] for p in parts if p[0] == 'e']
         words = [None if p[0] == 'e' else p[1] for p in parts]
         generic = 'rt.cmd(fr, %s, [%s], [%s], %s)' % (

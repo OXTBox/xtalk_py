@@ -46,6 +46,7 @@ class ObjInterp(Runtime):
         for c in later[later.index(self) + 1:] if self in later else []:
             if n in c.handlers:
                 return c.invoke(name, args)
+        self.rt.passed_off = True          # passed past the last handler: the engine does its default
         return ''
 
     def invoke(self, name, args):
@@ -95,6 +96,11 @@ class StackRuntime:
         self.double = False            # this press is the second of a double click
         self.scroll_drag = None        # a field whose scrollbar the mouse is dragging
         self.thumb_drag = None         # a scrollbar / slider whose thumb the mouse is dragging
+        self.focused = None            # the field being typed into
+        self.sel = (0, 0)              # its selection: character offsets (start, end); start == end: the caret
+        self.field_changed = False     # typed into since it got the focus (closeField, else exitField)
+        self.passed_off = False
+        self.measure = lambda o, s: len(s) * 7     # text width; the window puts in the real font's
         self.start_programs = True     # False: shell() only notes the script (the survey: no windows pop up)
         self.not_started = []          # the scripts shell() would have started
         self.clock = 0.0               # virtual milliseconds
@@ -190,6 +196,8 @@ class StackRuntime:
             self.message(st.current if 'Card' in m else st, m)
 
     def go_card(self, card):
+        if self.focused is not None and self.focused.card is not card:
+            self.set_focus(None)
         st = card.stack
         if st.current is not None and st.current is not card:
             self.message(st.current, 'closeCard')
@@ -237,10 +245,17 @@ class StackRuntime:
                 self.scroll_drag = o
                 self.scroll_field_to(o, y)
                 return o
+            if self.editable(o):
+                if self.focused is not o:
+                    self.set_focus(o)
+                p = self.char_at(o, x, y)
+                self.sel = (p, p)
             if self.host.obj_prop(o, 'listbehavior') == 'true' and self.host.obj_prop(o, 'disabled') != 'true':
                 n = self.field_line_at(o, y)     # the line is hilited before mouseDown (the owner's scripts read it there)
                 o.props['hilitedLines'] = str(n) if n else ''
                 self.changed = True
+        if self.focused is not None and o is not self.focused:
+            self.set_focus(None)                 # a click elsewhere: the field loses the focus
         if o.type == 'scrollbar' and self.host.obj_prop(o, 'disabled') != 'true':
             self.thumb_drag = o
             self.set_thumb_at(o, x, y)
@@ -525,10 +540,128 @@ class StackRuntime:
         self.mouse_up(x, y, down_on=o2)
         return o
 
+    def handled(self, o, msg, args=()):
+        """send msg; True when a handler took it (did not pass it past the last handler)"""
+        self.passed_off = False
+        found = self.message(o, msg, args)
+        return found is not None and not self.passed_off
+
     def key(self, ch):
+        """a typed character: keyDown to the focused field (else the card); nobody takes it: it is typed"""
         if hasattr(self, 'log_clicks'):
             self.log_clicks.append('key %r' % ch)
-        self.message(self.default_stack.current, 'keyDown', [ch])
+        f = self.focused
+        if not self.handled(f or self.default_stack.current, 'keyDown', [ch]) and f is not None and self.focused is f:
+            self.type_into(f, ch)
+
+    SPECIAL = {'backspace': ('backspaceKey', []), 'delete': ('deleteKey', []), 'return': ('returnInField', []),
+               'enter': ('enterInField', []), 'left': ('arrowKey', ['left']), 'right': ('arrowKey', ['right']),
+               'up': ('arrowKey', ['up']), 'down': ('arrowKey', ['down']), 'tab': ('tabKey', []),
+               'home': (None, []), 'end': (None, [])}
+
+    def special_key(self, name):
+        """Backspace, Delete, Return, Enter, arrows, Tab: their message, then the field's own action.
+        With no field focused: returnKey / enterKey / arrowKey / tabKey to the card, nothing more
+        (LiveCode's arrow keys would change cards: not done here)."""
+        if hasattr(self, 'log_clicks'):
+            self.log_clicks.append('key %s' % name)
+        f = self.focused
+        msg, args = self.SPECIAL[name]
+        if f is None:
+            if msg:
+                self.message(self.default_stack.current, {'returnInField': 'returnKey', 'enterInField': 'enterKey'}.get(msg, msg), args)
+            return
+        if msg and self.handled(f, msg, args):
+            return
+        if self.focused is not f:
+            return
+        t, (s, e) = f.text, self.sel
+        if name == 'backspace':
+            if s != e:
+                self.type_into(f, '')
+            elif s > 0:
+                self.sel = (s - 1, s)
+                self.type_into(f, '')
+        elif name == 'delete':
+            if s == e and s < len(t):
+                self.sel = (s, s + 1)
+            self.type_into(f, '')
+        elif name == 'return':
+            self.type_into(f, '\n')
+        elif name == 'enter':
+            self.set_focus(None)
+        elif name == 'tab':
+            fields = [c for c in self.default_stack.current.flat() if self.editable(c)]
+            if fields:
+                self.set_focus(fields[(fields.index(f) + 1) % len(fields)] if f in fields else fields[0], select_all=True)
+        elif name in ('left', 'right'):
+            p = (min(s, e) - (1 if s == e else 0)) if name == 'left' else (max(s, e) + (1 if s == e else 0))
+            p = max(0, min(len(t), p))
+            self.sel = (p, p)
+        elif name in ('up', 'down', 'home', 'end'):
+            line_start = t.rfind('\n', 0, s) + 1
+            col = s - line_start
+            if name == 'home':
+                p = line_start
+            elif name == 'end':
+                p = t.find('\n', s) if t.find('\n', s) >= 0 else len(t)
+            elif name == 'up':
+                if line_start == 0:
+                    p = 0
+                else:
+                    prev = t.rfind('\n', 0, line_start - 1) + 1
+                    p = min(prev + col, line_start - 1)
+            else:
+                nxt = t.find('\n', s)
+                if nxt < 0:
+                    p = len(t)
+                else:
+                    end2 = t.find('\n', nxt + 1)
+                    p = min(nxt + 1 + col, len(t) if end2 < 0 else end2)
+            self.sel = (p, p)
+        self.changed = True
+
+    def type_into(self, f, text):
+        """the engine's own typing: the selection becomes text, the caret after it"""
+        s, e = sorted(self.sel)
+        f.text = f.text[:s] + text + f.text[e:]
+        self.sel = (s + len(text), s + len(text))
+        self.field_changed = True
+        self.changed = True
+
+    def editable(self, o):
+        h = self.host.obj_prop
+        return (o.type == 'field' and h(o, 'locktext') != 'true' and h(o, 'listbehavior') != 'true'
+                and h(o, 'disabled') != 'true' and self._shown(o))
+
+    def set_focus(self, f, select_all=False):
+        """focus moves: closeField (text changed) or exitField to the field left, openField to the new one"""
+        old = self.focused
+        if old is f:
+            return
+        self.focused = None
+        if old is not None:
+            self.message(old, 'closeField' if self.field_changed else 'exitField')
+        self.field_changed = False
+        if f is not None:
+            self.focused = f
+            self.sel = (0, len(f.text)) if select_all else (len(f.text), len(f.text))
+            self.message(f, 'openField')
+        self.changed = True
+
+    def char_at(self, o, x, y):
+        """the character offset in field o under window point x,y (the caret goes before it)"""
+        lines = o.text.split('\n')
+        n = self.field_line_at(o, y) or (len(lines) if y > o.rect[1] else 1)
+        n = max(1, min(n, len(lines)))
+        start = sum(len(l) + 1 for l in lines[:n - 1])
+        size, lh, m, scroll, sbw = self.field_metrics(o)
+        rel = x - (o.rect[0] + m / 2 + 2)
+        line = lines[n - 1]
+        col = 0
+        while col < len(line) and self.measure(o, line[:col + 1]) - self.measure(o, line[col]) / 2 < rel:
+            col += 1
+        return start + col
 
     # ------------------------------------------------------------ for tests and tools
     def get(self, desc, prop):

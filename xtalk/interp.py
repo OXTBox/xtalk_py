@@ -481,6 +481,28 @@ class Interp:
         self.put_var(fr, 'it', it)
         self.result = result
 
+    def c_select(self, parts, fr):
+        """select after/before text of field F, select text of F, select char a to b of F, select empty:
+        the host puts the caret / selection there (a field) or takes it away"""
+        words = [p[1] for p in parts if p[0] == 'w']
+        nodes = [p[1] for p in parts if p[0] == 'e']
+        if not nodes or nodes[0] == ('const', 'empty'):
+            return self.host.select(None, 'none', 0, 0)
+        n = nodes[0]
+        mode = words[0] if words and words[0] in ('after', 'before') else 'all'
+        if n[0] == 'propof' and n[1] == 'text' and n[2][0] == 'obj':
+            return self.host.select(self.desc(n[2], fr), mode, 0, 0)
+        if n[0] == 'chunk' and n[4][0] == 'obj':
+            kind, a, b, inner = n[1], n[2], n[3], n[4]
+            desc = self.desc(inner, fr)
+            text = to_text(self.ev(inner, fr))
+            a2, b2 = self.range(a, b, fr, kind, text)
+            sp = ch.spans(text, kind, **self.delims())
+            r = ch._range(len(sp), a2, a2 if b is None else b2)
+            s, e = (sp[r[0]][0], sp[r[1]][1]) if r else (len(text), len(text))
+            return self.host.select(desc, mode, s, e)
+        return None                                        # select an object (the edit tool): not done here
+
     def c_wait(self, parts, fr):
         """wait: the host decides what waiting means (nothing in the plain host)"""
         vals = [(p[0], to_text(self.arg(p[1], fr)) if p[0] == 'e' else p[1]) for p in parts]
@@ -652,9 +674,12 @@ class Interp:
         if n == 'paramcount':
             return numstr(len(fr.args))
         h = self.host.get_prop('', n)
-        if h != '':
+        if h != '' or n in self.MAY_BE_EMPTY:
             return h
         raise XtError('expression: unknown property "the %s"' % n)
+
+    MAY_BE_EMPTY = {'focusedobject', 'selection', 'selectedtext', 'selectedfield', 'selectedline', 'selectedchunk',
+                    'target', 'mousecontrol', 'clicktext', 'clickline', 'clickchunk', 'clickfield', 'foundtext'}
 
     def e_idx(self, e, fr):
         if self.getvar_arr(fr, e[1]) is None:

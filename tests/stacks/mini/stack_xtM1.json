@@ -226,6 +226,22 @@
      "script": {
       "file": "scripts/xtM1__button_1036_OM.livecodescript"
      }
+    },
+    {
+     "type": "field",
+     "name": "T",
+     "id": 1038,
+     "layer": 7,
+     "rect": [
+      20,
+      150,
+      180,
+      190
+     ],
+     "text": "ab",
+     "script": {
+      "file": "scripts/xtM1__field_1038_T.livecodescript"
+     }
     }
    ]
   }

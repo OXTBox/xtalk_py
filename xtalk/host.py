@@ -38,6 +38,9 @@ class Host:
         o = self.objs.setdefault(self.norm(desc), {})
         o[prop if key is None else '%s[%s]' % (prop, key)] = value
 
+    def select(self, desc, mode, s, e):
+        self.log.append(('select', [('e', desc or ''), ('w', mode)]))
+
     def create(self, typ, name, invisible, group):
         raise XtError("can't find handler create")
 

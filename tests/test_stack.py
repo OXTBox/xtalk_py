@@ -95,6 +95,29 @@ rt.mouse_move(120, 30)
 rt.mouse_move(300, 300)
 check('mouseMove once a move; mouseEnter / mouseLeave', rt.G['glog'], 'in;mv:120/30;out;')
 rt.G['glog'] = ''
+rt.click('100,170')                       # field T: the focus and the caret (after "ab": the click is right of it)
+check('typing: a click focuses the field (openField)', (rt.G['glog'].split(';')[0], rt.eval('the short name of the focusedObject')), ('open', 'T'))
+for c in 'cxd':
+    rt.key(c)                             # x: the field's keyDown takes it (no pass), so it is not typed
+check('typing: keys are typed unless a keyDown takes them', rt.get('field "T"', 'text'), 'abcd')
+rt.special_key('backspace')
+rt.special_key('left')
+rt.special_key('return')
+rt.key('z')
+check('typing: Backspace, Left, Return', rt.get('field "T"', 'text'), 'ab\nzc')
+rt.run('select after text of field "T"')
+rt.key('!')
+rt.run('select char 1 to 2 of field "T"')
+check('select: after text, then a chunk (the selectedText)', (rt.get('field "T"', 'text'), rt.eval('the selection')), ('ab\nzc!', 'ab'))
+rt.G['glog'] = ''
+rt.click('40,30')                         # elsewhere: the field had changed: closeField
+check('typing: leaving a changed field sends closeField', (rt.G['glog'].split(';')[0], rt.eval('the focusedObject')), ('close', ''))
+rt.G['glog'] = ''
+rt.run('focus on field "T"')
+rt.run('focus on nothing')
+check('focus on / nothing: unchanged gives exitField', rt.G['glog'], 'open;exit;')
+rt.run('put "ab" into field "T"')
+rt.G['glog'] = ''
 rt.menu_choices = ['Three']
 rt.click('button "P"')                # popup in mouseUp: the handler waits for the pick (Dictionary)
 check('popup: the items shown', rt.menus[-1], ('PM', ['One', '-', 'Two', 'Three', 'More', 'Deep']))
@@ -143,7 +166,7 @@ rt.run('go card 1')
 n_before = rt.eval('the number of graphics')
 check('create graphic: it = the long id, no name, 128x32 centred, rectangle (measured)',
       rt.run('create graphic\nreturn it & "|" & the name of it & "|" & the rect of it & "|" & the style of it'),
-      'graphic id 1037 of card id 1002 of stack "xtM1"|graphic id 1037|86,84,214,116|rectangle')
+      'graphic id 1039 of card id 1002 of stack "xtM1"|graphic id 1039|86,84,214,116|rectangle')
 rt.run('set the backgroundColor of the templateGraphic to "255,0,0"\nset the width of the templateGraphic to 40')
 check('the template: its colour, and its changed rect (measured)',
       rt.run('create graphic "Red"\nreturn the backgroundColor of graphic "Red" & "|" & the rect of graphic "Red"'),
@@ -155,7 +178,7 @@ check('delete graphic: gone', (rt.eval('there is a graphic "Red"'), rt.eval('the
 rt.run('create button "Go" in group "Grp"')
 check('create in a group', rt.eval('the short name of the owner of button "Go"') if False else rt.obj('button "Go"').parent.name, 'Grp')
 rt.run('delete button "Go"')
-rt.run('delete graphic "After"\ndelete graphic id 1037')
+rt.run('delete graphic "After"\ndelete graphic id 1039')
 rt.run('create folder (specialFolderPath("Documents") & "/made_here")')
 check('create folder: inside the sandbox', os.path.isdir(os.path.join(home, 'Documents', 'made_here')), True)
 rt.dialog_answers = ['No', 'Bob', None]

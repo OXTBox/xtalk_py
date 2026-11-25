@@ -220,6 +220,8 @@ class View:
         hl = set(self.rt.host.hilited_lines(o))
         rl.begin_scissor_mode(int(rc.x + 1), int(rc.y + 1), int(rc.width - 2 - sbw), int(rc.height - 2))
         fg = colour(self.inherit(o, 'foregroundColor'), rl.BLACK)
+        if self.rt.focused is o:
+            self.draw_selection(o, rc, lines, lh, m, scroll)
         y = rc.y + m / 2 - scroll
         for i, s in enumerate(lines, 1):
             if y > rc.y + rc.height:
@@ -238,6 +240,26 @@ class View:
                 th = max(12, tr.height * rc.height / total)
                 ty = tr.y + (tr.height - th) * min(1, scroll / max(1, total - rc.height))
                 rl.draw_rectangle_rec(rl.Rectangle(tr.x + 3, ty, sbw - 6, th), rl.Color(193, 193, 193, 255))
+
+    def draw_selection(self, o, rc, lines, lh, m, scroll):
+        """the focused field: its selection (blue) or a blinking caret"""
+        n = len(o.text)
+        s, e = sorted(max(0, min(n, v)) for v in self.rt.sel)
+        x0, y0 = rc.x + m / 2 + 2, rc.y + m / 2 - scroll
+        pos = 0
+        for i, line in enumerate(lines):
+            a, b = pos, pos + len(line)             # this line's characters
+            y = y0 + i * lh
+            if s != e and s <= b and e >= a and not (s == e):
+                ls, le = max(s, a) - a, min(e, b) - a
+                xa = x0 + self.measure(o, line[:ls])
+                xb = x0 + self.measure(o, line[:le]) + (4 if e > b else 0)
+                if xb > xa:
+                    rl.draw_rectangle(int(xa), int(y), int(xb - xa), int(lh), rl.Color(173, 214, 255, 255))
+            if s == e and a <= s <= b and (rl.get_time() % 1.0) < 0.6:
+                xc = x0 + self.measure(o, line[:s - a])
+                rl.draw_line(int(xc), int(y + 1), int(xc), int(y + lh - 1), rl.BLACK)
+            pos = b + 1
 
     def draw_scrollbar(self, o):
         rc = self.rect(o)
@@ -375,6 +397,9 @@ class View:
         while ch:
             rt.key(chr(ch))
             ch = rl.get_char_pressed()
+        for k, name in self.SPECIAL_KEYS:
+            if rl.is_key_pressed(k) or rl.is_key_pressed_repeat(k):
+                rt.special_key(name)
         wheel = rl.get_mouse_wheel_move()
         if wheel and not busy:
             o = rt.control_at(x, y)
@@ -432,6 +457,9 @@ class View:
             self.menu = None
 
     KEYS = None
+    SPECIAL_KEYS = [(rl.KEY_BACKSPACE, 'backspace'), (rl.KEY_DELETE, 'delete'), (rl.KEY_ENTER, 'return'),
+                    (rl.KEY_KP_ENTER, 'enter'), (rl.KEY_LEFT, 'left'), (rl.KEY_RIGHT, 'right'), (rl.KEY_UP, 'up'),
+                    (rl.KEY_DOWN, 'down'), (rl.KEY_TAB, 'tab'), (rl.KEY_HOME, 'home'), (rl.KEY_END, 'end')]
 
     def feed_keys(self, io):
         """typing goes to ImGui while a dialog is up (characters, and the keys a text box needs)"""
@@ -529,6 +557,7 @@ class View:
         self.rt.on_wait = self.wait_frames
         self.rt.on_menu = self.menu_frames
         self.rt.on_dialog = self.dialog_frames
+        self.rt.measure = lambda o, s: self.measure(o, s)
         self.rt.open()
         while not rl.window_should_close() and not self.rt.closed:
             self.frame()
