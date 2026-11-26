@@ -954,16 +954,18 @@ class StackRuntime:
     # ------------------------------------------------------------ menus
     @staticmethod
     def menu_items(text):
-        """a menu button's text -> [(label, pick, enabled)], ('-', None, False) for a line;
-        a tab-indented line belongs to the item above it (picked as "Parent|Child")"""
-        out, parent = [], None
+        """a menu button's text -> [(label, pick, enabled, depth)], ('-', None, False, depth) for a line;
+        a line indented by n tabs is a submenu item n levels down, under the last item one level up
+        (picked as "Parent|Child|Grandchild")"""
+        out, path = [], []
         for raw in str(text).split('\n'):
             if raw.strip() == '':
                 continue
-            sub = raw.startswith('\t')
+            depth = len(raw) - len(raw.lstrip('\t'))
+            depth = min(depth, len(path))          # no deeper than one below the item above
             line = raw.strip('\t')
             if line == '-':
-                out.append(('-', None, False, sub))
+                out.append(('-', None, False, depth))
                 continue
             enabled = not line.startswith('(')
             line = line.lstrip('(')
@@ -971,9 +973,8 @@ class StackRuntime:
                 line = line[2:]
             line = re.sub(r'(?<!/)/[^/]$', '', line)          # Save/S: the shortcut is not shown
             label = line.replace('//', '/').replace('&&', '\0').replace('&', '').replace('\0', '&')
-            if not sub:
-                parent = label
-            out.append((label, (parent + '|' + label) if sub and parent else label, enabled, sub))
+            path = path[:depth] + [label]
+            out.append((label, '|'.join(path), enabled, depth))
         return out
 
     def show_menu(self, o, x, y):
@@ -1098,6 +1099,16 @@ class StackRuntime:
         Not done: a rawKeyDown not passed should stop the keyDown (LiveCode); we only send it"""
         f = self.focused
         self.handled(f or self.default_stack.current, 'rawKeyDown', [str(code)])
+
+    def wheel(self, o, amount):
+        """the mouse wheel: LiveCode sends rawKeyDown 65309 (up) / 65308 (down) a notch, to the control under
+        the mouse (else the card); True when a script took it (Project Map zooms), else a field scrolls"""
+        code = '65309' if amount > 0 else '65308'
+        took = False
+        for _ in range(max(1, min(int(abs(amount) + 0.5), 5))):
+            if self.handled(o or self.default_stack.current, 'rawKeyDown', [code]):
+                took = True
+        return took
 
     def key(self, ch):
         """a typed character: keyDown to the focused field (else the card); nobody takes it: it is typed"""
