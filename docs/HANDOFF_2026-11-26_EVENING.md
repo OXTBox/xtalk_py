@@ -3,6 +3,22 @@
 Everything below is MERGED to main and PUSHED (xtalk_py, LIB_MENU, LIB_GAMES), on the owner's word.
 Nothing is waiting on a branch.
 
+## LATER SAME EVENING: Priority Tube, steps 1-2 on branch `priority-tube` (not merged, waits for his look)
+
+- Checked hidden (real_folders): opens with no errors; select, arrows, Shift-arrows, drag, wheel, right-click
+  menu with LIB_MENU's ending, Move to top, Leave comment, Delete, U, T, the panel's Remove link, resize all work.
+  Opening rewrites PRIORITY_ORDER.txt byte-for-byte as LiveCode would (ranks, tabs, final newline); Delete then U
+  leaves TUBE_REMOVED.txt byte-identical. R sends `wsl.exe python3 -I ".../tube_items.py"` (a twin of it ran
+  through cmd.exe fine; the real one was not run: it rewrites items.txt).
+- Fixed (all measured in LiveCode, LIVECODE_FACTS): formattedHeight/Width of fields (bubble words were invisible),
+  roundRadius (= the corner's diameter; bubbles are pills), links in fields (<a href>, linkText, linkClicked in
+  place of mouseUp in a locked field).
+- Opening drops "Pythonizing day" (n-f59d34e9) from the order: it is no longer in items.txt. LiveCode does the same.
+- Found, NOT fixed (offer to him): text widths. LiveCode = exact font advances at size x 4/3 (plain Segoe x1.033);
+  raylib truncates advances, so Python text is ~4-8% narrower and wraps later. Fixing it moves text in every app.
+- His two Project Map test comments of 26 Nov 10:21/10:26 are only in the sandbox copy of BOARD_COMMENTS.txt
+  (run_files/elsewhere/...), written before real_app; ask before copying them to his real file.
+
 ## Next job (the owner's words): Priority Tube in Python
 
 "lets get that CPU use down and then we'll work on the tube". CPU is done, so the Tube is next.
