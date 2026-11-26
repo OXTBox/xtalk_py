@@ -50,6 +50,23 @@ What was built:
   coming back from the GPU into the image (RenderTextureImageData, ~2.5 ms) and the GPU wait: that is the "3D in
   an image" design, not xTalk speed. A game drawing to the whole window (HANDOFF_PHASE3) would skip it.
 
+**Step 4, export (branch `native-export`, on top of `native-bench`; not merged):**
+- `tools/export_py.py GAME` writes `exports/GAME/` (git-ignored, 3.4 MB for uDead): `main.py` (play, or
+  `--bench`), `play.sh`, `py/` (each script translated beforehand: uDead's engine 10,208 lines of xTalk ->
+  33,805 of Python), `manifest.json`, `files/` (the scripts it reads, in their ~/projects folders), `xtalk/`.
+- `tools/export_check.py GAME` runs the export from another folder, watching every file opened: uDead (900 frames)
+  and Antack (450) PASS: the same state, locals and pictures as here, the same native calls, nothing translated at
+  start, nothing read from ~/projects. Start-up 1.97 -> 1.14 s.
+- His way in: Desktop\Tests 25 Nov\"1 uDead as a Python program" -> `LIB_BAT/play_python_export.bat` (LIB_BAT branch
+  `native-export`) -> `exports/uDead_CullTest/play.sh`; log in `exports/uDead_CullTest/play.log`.
+  **The window path of the export has not run here** (it grabs the mouse; his play is the test).
+- Honest limits: "runs without the sources" = yes. "Readable" = not yet: the translated Python is machine output
+  (every value through runtime helpers). The xTalk scripts still go along: `do`, value() and two handlers the
+  translator leaves as xTalk (host `xbPlayFile`, engine `Mesh.CullTables`) read xTalk at run time.
+- raylib's log goes to `C:/xt3d/raylib_log.txt` under the folder it starts in (xt3d file calls skip the
+  sandbox: the HANDOFF_PHASE3 item).
+- Raycasting_101 (a stack, not a host game) is not exported yet: it needs its harvest copied as the stack.
+
 **Questions for him (step 5, his grid), waiting:**
 1. Grid size: one cell per map tile (uDead's 1.5 m cells), or coarser (2x2, 4x4 tiles)?
 2. The red target dots LEAD the zombies: how far ahead (cells or seconds), and do they move each step or only
