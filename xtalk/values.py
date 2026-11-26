@@ -85,10 +85,37 @@ def to_bool(v):
 def is_numeric_text(s):
     return isinstance(s, str) and bool(_NUM.match(s))
 
+_NUMC = {}           # text -> its number (or None): the same texts are compared again and again
+
+
+def text_num(s):
+    """the number a text stands for (a computed number's full value), or None when it is not a number"""
+    if type(s) is NumStr:
+        return s.raw
+    r = _NUMC.get(s, _NUMC)
+    if r is _NUMC:
+        r = float(s) if _NUM.match(s) else None
+        if len(_NUMC) > 20000:
+            _NUMC.clear()
+        _NUMC[s] = r
+    return r
+
+
+def num_cmp(x, y):
+    """-1/0/1 for two numbers, equal within LiveCode's tolerance (measured 25 Nov: about 10 steps of a double
+    relative to the bigger one, 2.2e-16 near zero: 1+2e-15 = 1 but not 1+5e-15; 1e-16 = 0 but not 1e-14)"""
+    d = x - y
+    if d == 0 or abs(d) <= max(2.220446049250313e-15 * max(abs(x), abs(y)), 2.220446049250313e-16):
+        return 0
+    return 1 if d > 0 else -1
+
+
 def compare(a, b):
-    """-1/0/1 the LiveCode way: numbers as numbers when both are, else text ignoring case"""
-    if is_numeric_text(a) and is_numeric_text(b):
-        x, y = float(a), float(b)
-    else:
-        x, y = a.lower(), b.lower()
+    """-1/0/1 the LiveCode way: numbers as numbers (full value) when both are, else text ignoring case"""
+    x = text_num(a)
+    if x is not None:
+        y = text_num(b)
+        if y is not None:
+            return num_cmp(x, y)
+    x, y = a.lower(), b.lower()
     return (x > y) - (x < y)

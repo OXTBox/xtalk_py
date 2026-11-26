@@ -76,6 +76,8 @@ class Gen:
         return "K['pi']" if e[1] == 'pi' else _r(CONST[e[1]])     # pi keeps its full value
 
     def x_var(self, e):
+        if e[1].lower() == 'me':                # in a field / button script, me as a value is its text
+            return 'rt.e_var(%s, fr)' % _r(('var', e[1]))
         return 'rt.getvar(fr, %s)' % _r(e[1])
 
     def x_prop(self, e):
@@ -89,6 +91,8 @@ class Gen:
 
     def desc(self, e):
         """code for the text naming an object (button "OK" of card 2)"""
+        if e[0] == 'var' and e[1].lower() == 'me':     # the X of me: the object itself
+            return "to_text(rt.getvar(fr, 'me'))"
         if e[0] != 'obj':
             return 'to_text(%s)' % self.ex(e)
         _, typ, ref, parent = e
@@ -168,6 +172,8 @@ class Gen:
     # ------------------------------------------------------------ assignment (an expression)
     def assign(self, t, v, mode):
         k = t[0]
+        if k == 'var' and t[1].lower() == 'me':
+            return 'rt.assign(%s, %s, %s, fr)' % (_r(t), v, _r(mode))
         if k == 'var':
             return 'rt.put_var(fr, %s, %s, %s)' % (_r(t[1]), v, _r(mode))
         if k == 'idx':
@@ -175,7 +181,8 @@ class Gen:
                 _r(t[1]), ', '.join(self.ex(x) for x in t[2]), v, _r(mode))
         if k == 'chunk':
             _, kind, a, b, inner = t
-            cur = 'rt.cur_text(fr, %s)' % _r(inner[1]) if inner[0] == 'var' else 'to_text(%s)' % self.ex(inner)
+            cur = 'rt.cur_text(fr, %s)' % _r(inner[1]) if inner[0] == 'var' and inner[1].lower() != 'me' \
+                else 'to_text(%s)' % self.ex(inner)
             new = 'rt.put_chunk(%s, %s, %s, %s, %s, %s)' % (_r(kind), cur, self.pos(a),
                                                             'None' if b is None else self.pos(b), v, _r(mode))
             return self.assign(inner, new, 'keep' if inner[0] == 'obj' else 'into')
@@ -474,7 +481,8 @@ class Gen:
         nodes = [p[1] for p in parts if p[0] == 'e']
         words = [None if p[0] == 'e' else p[1] for p in parts]
         generic = 'rt.cmd(fr, %s, [%s], [%s], %s)' % (
-            _r(name), ', '.join(self.desc(n) if n[0] == 'obj' else self.ex(n) for n in nodes),
+            _r(name), ', '.join(self.desc(n) if n[0] == 'obj' or (n[0] == 'var' and n[1].lower() == 'me') else self.ex(n)
+                                for n in nodes),
             ', '.join(self.setter(n) if n[0] in ('var', 'idx', 'chunk') else 'None' for n in nodes), _r(words))
         own = getattr(self, 'c_' + name, None)
         if own is None:
@@ -527,41 +535,102 @@ def translate_expr(text):
     return Gen().ex(parse_expr(text))
 
 
-def translate_statements(text, fname='_body'):
-    """xTalk statements -> `def fname(rt, fr):` (as if they were a handler's body)"""
+def translate_statements(text, fname='_body', fast=False):
+    """xTalk statements -> `def fname(rt, fr):` (as if they were a handler's body). fast: the fast mode
+    (xtalk/fastgen.py); its variables are copied into fr.vars at the end, so a caller can read them"""
+    body = parse_statements(text)
+    if fast:
+        from .fastgen import FastGen, ScriptInfo, pyname
+        unsets = {}
+        g = FastGen(ScriptInfo({}, [], {}), fname, [], body, [], unsets)
+        g.emit(0, 'def %s(rt, fr):' % fname)
+        g.prologue(1)
+        g.emit(1, 'try:')
+        g.block(body, 2)
+        g.emit(1, 'finally:')
+        for n in g.locals:
+            g.emit(2, 'if type(%s) is not Unset: V[%r] = O(%s)' % (pyname(n), n, pyname(n)))
+        head = ['U_%s = Unset(%r)' % (pyname(n)[2:], unsets[n]) for n in sorted(unsets)]
+        return '\n'.join(head + g.lines) + '\n'
     g = Gen()
     g.emit(0, 'def %s(rt, fr):' % fname)
-    g.block(parse_statements(text), 1)
+    g.block(body, 1)
     g.emit(1, "return ''")
     return '\n'.join(g.lines) + '\n'
 
 
-def translate_script(text, source='<script>'):
+def _compiles(src, fn):
+    with warnings.catch_warnings():              # `return` inside `finally` is what the xTalk said
+        warnings.simplefilter('ignore', SyntaxWarning)
+        compile(src, fn, 'exec')
+
+
+def _fast_handler(info, fn, kind, name, params, body, byref, unsets):
+    """the fast mode's Python for one handler (raises TranslateError / NeedFrame when it can't)"""
+    from .fastgen import FastGen
+    mine = {}
+    g = FastGen(info, name, params, body, byref, mine)
+    g.emit(0, 'def %s(rt, fr):' % fn)
+    g.emit(1, '# %s %s %s  (fast)' % ('function' if kind == 'function' else 'on', name, ', '.join(params)))
+    g.prologue(1)
+    ind = 1
+    if byref:                                    # @ parameters: what they hold at the end goes back
+        g.emit(1, 'try:')
+        ind = 2
+    g.block(body, ind)
+    if byref:
+        g.emit(1, 'finally:')
+        for i in byref:
+            if i < len(params):
+                g.emit(2, "V[%s] = O(%s)" % (_r(params[i].lower()), 'L_' + re.sub(r'\W', '_', params[i].lower())))
+    if not g.lines[-1].startswith('    return '):
+        g.emit(1, "return ''")
+    src = '\n'.join(g.lines)
+    _compiles(src, fn)
+    for k, v in mine.items():
+        unsets.setdefault(k, v)
+    return src
+
+
+def translate_script(text, source='<script>', fast=False, byref_fns=()):
     """a whole script -> a Python module with install(rt). Returns (python text, report).
-    report: {'translated': [names], 'interpreted': [(name, why)], 'parse_errors': [...]}"""
+    report: {'translated': [names], 'interpreted': [(name, why)], 'parse_errors': [...],
+    'plain': [(name, why)] (fast mode: handlers translated the plain way)}.
+    fast: handler variables as Python variables and numbers as floats (xtalk/fastgen.py); byref_fns: names of
+    functions anywhere on the message path that have @ parameters (a call to one needs the plain way)"""
     p = Parser(text)
     handlers = p.script()
     top = handlers.pop('#top', [])
     parse_errors = handlers.pop('#errors', [])
     sglobals = handlers.pop('#sglobals', {})
-    report = {'translated': [], 'interpreted': [], 'parse_errors': parse_errors}
+    report = {'translated': [], 'interpreted': [], 'parse_errors': parse_errors, 'plain': []}
     used = set()
     out = ['"""Generated from %s by xtalk_py/xtalk/transpile.py. Do not edit: the xTalk script is the source."""' % source,
            'from xtalk.pyrt import *  # noqa: F401,F403', '', '']
     table = []
+    unsets = {}
+    info = None
+    if fast:
+        from .fastgen import ScriptInfo
+        info = ScriptInfo(handlers, top, sglobals, byref_fns)
     for key, (kind, name, params, body, byref) in handlers.items():
-        g = Gen()
         fn = _pyname(name, used)
+        src = None
+        if fast:
+            try:
+                src = _fast_handler(info, fn, kind, name, params, body, byref, unsets)
+            except (TranslateError, XtError, SyntaxError, KeyError, IndexError, TypeError) as e:
+                report['plain'].append((name, '%s: %s' % (type(e).__name__, e)))
+        g = Gen()
         try:
-            g.emit(0, 'def %s(rt, fr):' % fn)
-            g.emit(1, '# %s %s %s' % ('function' if kind == 'function' else 'on', name, ', '.join(params)))
-            g.block(body, 1)
-            if not g.lines[-1].startswith('    return '):
-                g.emit(1, "return ''")
-            src = '\n'.join(g.lines)
-            with warnings.catch_warnings():          # `return` inside `finally` is what the xTalk said
-                warnings.simplefilter('ignore', SyntaxWarning)
-                compile(src, fn, 'exec')
+            if src is None:
+                g.emit(0, 'def %s(rt, fr):' % fn)
+                g.emit(1, '# %s %s %s' % ('function' if kind == 'function' else 'on', name, ', '.join(params)))
+                g.block(body, 1)
+                if not g.lines[-1].startswith('    return '):
+                    g.emit(1, "return ''")
+                src = '\n'.join(g.lines)
+                _compiles(src, fn)
         except (TranslateError, XtError, SyntaxError, KeyError, IndexError, TypeError) as e:
             report['interpreted'].append((name, '%s: %s' % (type(e).__name__, e)))
             table.append('    rt.handlers[%s] = %s' % (_r(key), _r((kind, name, params, body, byref))))
@@ -572,6 +641,8 @@ def translate_script(text, source='<script>'):
         out.append('')
         table.append('    rt.handlers[%s] = (%s, %s, %s, None, %s, %s)' % (
             _r(key), _r(kind), _r(name), _r(list(params)), _r(list(byref)), fn))
+    if unsets:
+        out[3:3] = ['U_%s = Unset(%s)' % (re.sub(r'\W', '_', n), _r(unsets[n])) for n in sorted(unsets)] + ['', '']
     g = Gen()
     g.emit(0, 'def install(rt):')
     g.emit(1, '"""add these handlers to rt, then run the script-level local/global/constant lines"""')

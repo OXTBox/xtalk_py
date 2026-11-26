@@ -116,9 +116,9 @@ class Interp:
         fr = Frame(args)
         pl = {p.lower() for p in params}       # a parameter named like a script global wins (measured 25 Nov)
         fr.globals.update(g for g in self.SG.get(name.lower(), ()) if g not in pl)
-        import copy
-        for i, p in enumerate(params):
-            fr.vars[p.lower()] = copy.deepcopy(args[i]) if i < len(args) else ''   # full number kept (measured)
+        for i, p in enumerate(params):    # full number kept (measured); an array is copied
+            a = args[i] if i < len(args) else ''
+            fr.vars[p.lower()] = copy.deepcopy(a) if isinstance(a, dict) else a
         try:
             if pyfn is not None:
                 return pyfn(self, fr)

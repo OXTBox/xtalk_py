@@ -3,10 +3,25 @@ from .values import XtError
 
 WS = ' \t\n\r'
 
+_CACHE = {}          # (text, kind, delimiter) -> spans, for long texts read again and again (a game's map)
+
+
 def spans(text, kind, item_delim=',', line_delim='\n'):
-    """[(start, end)] of every chunk of this kind in text"""
+    """[(start, end)] of every chunk of this kind in text (do not change the list: it may be shared)"""
     if kind == 'char':
         return [(i, i + 1) for i in range(len(text))]
+    if len(text) < 200:
+        return _spans(text, kind, item_delim, line_delim)
+    key = (text, kind, item_delim if kind == 'item' else line_delim if kind == 'line' else '')
+    r = _CACHE.get(key)
+    if r is None:
+        if len(_CACHE) > 64:
+            _CACHE.clear()
+        r = _CACHE[key] = _spans(text, kind, item_delim, line_delim)
+    return r
+
+
+def _spans(text, kind, item_delim, line_delim):
     if kind == 'word':
         out, i, n = [], 0, len(text)
         while i < n:
@@ -53,6 +68,8 @@ def _range(n, a, b):
     return a - 1, b - 1
 
 def get(text, kind, a, b=None, **k):
+    if kind == 'char' and (b is None or b == a) and a >= 1:     # char n: no list of every char
+        return text[a - 1:a]
     sp = spans(text, kind, **k)
     r = _range(len(sp), a, a if b is None else b)
     if r is None:

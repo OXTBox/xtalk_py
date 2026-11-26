@@ -13,6 +13,7 @@ card, the card's stack, the mainstack. `pass` hands it on; `send`/`dispatch` sta
 """
 import heapq, os, re, time
 from ..pyrt import Runtime
+from ..transpile import translate_script
 from ..interp import Frame, Thrown, ExitRepeat, NextRepeat, Break
 from ..values import XtError
 from .model import Harvest
@@ -32,6 +33,21 @@ class ObjInterp(Runtime):
         self.G = rt.G
         self.host = rt.host
         self.props = rt.props
+        self.plain = []                    # handlers the fast translation left to the plain way (and why)
+
+    def load(self, script):
+        """the script, translated to Python (xtalk/fastgen.py) and run as Python; XTALK_INTERP=1 or
+        StackRuntime(fast=False): interpreted line by line instead"""
+        if not self.rt.fast:
+            return super().load(script)
+        py, rep = translate_script(script, self.host.name_of(self.obj, 'long'), fast=True, byref_fns=self.rt.byref_fns)
+        self.load_errors = rep['parse_errors']
+        self.plain = rep['plain'] + rep['interpreted']
+        self.install(py, '<%s>' % self.host.name_of(self.obj, 'long'))
+
+    @property
+    def HN(self):
+        return self.rt.handler_names
 
     def lookup(self, name):
         n = name.lower()
@@ -88,7 +104,8 @@ class ObjInterp(Runtime):
 
 
 class StackRuntime:
-    def __init__(self, folder, files_dir=None, real_folders=False):
+    def __init__(self, folder, files_dir=None, real_folders=False, fast=None):
+        self.fast = (os.environ.get('XTALK_INTERP', '') != '1') if fast is None else fast
         self.harvest = Harvest(os.path.expanduser(folder))
         self.default_stack = self.harvest.main
         self.G = {}
@@ -156,6 +173,13 @@ class StackRuntime:
         self.clipboard = ''            # the clipboard's text; the window keeps it in step with the system's
         self.on_clipboard_get = None   # the window: read the system clipboard
         self.on_clipboard_set = None
+        self.handler_names = set()     # every handler name in every script (a call to `trunc` checks it)
+        everything = [o for st in self.harvest.stacks for o in [st] + st.children + [c for card in st.children for c in card.flat()]]
+        self.byref_fns = set()         # functions with @ parameters anywhere: a call to one is translated the plain way
+        for o in everything:
+            for m in re.finditer(r'^[ \t]*(?:private[ \t]+)?function[ \t]+([^\s(]+)([^\n]*)', o.script, re.M | re.I):
+                if '@' in m.group(2).split('--')[0].split('#')[0]:
+                    self.byref_fns.add(m.group(1).lower())
         for st in self.harvest.stacks:
             for o in [st] + st.children + [c for card in st.children for c in card.flat()]:
                 if o.script.strip() and id(o) not in self.ctx:
@@ -164,6 +188,12 @@ class StackRuntime:
                     for e in c.load_errors:
                         self.load_errors.append((self.host.name_of(o, 'long'), e))
                     self.ctx[id(o)] = c
+        self.names_changed()
+
+    def names_changed(self):
+        self.handler_names = set()
+        for c in self.ctx.values():
+            self.handler_names.update(c.handlers)
 
     def set_script(self, o, text):
         """set the script of o: a fresh script context (its script locals start empty)"""
@@ -173,7 +203,9 @@ class StackRuntime:
             c = ObjInterp(self, o)
             c.load(text)
             self.ctx[id(o)] = c
+            self.names_changed()
             return '; '.join(c.load_errors)
+        self.names_changed()
         return ''
 
     # ------------------------------------------------------------ the message path
@@ -262,10 +294,15 @@ class StackRuntime:
             self.on_wait(ms)
         self.clock += ms
 
-    def tick(self, ms):
-        """let ms of virtual time pass: due `send ... in` messages run in order"""
+    def tick(self, ms, budget=None):
+        """let ms of virtual time pass: due `send ... in` messages run in order.
+        budget (real seconds, the window gives one): stop running messages once that much real time went by;
+        the rest run next frame, so a game loop that re-sends itself can never starve the window's drawing and keys"""
         end = self.clock + ms
+        stop = time.perf_counter() + budget if budget is not None else None
         while self.timers and self.timers[0][0] <= end:
+            if stop is not None and time.perf_counter() > stop:
+                return                         # the clock stays: what is due runs on the next frame
             t, _, o, text = heapq.heappop(self.timers)
             self.clock = max(self.clock, t)
             try:

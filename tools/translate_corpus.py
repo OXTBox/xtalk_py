@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """translate_corpus.py - how much of the corpus the translator turns into Python.
 
-    python3 -I tools/translate_corpus.py [-v] [PATH...]     (default: corpus/)
+    python3 -I tools/translate_corpus.py [-v] [--fast] [PATH...]     (default: corpus/)
+
+--fast: the fast mode (xtalk/fastgen.py, what stacks run on); also counts the handlers it leaves to the plain
+way and why.
 
 For every script: handlers that became Python, handlers kept as xTalk (interpreted) and why,
 handlers that do not parse. Every generated module is also compiled by Python as a whole.
@@ -14,7 +17,9 @@ from xtalk.transpile import translate_script   # noqa: E402
 from parse_corpus import files                 # noqa: E402
 
 def main():
-    args = [a for a in sys.argv[1:] if a != '-v']
+    args = [a for a in sys.argv[1:] if a not in ('-v', '--fast')]
+    fast = '--fast' in sys.argv
+    plainwhy = collections.Counter()
     verbose = '-v' in sys.argv
     paths = args or [os.path.join(ROOT, 'corpus')]
     tot = collections.Counter()
@@ -23,7 +28,7 @@ def main():
     for f in files(paths):
         text = open(f, encoding='utf-8', errors='replace').read()
         try:
-            py, rep = translate_script(text, os.path.relpath(f, ROOT))
+            py, rep = translate_script(text, os.path.relpath(f, ROOT), fast=fast)
             compile(py, f, 'exec')
         except Exception as e:                  # noqa: BLE001  (a whole-file failure is a finding)
             tot['files failed'] += 1
@@ -34,6 +39,9 @@ def main():
         tot['python'] += len(rep['translated'])
         tot['xtalk'] += len(rep['interpreted'])
         tot['parse'] += len(rep['parse_errors'])
+        tot['plain'] += len(rep.get('plain', []))
+        for name, w in rep.get('plain', []):
+            plainwhy[w.split(':', 1)[-1].strip()[:50]] += 1
         for name, w in rep['interpreted']:
             k = w.split(':')[0] + ':' + w.split(':')[1][:40] if ':' in w else w
             why[k] += 1
@@ -45,6 +53,11 @@ def main():
     print('%d scripts (%d could not be read as a whole)' % (tot['files'], tot['files failed']))
     print('%d handlers: %d became Python (%.1f%%), %d kept as xTalk, %d do not parse'
           % (hs, tot['python'], 100.0 * tot['python'] / max(hs, 1), tot['xtalk'], tot['parse']))
+    if fast:
+        print('fast mode: %d of the Python handlers are fast, %d plain (they need the frame):'
+              % (tot['python'] - tot['plain'], tot['plain']))
+        for k, c in plainwhy.most_common(10):
+            print('  %4d  %s' % (c, k))
     for k, c in why.most_common(15):
         print('  %4d  %s\n        e.g. %s' % (c, k, examples[k]))
 

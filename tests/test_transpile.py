@@ -91,8 +91,50 @@ for lib in ('lib_bit', 'lib_map', 'lib_trace'):
     check('generated/%s.py is up to date (python3 -I tools/translate.py --libs)' % lib,
           os.path.exists(g) and open(g, encoding='utf-8').read() == fresh)
 
+# ---- the fast mode (xtalk/fastgen.py): the same LiveCode answers again
+plain_fast = 0
+def run_fast(kind, case):
+    rt = Runtime()
+    try:
+        env = dict(ENV)
+        exec(translate_statements(case if kind == 'script' else 'put (%s) into tout' % case, fast=True), env)
+        fr = Frame([])
+        env['_body'](rt, fr)
+        v = fr.vars.get('tout', '')
+        return '' if isinstance(v, dict) else pyrt.to_text(v)
+    except ERRS:
+        return 'ERR'
+    except T.TranslateError:
+        return 'PLAIN'                      # needs the frame: the plain way covers it
+
+for kind in ('expr', 'script'):
+    for case, want in gold[kind].items():
+        got = run_fast(kind, case)
+        if got == 'PLAIN':
+            plain_fast += 1
+            continue
+        n += 1
+        if got != want:
+            bad.append(('fast ' + kind, case, want, got))
+fast_plain_handlers = 0
+for lib, d in gold.get('lib', {}).items():
+    rt = Runtime()
+    for part in lib.split('|'):
+        py, rep = translate_script(lib_text(part), part, fast=True)
+        fast_plain_handlers += len(rep['plain'])
+        rt.install(py, part)
+    for case, want in d.items():
+        n += 1
+        try:
+            got = py_eval(rt, translate_expr(case), Frame([]))
+        except Exception as e:                       # noqa: BLE001
+            got = 'ERR' if isinstance(e, XtError) else 'CRASH %s: %s' % (type(e).__name__, e)
+        if got != want:
+            bad.append(('fast lib ' + os.path.basename(lib), case, want, got))
+
 for kind, case, want, got in bad:
     print('FAIL  [%s] %s\n        LiveCode: %r\n        ours:     %r' % (kind, case.replace('\n', ' / ')[:90], want, got))
 print('\nlibrary handlers: %d became Python, %d kept as xTalk' % (done, interp))
+print('fast mode: %d cases need the frame (plain way), %d library handlers plain' % (plain_fast, fast_plain_handlers))
 print('%d of %d translated cases match LiveCode 9.6.3' % (n - len(bad), n))
 sys.exit(1 if bad else 0)

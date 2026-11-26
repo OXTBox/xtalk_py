@@ -551,7 +551,7 @@ class View:
             o = rt.control_at(x, y)
             if o is not None and o.type == 'field':
                 rt.scroll_field(o, -wheel * rt.field_metrics(o)[1] * 3)
-        rt.tick(rl.get_frame_time() * 1000)
+        rt.tick(min(rl.get_frame_time() * 1000, 100), budget=0.02)   # at most 20 ms of messages a frame
 
     def draw_menu(self):
         """the menu as a borderless window at x,y; submenus are ImGui menus. A click outside closes it,
