@@ -313,3 +313,35 @@ standalone per library group.
   the Vibecode3D Launcher's `send setStackScript to card 1` in preOpenStack fails the same way there.
 - `the stacksInUse` is empty (not an error) with no libraries in use. `$#` = how many command-line arguments, `$1`... each
   one (empty when missing), `$NAME` an environment variable.
+
+
+## Behaviors (measured 2026-11-26, LiveCode 9.6.3 standalone, `lcmcp --standalone run --server`)
+Test stack "BhvTest" made and deleted in the run; scripts set with `set the script`, calls by `dispatch` / `send`.
+
+| What | LiveCode 9.6.3 |
+|---|---|
+| `dispatch "foo" to btn T` (T, its behavior B, card all have foo, each passes) | T, then B (me = T, the target = T), then card, then stack |
+| T has no foo, B has it | B runs (me = T2 for button T2 using the same B) |
+| behavior of a behavior (T -> B -> BB) | T, B, BB, card, stack; me = T in all three |
+| group G with behavior GB, button Inner in G | Inner (none), G, GB (me = G, target = Inner), card, stack |
+| a handler call from B's script (`helper`; T and B both have helper) | T's helper runs: a call starts at me's own script, then me's behavior, then the path |
+| B calls `onlyT` (T and card have it) | T's; B calls `cardH` (only the card) -> card's |
+| script locals in B | one copy per object: T 1,2,3; T2 1; B itself (dispatched to B) its own 1 |
+| `set the behavior` of T to the same B again | locals kept (2 -> 3) |
+| `set the script of B` again | every user's locals start empty (-> 1) |
+| T switched to B2, back to B, or to empty and back | locals start empty each time (1) |
+| `value("bump()", btn T)` | runs B's bump with T's locals |
+| `the behavior of btn T` (B on card 1002) | `button id 1003 of stack "BhvTest"` (no card, no group even for a grouped button) |
+| behavior a script-only stack loaded by path | `set the behavior of U to the long id of stack tPath`; the behavior of U = `stack "BhvSO"` (its name); `the long id of stack tPath` = `stack "<the path>"` |
+| two buttons on one script-only stack | own locals each (U 1,2; U2 1); path U, SO, card, stack |
+| no behavior | `the behavior` = empty; set to empty removes it (path goes straight to the card) |
+| set to `btn "B"` (the button's contents, empty) | behavior empty, no error |
+| set to the text `button "B"` | resolved: `button id 1003 of stack "BhvTest"` |
+| set to a missing object / a field / itself (loop) | error (`parentScript: loop in hierarchy` for the loop) |
+| card behavior | settable, reads back the same `button id N of stack "S"` form |
+| `dispatch` result in `it` | handled / unhandled (no handler anywhere, behaviors included) / passed (the last one passed) |
+| send a function name as a command | error (can't find handler) |
+
+Harvests: LIB_XTJSON's harvester writes `node["behavior"]` = `the behavior of X` (the form above). None of the
+harvests in ~/projects/XTJSON has one (26 Nov): their "behavior" keys are listBehavior / backgroundBehavior /
+radioBehavior / sharedBehavior / tabGroupBehavior flags, not script behaviors.

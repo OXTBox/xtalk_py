@@ -611,6 +611,106 @@ rt.run('put "one" & cr after URL ("file:%s")\nput "two" & cr after URL ("file:%s
        % (_u, _u, _u))
 check('put after / before URL', rt.eval('URL ("file:%s")' % _u), 'zero\none\ntwo\n')
 
+# ---- script behaviors (measured 26 Nov, docs/LIVECODE_FACTS.md "Behaviors"), both run modes
+def _bhv_checks(fast):
+    tag = '[%s] ' % ('fast' if fast else 'interp')
+    r = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'), fast=fast)
+    r.open()
+
+    def script(desc, text):
+        r.G['gs'] = text
+        r.run('global gS\nset the script of %s to gS' % desc)
+    r.run('create button "Bh"\ncreate button "BB"\ncreate button "T"\ncreate button "T2"\ncreate group "G"\n'
+          'create button "Inner" in group "G"')
+    script('button "Bh"', 'local sCount\non foo\nglobal gLog\nput "B:" & the short name of me & "/" & the short name of the '
+           'target & "," after gLog\npass foo\nend foo\nfunction bump\nadd 1 to sCount\nreturn sCount\nend bump\n'
+           'on go1\nhelper\nend go1\non helper\nglobal gLog\nput "B-helper," after gLog\nend helper\n'
+           'function meId\nreturn the long id of me\nend meId')
+    script('button "BB"', 'on foo\nglobal gLog\nput "BB:" & the short name of me & "," after gLog\npass foo\nend foo')
+    script('button "T"', 'on foo\nglobal gLog\nput "T," after gLog\npass foo\nend foo\n'
+           'on helper\nglobal gLog\nput "T-helper," after gLog\nend helper')
+    script('this card', 'on foo\nglobal gLog\nput "C," after gLog\nend foo')
+    r.run('set the behavior of button "T" to the long id of button "Bh"\n'
+          'set the behavior of button "T2" to the long id of button "Bh"')
+    check(tag + 'the behavior of: button id N of stack "S" (no card)', r.eval('the behavior of button "T"'),
+          'button id %d of stack "xtM1"' % r.obj('button "Bh"').id)
+    check(tag + 'no behavior: empty', r.eval('the behavior of button "Bh"'), '')
+    r.G['glog'] = ''
+    r.run('dispatch "foo" to button "T"')
+    check(tag + 'path: object, its behavior (me = the object), card; pass goes on', r.G['glog'], 'T,B:T/T,C,')
+    r.G['glog'] = ''
+    r.run('dispatch "foo" to button "T2"')
+    check(tag + 'object without the handler: the behavior answers', r.G['glog'], 'B:T2/T2,C,')
+    check(tag + 'me in a behavior is the object', r.eval('value("meId()", the long id of button "T")'), r.eval('the long id of button "T"'))
+    r.G['glog'] = ''
+    r.run('send "go1" to button "T"')
+    check(tag + 'a call from the behavior starts at me (the object\'s own helper)', r.G['glog'], 'T-helper,')
+    r.run('global gR\nput empty into gR\nrepeat 2\ndispatch function "bump" to button "T"\nend repeat\n'
+          'put the result after gR\ndispatch function "bump" to button "T2"\nput "," & the result after gR\n'
+          'dispatch function "bump" to button "Bh"\nput "," & the result after gR')
+    check(tag + 'script locals: one copy per object (T 2, T2 1, the behavior button itself 1)', r.G['gr'], '2,1,1')
+    r.run('global gR\nset the behavior of button "T" to the long id of button "Bh"\n'
+          'dispatch function "bump" to button "T"\nput the result into gR')
+    check(tag + 'the same behavior again keeps the locals', r.G['gr'], '3')
+    r.run('global gR, gS\nput the script of button "Bh" into gS\nset the script of button "Bh" to gS\n'
+          'dispatch function "bump" to button "T"\nput the result into gR')
+    check(tag + 'the behavior\'s script set again: locals start empty', r.G['gr'], '1')
+    r.run('set the behavior of button "Bh" to the long id of button "BB"')
+    r.G['glog'] = ''
+    r.run('dispatch "foo" to button "T"')
+    check(tag + 'behavior of a behavior: T, B, BB, card', r.G['glog'], 'T,B:T/T,BB:T,C,')
+    r.run('set the behavior of group "G" to the long id of button "BB"')
+    r.G['glog'] = ''
+    r.run('dispatch "foo" to button "Inner"')
+    check(tag + 'a group\'s behavior is on its controls\' path', r.G['glog'], 'BB:G,C,')
+    r.run('set the behavior of button "T" to empty')
+    r.G['glog'] = ''
+    r.run('dispatch "foo" to button "T"')
+    check(tag + 'set to empty: the behavior goes', (r.eval('the behavior of button "T"'), r.G['glog']), ('', 'T,C,'))
+    errs = []
+    for bad in ('the long id of field "F"', '"button id 99999 of stack " & quote & "xtM1" & quote',
+                'the long id of button "T"'):
+        try:
+            r.run('set the behavior of button "BB" to %s' % bad)
+            r.run('set the behavior of button "T" to the long id of button "BB"') if 'button "T"' in bad else None
+            errs.append('no error')
+        except Exception as e:
+            errs.append('error')
+    check(tag + 'a field, a missing object, a loop: errors', errs, ['error', 'error', 'error'])
+    # a script-only stack as the behavior (Thrmnlra's sequencer), its locals per object
+    so = os.path.join(ROOT, 'run_files', 'test', 'BhvSO.livecodescript')
+    open(so, 'w').write('script "BhvSO"\nlocal sK\non foo\nglobal gLog\nput "SO:" & the short name of me & "," after gLog\n'
+                        'pass foo\nend foo\nfunction k\nadd 1 to sK\nreturn sK\nend k\non Setup pA\nglobal gLog\n'
+                        'put "setup:" & pA & ":" & the short name of me & "," after gLog\nend Setup\n')
+    r.run('create button "U"\ncreate button "U2"\n'
+          'set the behavior of button "U" to the long id of stack "%s"\n'
+          'set the behavior of button "U2" to the long id of stack "BhvSO"' % so)
+    check(tag + 'a script-only stack: the behavior is stack "Name"', r.eval('the behavior of button "U"'), 'stack "BhvSO"')
+    r.G['glog'] = ''
+    r.run('dispatch "foo" to button "U"\ndispatch "Setup" to button "U2" with 7')
+    check(tag + 'dispatch reaches a script-only stack behavior', r.G['glog'], 'SO:U,C,setup:7:U2,')
+    r.run('global gR\ndispatch function "k" to button "U"\ndispatch function "k" to button "U"\nput the result into gR\n'
+          'dispatch function "k" to button "U2"\nput "," & the result after gR')
+    check(tag + 'script-only stack behavior: locals per object', r.G['gr'], '2,1')
+    r.run('global gLog\nput empty into gLog\nput "x" into tA["k"]\ndispatch "Setup" to button "U" with tA')
+    check(tag + 'dispatch ... with an array: the array arrives (as text: empty, measured 26 Nov)', r.G['glog'], 'setup::U,')
+    script('button "Bh"', 'on Setup pA\nglobal gLog\nput pA["k"] & "," after gLog\nend Setup')
+    r.run('global gLog\nput empty into gLog\nput "x" into tA["k"]\ndispatch "Setup" to button "T2" with tA')
+    check(tag + 'dispatch ... with an array: an array element reads', r.G['glog'], 'x,')
+    # harvested `behavior` properties (tests/stacks/bhv)
+    h = StackRuntime(os.path.join(ROOT, 'tests/stacks/bhv'), files_dir=os.path.join(ROOT, 'run_files', 'test'), fast=fast)
+    h.open()
+    h.G['glog'] = ''
+    h.run('dispatch "foo" to button "User1"\ndispatch "foo" to button "Inner"')
+    check(tag + 'harvested behavior: button and group', h.G['glog'], 'H:User1,C,H:Grp,C,')
+    check(tag + 'harvested behavior reads back', h.eval('the behavior of group "Grp"'), 'button id 1003 of stack "xtB1"')
+    check(tag + 'harvested behavior to a missing object: a load error, no behavior',
+          (h.eval('the behavior of button "Broken"'), any('behavior' in e for _, e in h.load_errors)), ('', True))
+
+
+for _fast in (True, False):
+    _bhv_checks(_fast)
+
 print('\n%d of %d stack checks pass' % (N[0] - len(BAD), N[0]))
 sys.exit(1 if BAD else 0)
 

@@ -7,7 +7,7 @@ docs/LIVECODE_FACTS.md ("Objects and messages").
 """
 import math, os, re, subprocess, sys
 from ..host import Host
-from ..values import XtError, to_num
+from ..values import XtError, to_num, to_text
 from ..parser import tokenize, ORDINALS
 from .model import CONTROL_TYPES, to_xtalk, Obj, regular_points
 from . import styled
@@ -577,6 +577,8 @@ class StackHost(Host):
         return [int(x) for x in str(v).split(',') if x.strip().isdigit()]
 
     def obj_prop(self, o, p):
+        if p in ('behavior', 'parentscript'):
+            return self.rt.behavior_text(o)
         r = o.rect
         if p in ('hilitedline', 'hilitedlines'):
             return ','.join(str(n) for n in self.hilited_lines(o))
@@ -706,6 +708,9 @@ class StackHost(Host):
             return
         if p == 'script':
             self.rt.set_script(o, str(value))
+            return
+        if p in ('behavior', 'parentscript'):
+            self.rt.set_behavior(o, value if isinstance(value, str) else to_text(value))
             return
         if p in ('backgroundbehavior', 'sharedbehavior'):
             self.rt.paths_changed()
@@ -1090,12 +1095,16 @@ class StackHost(Host):
 
     def send(self, name, parts):
         rt = self.rt
-        msg = parts[0][1] if parts and parts[0][0] == 'e' else ''
-        i, target, delay, args = 1, None, None, []
+        i = 0
+        if (name == 'dispatch' and len(parts) > 1 and parts[0][0] == 'e' and parts[1][0] == 'e'
+                and to_text(parts[0][1]).lower() == 'function'):
+            i = 1                              # dispatch function "f" to X with ...: its value is the result
+        msg = to_text(parts[i][1]) if len(parts) > i and parts[i][0] == 'e' else ''
+        i, target, delay, args = i + 1, None, None, []
         while i < len(parts):
             k, v = parts[i]
             if (k, v) == ('w', 'to') and i + 1 < len(parts):
-                target = self.resolve(parts[i + 1][1])
+                target = self.resolve(to_text(parts[i + 1][1]))
                 i += 2
             elif (k, v) == ('w', 'in') and i + 1 < len(parts):
                 n = to_num(parts[i + 1][1])
@@ -1111,8 +1120,8 @@ class StackHost(Host):
         if target is None:
             target = rt.running_obj() or rt.default_stack.current
         if name == 'dispatch':
-            rt.dispatch(target, msg, args)
-            return ''
+            r = rt.dispatch(target, msg, args)
+            return r if isinstance(r, str) else ''
         if delay is not None:
             return str(rt.after(delay, target, msg))
         rt.send_text(target, msg)
