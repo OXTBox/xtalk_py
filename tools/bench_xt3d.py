@@ -147,6 +147,9 @@ def main(a):
              'start (engine load + level) %.2f s' % start_s,
              'wall %.2f s  (%.1f frames a second)' % (wall, frames / wall),
              'objects in the last frame %d' % objects]
+    from xtalk import native
+    if native.USED:
+        lines.append('native calls: ' + ', '.join('%s %d' % (k[1], n) for k, n in sorted(native.USED.items())))
     busy = [p for p in per if p[0] + p[1] > 0]   # frames where the game stepped or drew
     for name, k in (('step', 0), ('scene', 1), ('draw+rest', 2)):
         xs = [p[k] for p in busy] or [0]

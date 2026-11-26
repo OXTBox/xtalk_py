@@ -39,11 +39,17 @@ class ObjInterp(Runtime):
         """the script, translated to Python (xtalk/fastgen.py) and run as Python; XTALK_INTERP=1 or
         StackRuntime(fast=False): interpreted line by line instead"""
         if not self.rt.fast:
-            return super().load(script)
-        py, rep = translate_script(script, self.host.name_of(self.obj, 'long'), fast=True, byref_fns=self.rt.byref_fns)
-        self.load_errors = rep['parse_errors']
-        self.plain = rep['plain'] + rep['interpreted']
-        self.install(py, '<%s>' % self.host.name_of(self.obj, 'long'))
+            r = super().load(script)
+        else:
+            py, rep = translate_script(script, self.host.name_of(self.obj, 'long'), fast=True, byref_fns=self.rt.byref_fns)
+            self.load_errors = rep['parse_errors']
+            self.plain = rep['plain'] + rep['interpreted']
+            self.install(py, '<%s>' % self.host.name_of(self.obj, 'long'))
+            r = None
+        if self.obj.type == 'stack':           # handlers written in Python for this stack (xtalk/native)
+            from .. import native
+            self.natives = native.apply(self, self.obj.name)
+        return r
 
     def value_in(self, text, desc):
         """value(expr, object) (Dictionary, not measured): the expression evaluated in that object's script"""

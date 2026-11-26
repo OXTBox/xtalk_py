@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""Every native handler (xtalk/native) against its xTalk handler: the same random inputs through both, the
+same answers and the same globals afterwards, in both run modes (interpreted and fast-translated).
+
+    python3 -I tests/test_native.py [-v] [--n 300]
+
+Answers are compared as text (a number's text is what the scripts see); the globals as their sorted dump.
+"""
+import os, random, sys
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+from xtalk import native                                      # noqa: E402
+from xtalk.interp import Interp                               # noqa: E402
+from xtalk.pyrt import Runtime                                # noqa: E402
+from xtalk.transpile import translate_script                  # noqa: E402
+from xtalk.values import XtArray, numstr                      # noqa: E402
+
+ENGINE = os.path.expanduser('~/projects/xt3D_Raylib_Livecode_Bridge/testbench/vibe_engine_xt3d.livecodescript')
+
+
+def load(mode, src, natives):
+    if mode == 'interp':
+        rt = Interp()
+        rt.load(src)
+    else:
+        rt = Runtime()
+        py, _ = translate_script(src, 'engine', fast=True)
+        rt.install(py)
+    if natives:
+        os.environ['XTALK_NATIVE'] = '1'
+        done = native.apply(rt, 'VibeEngineXt3d')
+        assert done, 'no native handler applied'
+    return rt
+
+
+def dump(v):
+    if isinstance(v, dict):
+        return '{' + ';'.join('%s=%s' % (k, dump(v[k])) for k in sorted(v, key=str.lower)) + '}'
+    return str(v)
+
+
+def rnum(r):
+    """a number as the scripts hold it: often a computed one (full value), sometimes text or empty"""
+    k = r.random()
+    x = r.choice([r.uniform(-4, 4), r.uniform(-500, 500), 0.0, r.uniform(-1e-7, 1e-7), float(r.randint(-3, 3))])
+    if k < 0.5:
+        return numstr(x)
+    if k < 0.9:
+        return repr(round(x, r.randint(0, 9)))
+    return ''
+
+
+def mat(r):
+    return ','.join(str(rnum(r)) if r.random() < 0.9 else '%.9f' % r.uniform(-1, 1) for _ in range(9))
+
+
+def transforms(r):
+    a = XtArray()
+    keys = ['rotSpeedX', 'rotSpeedY', 'rotSpeedZ', 'rotX', 'rotY', 'rotZ', 'localAx', 'localAy', 'localAz', 'vx',
+            'vy', 'vz', 'localBrake', 'maxWorldSpeed', 'localVx', 'localVy', 'localVz', 'x', 'y', 'z']
+    for i in range(r.randint(0, 6)):
+        o = XtArray()
+        for k in keys:
+            if r.random() < 0.75:
+                o[k if r.random() < 0.9 else k.upper()] = rnum(r)
+        if r.random() < 0.3:
+            o['localBrake'] = numstr(r.uniform(0, 3))
+        if r.random() < 0.3:
+            o['maxWorldSpeed'] = numstr(r.uniform(0, 3))
+        if r.random() < 0.1:
+            o['mesh'] = 'cube'
+        if r.random() < 0.05:
+            o['x'] = 'not a number'           # the xTalk's own error, through Fallback
+        a['obj%d' % i] = o
+    return a if a or r.random() < 0.8 else ''
+
+
+def main(a):
+    n = int(a[a.index('--n') + 1]) if '--n' in a else 300
+    src = open(ENGINE).read()
+    fails = total = 0
+    for mode in ('interp', 'fast'):
+        ref, nat = load(mode, src, False), load(mode, src, True)
+        r = random.Random(7)
+        for i in range(n):
+            cases = [('Mat3.Mul', [mat(r), mat(r)], None),
+                     ('RotateLocalVector', [rnum(r) for _ in range(6)], None),
+                     ('UpdateObjectTransforms', [], transforms(r))]
+            for name, args, g in cases:
+                outs = []
+                for rt in (ref, nat):
+                    if g is not None:
+                        import copy
+                        rt.G['gobjecttransforms'] = copy.deepcopy(g)
+                    try:
+                        got = str(rt.invoke(name, list(args)))
+                    except Exception as e:     # noqa: BLE001  (the same error is the same answer)
+                        got = 'ERROR %s: %s' % (type(e).__name__, e)
+                    outs.append(got + ' | ' + dump(rt.G.get('gobjecttransforms', '')))
+                total += 1
+                if outs[0] != outs[1]:
+                    fails += 1
+                    if fails <= 5 or '-v' in a:
+                        print('DIFFER %s %s %s\n  xtalk : %s\n  native: %s' % (mode, name, args, outs[0][:400], outs[1][:400]))
+    print('%d of %d native answers match their xTalk handler (interp + fast)' % (total - fails, total))
+    return 1 if fails else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
