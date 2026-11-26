@@ -691,7 +691,9 @@ class View:
         if not imgui.is_mouse_down(0):
             m['armed'] = True
         imgui.set_next_window_pos(imgui.ImVec2(m['x'], m['y']), imgui.Cond_.always)
-        imgui.set_next_window_focus()
+        if not m.get('focused'):                 # focus once: focusing every frame closes any open submenu
+            imgui.set_next_window_focus()
+            m['focused'] = True
         flags = (imgui.WindowFlags_.no_title_bar | imgui.WindowFlags_.always_auto_resize | imgui.WindowFlags_.no_move
                  | imgui.WindowFlags_.no_saved_settings | imgui.WindowFlags_.no_collapse)
         imgui.begin('##xtmenu', None, flags)
