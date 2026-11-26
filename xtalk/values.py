@@ -9,6 +9,7 @@ _NUM = re.compile(r'^\s*[+-]?(\d+\.?\d*([eE][+-]?\d+)?|\.\d+([eE][+-]?\d+)?)\s*$
 def is_number(s):
     return isinstance(s, str) and bool(_NUM.match(s)) or (isinstance(s, str) and s.strip() == '' and False)
 
+_MISS = object()
 CASE = [False]                         # the caseSensitive (the Interp keeps it in step; per handler)
 
 
@@ -34,13 +35,19 @@ class XtArray(dict):
         return lk.get(k.lower(), k)
 
     def __getitem__(self, k):
-        return dict.__getitem__(self, self._real(k))
+        try:
+            return dict.__getitem__(self, k)       # the exact key: the usual case, no index needed
+        except KeyError:
+            return dict.__getitem__(self, self._real(k))
 
     def get(self, k, d=None):
+        v = dict.get(self, k, _MISS)
+        if v is not _MISS:
+            return v
         return dict.get(self, self._real(k), d)
 
     def __contains__(self, k):
-        return dict.__contains__(self, self._real(k))
+        return dict.__contains__(self, k) or dict.__contains__(self, self._real(k))
 
     def __setitem__(self, k, v):
         r = self._real(k)

@@ -130,6 +130,7 @@ class StackRuntime:
         self.ctx = {}
         self.load_errors = []
         self.using = []                # library stacks (start using): on every message path, after the stacks
+        self.ctx_cache = {}            # id(object) -> (object, its path's script contexts): see contexts()
         self.errors = []               # script errors while running: (message, object, error text)
         self.answers = []              # what `answer` would have shown
         self.target = None
@@ -198,6 +199,7 @@ class StackRuntime:
         self.names_changed()
 
     def names_changed(self):
+        self.ctx_cache.clear()
         self.handler_names = set()
         for c in self.ctx.values():
             self.handler_names.update(c.handlers)
@@ -265,13 +267,15 @@ class StackRuntime:
 
     def start_using(self, st):
         if st not in self.using:
-            self.using.insert(0, st)           # the newest library first (stacksInUse order)
+            self.using.insert(0, st)
+            self.paths_changed()           # the newest library first (stacksInUse order)
             self.message(st, 'libraryStack')
 
     def stop_using(self, st):
         if st in self.using:
             self.message(st, 'releaseStack')
             self.using.remove(st)
+            self.paths_changed()
 
     def forget_stack(self, st):
         """delete stack "X" (a script-only stack loaded here): gone from memory"""
@@ -283,7 +287,14 @@ class StackRuntime:
         self.names_changed()
 
     def contexts(self, o):
-        return [self.ctx[id(x)] for x in self.path(o) if id(x) in self.ctx]
+        """the script contexts on o's message path (kept until a script, a library or an object changes)"""
+        c = self.ctx_cache.get(id(o))
+        if c is None or c[0] is not o:
+            c = self.ctx_cache[id(o)] = (o, [self.ctx[id(x)] for x in self.path(o) if id(x) in self.ctx])
+        return c[1]
+
+    def paths_changed(self):
+        self.ctx_cache.clear()
 
     def running_obj(self):
         return self.running[-1] if self.running else None

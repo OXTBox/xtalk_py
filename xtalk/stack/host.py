@@ -291,6 +291,7 @@ class StackHost(Host):
         (or in the group); 128x32 centred on the card unless the template's rect was changed; the template's
         settings copied; no name unless given. A new card is gone to. Returns the long id (into it)."""
         rt = self.rt
+        rt.paths_changed()
         st = rt.default_stack
         new_id = max([st.id] + list(st.ids.keys())) + 1
         t = rt.templates.get((id(st), typ))
@@ -326,6 +327,7 @@ class StackHost(Host):
     def delete_obj(self, desc):
         """delete graphic "x": it goes; anything pointing at it lets go"""
         rt = self.rt
+        rt.paths_changed()
         o = self.resolve(desc)
         if o.type == 'stack' and getattr(o, 'filename', None) and o is not rt.harvest.main:
             rt.forget_stack(o)                 # a script-only stack loaded from its file
@@ -686,6 +688,7 @@ class StackHost(Host):
             self.rt.set_script(o, str(value))
             return
         if p in ('backgroundbehavior', 'sharedbehavior'):
+            self.rt.paths_changed()
             o.props['backgroundBehavior' if p == 'backgroundbehavior' else 'sharedBehavior'] = str(value).lower()
             return
         if p == 'style':                       # set the style to "Line": stored as line (measured 25 Nov)
@@ -824,6 +827,7 @@ class StackHost(Host):
     def set_layer(self, o, value):
         """set the layer to top / bottom / N (measured 26 Nov: N past the top = top; the others close up).
         A control in a group moves among the group's controls only."""
+        self.rt.paths_changed()                # a group moved among the card's groups: background order
         sib = o.parent.children
         flat = o.card.flat() if o.card is not None else sib
         v = str(value).strip().lower()
