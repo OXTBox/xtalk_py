@@ -17,8 +17,7 @@ Fixed, each measured in LiveCode first (LIVECODE_FACTS 26 Nov, golden cases):
 - `stack "<path of a script file>"` loads that script-only stack (Thrmnlra's sequencer).
 
 Open:
-- **Script behaviors** (`set the behavior of X to ...`): not in the runtime. Thrmnlra (its Sequencer) shows nothing;
-  the harvested stacks nine-ball, LightCycles3, card reader also carry behavior properties. Next big runtime piece.
+- ~~Script behaviors~~: done 26 Nov (branch script-behaviors), see "Behaviors" below.
 - Simple_Test2 and demo set the label of btn "Next Preset", which the engine deletes on purpose: a bug in those game
   scripts (would fail in LiveCode too); not changed without the owner.
 - Every game logs two caught errors from the loading screen (both in `try` on purpose): `Users.Driver` (LIB_USERS not
