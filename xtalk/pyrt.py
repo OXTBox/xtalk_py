@@ -181,6 +181,8 @@ def T(v):
         return v
     if t is float:
         return numstr(v)
+    if t is Unset:                       # an unset variable's value is its name, as plain text
+        return str.__str__(v)
     return to_text(v)
 
 
@@ -190,14 +192,23 @@ def T0(v):
 
 
 def O(v):
-    """a value leaving the handler: a float becomes a NumStr (text that keeps the full number)"""
-    return numstr(v) if type(v) is float else v
+    """a value leaving the handler: a float becomes a NumStr (text that keeps the full number); an unset
+    variable's name becomes plain text"""
+    t = type(v)
+    if t is float:
+        return numstr(v)
+    if t is Unset:
+        return str.__str__(v)
+    return v
 
 
 def CP(v):
-    """put a into b: an array is copied"""
-    if type(v) is float:
+    """put a into b: an array is copied (an unset variable gives its name as plain text)"""
+    t = type(v)
+    if t is float:
         return v
+    if t is Unset:
+        return str.__str__(v)
     return copy.deepcopy(v) if isinstance(v, dict) else v
 
 

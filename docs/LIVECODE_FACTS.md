@@ -249,3 +249,6 @@ standalone per library group.
   `1+2e-15 = 1` true, `1+5e-15 = 1` false, `1e6+1e-9 = 1e6` true, `1e6+1e-8 = 1e6` false, `1e20+1e5 = 1e20` true;
   near zero about 2.2e-16: `1e-16 = 0` true, `1e-14 = 0` false. Equal within it is not greater: `1+1e-15 > 1` false.
   Ours: values.num_cmp (2.22e-15 relative, 2.22e-16 absolute) fits every point measured.
+- An unset variable is its own name, and a copy of it is plain text: `put foo into y; put "bar" after y` -> foobar;
+  `add 1 to y` then fails. A `local y` line AFTER y was used is a compile error in LiveCode (we accept it: open).
+- A `constant kN = 5` line inside a handler works there: `put kN + 1` -> 6.

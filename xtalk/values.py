@@ -13,6 +13,7 @@ class NumStr(str):
     """the text of a number that still remembers its full-precision value: LiveCode rounds a
     number to numberFormat only when it is stored (put ... into x), not between operators"""
     raw = 0.0
+    fmt = '0.######'                   # the numberFormat its text was made with
 
     def __copy__(self):                # never changed in place: a copy can be itself (arrays copy fast)
         return self
@@ -25,6 +26,7 @@ def numstr(n):
         return 'true' if n else 'false'
     r = NumStr(fmt_num(n))
     r.raw = float(n)
+    r.fmt = NUMBER_FORMAT[0]
     return r
 
 def plain(v):
@@ -68,6 +70,8 @@ def fmt_num(n):
 
 def to_text(v):
     if isinstance(v, str):
+        if type(v) is NumStr and v.fmt != NUMBER_FORMAT[0]:   # numberFormat applies when a number becomes
+            return numstr(v.raw)                                 # text (measured 25 Nov), not when computed
         return v
     if isinstance(v, bool):
         return 'true' if v else 'false'

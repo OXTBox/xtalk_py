@@ -123,6 +123,7 @@ class FastGen(Gen):
         nodes = []
         walk(body, nodes)
         used = set()
+        hconst = set()
         for nd in nodes:
             k = nd[0]
             if k == 'global':
@@ -144,6 +145,9 @@ class FastGen(Gen):
                 used.add(nd[2][1].lower())
             elif k == 'try' and nd[2]:
                 used.add(nd[2].lower())
+            elif k == 'constant':                 # a constant line in a handler writes rt.S (as the interpreter)
+                hconst.add(nd[1].lower())
+                used.add(nd[1].lower())
             elif k in ('dialog', 'create'):
                 used.add('it')
         if (D | P) & G:
@@ -156,9 +160,9 @@ class FastGen(Gen):
                 self.cls[n] = 'L'
             elif n == 'me':
                 self.cls[n] = 'ME'
-            elif n in info.consts:
+            elif n in info.consts and n not in hconst:
                 self.cls[n] = 'C'
-            elif n in info.snames:
+            elif n in info.snames or n in hconst:
                 self.cls[n] = 'S'
             else:
                 self.cls[n] = 'L'
@@ -270,7 +274,7 @@ class FastGen(Gen):
         if c == 'L':
             return pyname(n)
         if c == 'S':
-            return 'S[%s]' % _r(n)
+            return ('S[%s]' % _r(n)) if n in self.info.snames else 'S.get(%s, "")' % _r(n)
         if c == 'G':
             return 'G.get(%s, "")' % _r(n)
         if c == 'C':
@@ -294,7 +298,7 @@ class FastGen(Gen):
             if c == 'L':
                 return pyname(n)
             if c == 'S':
-                return 'S[%s]' % _r(n)
+                return ('S[%s]' % _r(n)) if n in self.info.snames else 'S.get(%s, %s)' % (_r(n), _r(e[1]))
             if c == 'G':
                 return 'G.get(%s, "")' % _r(n)
             if c == 'C':
