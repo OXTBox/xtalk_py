@@ -11,6 +11,110 @@ and use the help you need to do it."
 So the order below is mine to choose, and helper agents may be used: one per bubble, each with a clear test to
 pass. The **TWO ENGINES** note goes in every brief.
 
+## PROGRESS (25 Nov 2026, night): steps 0-2 done on branch `native-bench` (xtalk_py; NOT merged, NOT pushed)
+uDead CullTest, 900 frames of the bench (hiding mode 3, rush, walk, turn), back to back on a quiet machine:
+
+| Run | Wall | Frames a second | Step | Scene | Draw | Rest |
+|---|---|---|---|---|---|---|
+| native off (`XTALK_NATIVE=0`) = the old speed | 39.8 s | 22.6 | 7.1 ms | 17.0 ms | 18.4 ms | 1.7 ms |
+| native on (all below) | 20.2 s | 44.5 | 6.1 ms | 3.9 ms | 8.9 ms | 3.6 ms |
+
+Real play path (`tools/xt3d_game_check.py`, real clock, mode 3 + rush, hidden window): 11-13 fps -> 34-37 fps.
+**Nothing here has been seen on his screen yet.** His next `tools/play_xt3d.sh` on this branch uses the natives
+(they are on by default); `XTALK_NATIVE=0` turns them off.
+
+What was built:
+- **Step 0, the bench:** `tools/bench_xt3d.py`. The scripts' clock is a test clock (`xtalk.interp.CLOCK`: moves
+  with the frames and 0.05 ms a read), so uDead's "work for 7 ms" loop and `set the randomSeed to the milliseconds`
+  are the same every run; no real mouse; keys from frame 240, after the loading screen (a key at frame 150 was lost, R at 210 counted).
+  `--check` = two processes, the same state byte for byte (globals, every script's locals, the picture every 30
+  frames). No game script was changed (the planned `gTestSeed` was not needed).
+- **Found on the way:** `set the randomSeed` did nothing in Python (ISSUES 0027): now measured and done.
+- **Step 1, the referee:** `tools/frame_referee.py --run [GAME]`: native off / on / interpreter / interpreter +
+  natives. uDead 450 frames: all four AGREE; Antack and BigBallOfVectors: native on = off.
+- **Step 2, native handlers:** `xtalk/native/` (one module a script, plain Python functions in place of xTalk
+  handlers, at load, both run modes):
+  - engine (`vibe_engine_xt3d.py`): Mat3.Mul (cached), RotateLocalVector, UpdateObjectTransforms, Xform.Object
+    (rotation + RotZYX + Mul + Apply + position in one go), Vibe.Color (Color.ToRGB cached);
+  - host (`xt3d_testbench_host.py`): xbDrawGame (the same xt3d calls straight to raylib), xbGameModel /
+    xbGameFill (a made model found without copying the mesh).
+  - **Safety:** each native is tied to the exact statements of the xTalk it copies (signature; also every helper
+    it copies inside, and the engine handlers the host reads around). When the engine is generated again and a
+    handler changed, that native switches itself off with a warning and the xTalk runs:
+    `tools/native_sigs.py` shows which. A value a native was not written for (text where a number belongs)
+    goes to the xTalk handler (Fallback), before anything is changed or drawn.
+  - `tests/test_native.py`: 3000 random cases, native = xTalk in both modes; an edited helper is noticed.
+- **Not covered:** xbDrawGame's DrawText line (only when not view-only) has never run. uDead.FieldWork (a card
+  script) waits for his grid (step 5 below).
+- **What is left in a frame:** step = uDead.FieldWork mostly (his grid changes it); draw = mostly the picture
+  coming back from the GPU into the image (RenderTextureImageData, ~2.5 ms) and the GPU wait: that is the "3D in
+  an image" design, not xTalk speed. A game drawing to the whole window (HANDOFF_PHASE3) would skip it.
+
+**Step 4, export (branch `native-export`, on top of `native-bench`; not merged):**
+- `tools/export_py.py GAME` writes `exports/GAME/` (git-ignored, 3.4 MB for uDead): `main.py` (play, or
+  `--bench`), `play.sh`, `py/` (each script translated beforehand: uDead's engine 10,208 lines of xTalk ->
+  33,805 of Python), `manifest.json`, `files/` (the scripts it reads, in their ~/projects folders), `xtalk/`.
+- `tools/export_check.py GAME` runs the export from another folder, watching every file opened: uDead (900 frames)
+  and Antack (450) PASS: the same state, locals and pictures as here, the same native calls, nothing translated at
+  start, nothing opened in ~/projects (Python's open(); raylib's own file loads, `there is a file` and files a
+  later level reads are not watched: uDead's legacy levels file, read only with `uDead.Legacy true`, is not in
+  the export). Start-up 1.97 -> 1.14 s.
+- Re-exporting keeps what playing wrote: `exports/GAME/run_files/` and `play.log`. **His in-game notes** from the
+  export (` key) go to `exports/uDead_CullTest/run_files/elsewhere/home/igame3d/projects/LIB_LLMIN/LIB_GAMES/
+  GAME_NOTES.txt` and into the report at the end of `play.log` ("his note:" lines).
+- Checked on the shortcut's path: `wsl.exe -d Ubuntu -e sh .../play.sh --bench` from Windows' side runs (log
+  written); wsl.exe sessions have DISPLAY=:0; the export's play branch ran hidden (`XTALK_PLAY_TEST=end:400`,
+  raylib's cursor calls stubbed): 405 frames, 46-60 fps without keys, no script errors.
+- His way in: Desktop\Tests 25 Nov\"1 uDead as a Python program" -> `LIB_BAT/play_python_export.bat` (LIB_BAT branch
+  `native-export`) -> `exports/uDead_CullTest/play.sh`; log in `exports/uDead_CullTest/play.log`.
+  **A real (visible) window of the export has not run here** (it grabs the mouse; his play is the test).
+- Honest limits: "runs without the sources" = yes. "Readable" = not yet: the translated Python is machine output
+  (every value through runtime helpers). The xTalk scripts still go along: `do`, value() and two handlers the
+  translator leaves as xTalk (host `xbPlayFile`, engine `Mesh.CullTables`) read xTalk at run time.
+- raylib's log goes to `C:/xt3d/raylib_log.txt` under the folder it starts in (xt3d file calls skip the
+  sandbox: the HANDOFF_PHASE3 item).
+- Raycasting_101 (a stack, not a host game) is not exported yet: it needs its harvest copied as the stack.
+
+**Questions for him (step 5, his grid), waiting:**
+1. Grid size: one cell per map tile (uDead's 1.5 m cells), or coarser (2x2, 4x4 tiles)?
+2. The red target dots LEAD the zombies: how far ahead (cells or seconds), and do they move each step or only
+   when the target crosses a cell?
+3. Many targets: one dot per target, or one dot per cell however many targets stand in it?
+4. A* "pre-solved": a table of next steps from every cell to every cell (big for large maps), or only to the
+   cells where dots can be (doors, rooms)? Is a slightly longer path fine if it is much faster?
+5. Made once per map at level load (a pause), or saved in a file next to the map?
+
+**His answers (26 Nov):**
+1. One grid cell per map tile, each cell the size of a character (the width of a leg stance in our stick-figure
+   world): uDead's 0.5 m cells (`kCellM`) already are that. Zombies and people must find their way in and out of
+   rooms through doors.
+2. The red dots do not lead ahead: one dot per zombie, at the point of target. A ground click = one red dot on the
+   ground; a person click = one red dot that follows the person (shows they are already a target); doors and
+   windows only got a colour shift, no dot.
+3. One dot per target, per click: several dots on one person show several zombies lead to it. In Rush the dot
+   appears on the target nearest the zombies.
+4. Only cells where zombies/people can really go were solved (no roofs, no cargo container tops): a height test
+   kept them off things; it limited map design but worked.
+5. Saved next to the level file: `LIB_LLMIN/AStarGrid.lua` (now in `LIB_LLMOUT/Read/`).
+
+**What the 2008 file is (read from `iGame3D_2026_CLAUDE/Data/Scripts/Games/RTS_Functions/RTS_astar.lua`):** not a
+table of paths but the walk graph. `setupAStarGrid` lays a grid (gGridSize 2 units) over the level's bounds;
+`createNodeGrid` casts rays straight down at each cell and keeps every floor it meets (several floors a cell; 250 =
+nothing below); a cell links to its 4 neighbours when three lines (0.1, 0.3, 0.65 up) and two side lines (0.25
+left/right) are clear and the step up is at most 0.30; cells within 0.25 of a wall lose their links.
+`flattenGrid` / `saveNodeGrid` write it as `flat_serialized_grid` (rcf 1 = new row, 2 = new column; `y`; `scs` =
+links as {row, column, floor}); the sample is 23 x 47 cells, 1868 floors. A* (`generateAStarPathBetweenPositions`)
+ran on demand over that graph. uDead's `sPass` + `sDoorAt` is the same graph for a flat map (one floor a cell).
+
+**Step 5 done 26 Nov on LIB_GAMES branch `udead-grid-dots` (e11055d; not merged, not on his screen):** his red
+dots + one distance map a target in both uDead scripts (DESIGN.md has the rules). Checked: LiveCode compiles both;
+bench `--check` SAME; referee all four AGREE; a scratch test (3 clicks = 3 dots, 1 shared map; door turns red;
+2 zombies on one person = 2 dots, 1 map, remade when the person changes cell; rush dots). Bench 43.2 fps
+(`run_files/bench/2026-11-26_0707_udead-grid-dots.txt`; was 44.5). **Where the step time goes:** in the bench
+(no clicks) the floods are the regular whole-map ones: P (follow me) 116k cells, H 87k, Z 69k in 900 frames
+(about 9,600 open cells a map). Sharing order maps fixes many-zombies-one-target play, not the bench; the
+speed win left is a native flood (`uDead.FieldWork`) or smaller floods (P only as far as FOLLOW needs).
+
 ## Where we stand
 - **What runs:** `tools/play_xt3d.sh` starts Python with raylib (the `raylib` package: an OpenGL window via GLFW,
   shown by WSLg). `xtalk/stack/view.py` draws the card and feeds keys and mouse in LiveCode's terms; ImGui only
@@ -133,7 +237,8 @@ the large game-logic win after step 2. Ask him for details before building: grid
 - Raycasting_101 mouse look: probably fixed by the soft grab. Check it there too.
 
 ## How to work
-- **His play:** he runs `tools/play_xt3d.sh` and I read the end of `run_files/play_xt3d.log`: the report, mouse
+- **His play of an export:** Desktop\Tests 25 Nov shortcut; read the end of `exports/GAME/play.log` (notes above).
+- **His play:** he runs `tools/play_xt3d.sh` (native handlers ON since branch native-bench) and I read the end of `run_files/play_xt3d.log`: the report, mouse
   look line, `his note:` lines (notes go to `run_files/elsewhere/.../GAME_NOTES.txt`).
 - **Hidden checks:**
   - `XTALK_PLAY_TEST="note:60;120,close:200"` (or `end:N`) with `tools/xt3d_game_check.py --window`;

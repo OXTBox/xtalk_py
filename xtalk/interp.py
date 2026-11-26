@@ -6,6 +6,9 @@ from .values import XtError, XtArray, CASE, to_num, fmt_num, numstr, plain, to_t
 from .parser import parse_script, parse_expr, parse_statements, OBJTYPES
 from .host import Host, wildcard
 
+# a test may give the scripts a clock of its own: CLOCK[0] = a function answering milliseconds (None = the real one)
+CLOCK = [None]
+
 CONST = {'empty': '', 'true': 'true', 'false': 'false', 'space': ' ', 'comma': ',', 'return': '\n', 'cr': '\n',
          'lf': '\n', 'newline': '\n', 'quote': '"', 'tab': '\t', 'pi': numstr(math.pi), 'colon': ':',
          'slash': '/', 'backslash': '\\', 'null': '\0', 'formfeed': '\f', 'zero': '0', 'one': '1', 'two': '2',
@@ -331,6 +334,10 @@ class Interp:
             f(name, v)
         if name == 'numberformat':
             NUMBER_FORMAT[0] = v
+        if name == 'randomseed':                 # measured 25 Nov: rounded, read back as set; random() follows it
+            seed = int(math.floor(to_num(v) + 0.5))   # (Python's sequence is not LiveCode's: same seed, other numbers)
+            self.props[name] = numstr(seed)
+            random.seed(seed)
         if name == 'casesensitive':
             CASE[0] = to_text(v).lower() == 'true'
 
@@ -791,12 +798,13 @@ class Interp:
         n = self.ALIAS.get(n, n)                 # the itemDel = the itemDelimiter
         if n in self.props:
             return self.props[n]
-        if n in ('seconds',):
-            return numstr(int(time.time()))
-        if n == 'long seconds':
-            return numstr(round(time.time(), 3))
-        if n in ('milliseconds', 'millisecs', 'ticks'):
-            return numstr(int(time.time() * (60 if n == 'ticks' else 1000)))
+        if n in ('seconds', 'long seconds', 'milliseconds', 'millisecs', 'ticks'):
+            now = CLOCK[0]() / 1000.0 if CLOCK[0] is not None else time.time()   # a test's clock (tools/bench_xt3d.py)
+            if n == 'seconds':
+                return numstr(int(now))
+            if n == 'long seconds':
+                return numstr(round(now, 3))
+            return numstr(int(now * (60 if n == 'ticks' else 1000)))
         if n == 'paramcount':
             return numstr(len(fr.args))
         d = date_time(n)
