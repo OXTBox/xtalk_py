@@ -20,6 +20,11 @@ from xtalk import xt3d                                        # noqa: E402
 from xtalk.xt3d import tables                                 # noqa: E402
 
 xt3d.install()
+# the bench measured with its hidden raylib window open; so do we (some calls need a window)
+xt3d.load()['xt3d_settraceloglevel']('5')                 # raylib: errors only (bad-input cases warn)
+xt3d.load()['xt3d_inithidden']('64', '64', 'test_xt3d')
+# known, wanted differences: case -> what ours starts with instead
+KNOWN = {'xt3d_Version()': 'xt3d 0.1.0 / raylib '}   # the Python raylib package is built from raylib 6.5-dev
 gold = json.load(open(os.path.join(ROOT, 'tests', 'xt3d_golden.json'), encoding='utf-8'))
 verbose = '-v' in sys.argv
 bad = []
@@ -54,7 +59,8 @@ for case, want in gold.items():
             got = norm(run(case))
         except XtError as e:
             got = 'ERROR ' + str(e)
-        ok = got.startswith('ERROR') if want.startswith('ERROR') else got == want
+        ok = got.startswith('ERROR') if want.startswith('ERROR') else (
+            got.startswith(KNOWN[case]) if case in KNOWN else got == want)
         if not ok:
             bad.append((mode, case, want, got))
         elif verbose:
@@ -87,6 +93,34 @@ for label, got, want in checks:
 n += 1
 if tables.T_Image.count() != 2:
     bad.append(('table', 'two images live', '2', str(tables.T_Image.count())))
+
+# helpers with no text answer of their own: they run, and what they set reads back
+tri = F['xt3d_meshfromtext']('0,0,0, 1,0,0, 0,1,0', '', '')
+mdl = F['xt3d_loadmodelfrommesh'](tri)
+rt8 = F['xt3d_loadrendertexture']('8', '4')
+smoke = [
+    ('transform round trip', lambda: (F['xt3d_modelsettransform'](mdl, *'2 0 0 0 0 2 0 0 0 0 2 0 1 2 3 1'.split()),
+                                      F['xt3d_modelgettransform'](mdl))[1], '2,0,0,0,0,2,0,0,0,0,2,0,1,2,3,1'),
+    ('material colour', lambda: F['xt3d_modelsetmaterialcolor'](mdl, '0', '0', '255', '0', '0', '255'), ''),
+    ('material colour, bad index', lambda: F['xt3d_modelsetmaterialcolor'](mdl, '7', '0', '1', '2', '3', '4'), ''),
+    ('camera 2D', lambda: F['xt3d_camera2dset'](F['xt3d_camera2dcreate']('0', '0', '0', '0', '0', '1'),
+                                                 '1', '1', '1', '1', '0', '2'), ''),
+    ('culling + wire + depth + width', lambda: ''.join(F[n](v) for n, v in (
+        ('xt3d_setbackfaceculling', 'false'), ('xt3d_setcullface', '0'), ('xt3d_setwiremode', 'true'),
+        ('xt3d_setwiremode', 'false'), ('xt3d_setdepthtest', 'true'), ('xt3d_setlinewidth', '2'))), ''),
+    ('frame as imageData: 8x4x4 bytes', lambda: str(len(F['xt3d_rendertextureimagedata'](rt8))), '128'),
+    ('alphaData: 8x4 bytes', lambda: str(len(F['xt3d_rendertexturealphadata'](rt8))), '32'),
+    ('image data size', lambda: F['xt3d_imagedatasize'](), '128'),
+    ('handle count', lambda: F['xt3d_handlecount']('Model'), '1'),
+]
+for label, fn, want in smoke:
+    n += 1
+    try:
+        got = fn()
+    except Exception as e:                                    # noqa: BLE001
+        got = 'ERROR %r' % e
+    if got != want:
+        bad.append(('helper', label, want, got))
 
 for mode, case, want, got in bad:
     print('FAIL %-10s %s\n     want %r\n     got  %r' % (mode, case, want, got))

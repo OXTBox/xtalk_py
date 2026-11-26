@@ -52,6 +52,14 @@ def W(v):
     return str(((int(v) + 0x80000000) & 0xFFFFFFFF) - 0x80000000)
 
 
+_MNAMES = ['m%d' % i for i in range(16)]
+
+
+def MX(*v):
+    """16 numbers m0..m15 -> a Matrix initializer (by name: the struct declares them m0, m4, m8, m12, m1...)"""
+    return dict(zip(_MNAMES, v))
+
+
 def B(x):
     return to_text(x).lower() == 'true'
 
