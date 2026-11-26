@@ -56,10 +56,18 @@ What was built:
   33,805 of Python), `manifest.json`, `files/` (the scripts it reads, in their ~/projects folders), `xtalk/`.
 - `tools/export_check.py GAME` runs the export from another folder, watching every file opened: uDead (900 frames)
   and Antack (450) PASS: the same state, locals and pictures as here, the same native calls, nothing translated at
-  start, nothing read from ~/projects. Start-up 1.97 -> 1.14 s.
+  start, nothing opened in ~/projects (Python's open(); raylib's own file loads, `there is a file` and files a
+  later level reads are not watched: uDead's legacy levels file, read only with `uDead.Legacy true`, is not in
+  the export). Start-up 1.97 -> 1.14 s.
+- Re-exporting keeps what playing wrote: `exports/GAME/run_files/` and `play.log`. **His in-game notes** from the
+  export (` key) go to `exports/uDead_CullTest/run_files/elsewhere/home/igame3d/projects/LIB_LLMIN/LIB_GAMES/
+  GAME_NOTES.txt` and into the report at the end of `play.log` ("his note:" lines).
+- Checked on the shortcut's path: `wsl.exe -d Ubuntu -e sh .../play.sh --bench` from Windows' side runs (log
+  written); wsl.exe sessions have DISPLAY=:0; the export's play branch ran hidden (`XTALK_PLAY_TEST=end:400`,
+  raylib's cursor calls stubbed): 405 frames, 46-60 fps without keys, no script errors.
 - His way in: Desktop\Tests 25 Nov\"1 uDead as a Python program" -> `LIB_BAT/play_python_export.bat` (LIB_BAT branch
   `native-export`) -> `exports/uDead_CullTest/play.sh`; log in `exports/uDead_CullTest/play.log`.
-  **The window path of the export has not run here** (it grabs the mouse; his play is the test).
+  **A real (visible) window of the export has not run here** (it grabs the mouse; his play is the test).
 - Honest limits: "runs without the sources" = yes. "Readable" = not yet: the translated Python is machine output
   (every value through runtime helpers). The xTalk scripts still go along: `do`, value() and two handlers the
   translator leaves as xTalk (host `xbPlayFile`, engine `Mesh.CullTables`) read xTalk at run time.
@@ -198,7 +206,8 @@ the large game-logic win after step 2. Ask him for details before building: grid
 - Raycasting_101 mouse look: probably fixed by the soft grab. Check it there too.
 
 ## How to work
-- **His play:** he runs `tools/play_xt3d.sh` and I read the end of `run_files/play_xt3d.log`: the report, mouse
+- **His play of an export:** Desktop\Tests 25 Nov shortcut; read the end of `exports/GAME/play.log` (notes above).
+- **His play:** he runs `tools/play_xt3d.sh` (native handlers ON since branch native-bench) and I read the end of `run_files/play_xt3d.log`: the report, mouse
   look line, `his note:` lines (notes go to `run_files/elsewhere/.../GAME_NOTES.txt`).
 - **Hidden checks:**
   - `XTALK_PLAY_TEST="note:60;120,close:200"` (or `end:N`) with `tools/xt3d_game_check.py --window`;

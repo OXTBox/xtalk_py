@@ -19,6 +19,9 @@ How it learns what the game needs: it plays it here, hidden, for a few hundred f
 loaded and every file read under ~/projects. A file the game reads only later (a level not reached) is not
 copied: the export then reads nothing and the game says so, as it would with a missing file.
 
+Exporting again keeps what playing it wrote: run_files/ (the game's own files: his notes, the play record,
+saves; files the game writes outside go to run_files/elsewhere/...) and play.log.
+
 The xTalk scripts go along (files/): they are the source, and `do`, value() and the like still read xTalk at
 run time. What the export does NOT need: XTJSON harvests, the LiveCode IDE, ~/projects.
 """
@@ -109,9 +112,20 @@ def main(a):
     import xt3d_game_check as gc
     reads = [p for p in reads if p != os.path.abspath(gc.HOST)]
     from xtalk.stack.runtime import _sha
-    if os.path.isdir(out):
+    keep = os.path.join(os.path.dirname(out), '.keep_' + os.path.basename(out))
+    if os.path.isdir(out):                 # what playing it wrote (his notes, play record, saves, play.log) stays
+        if os.path.isdir(keep):
+            shutil.rmtree(keep)
+        os.makedirs(keep)
+        for k in ('run_files', 'play.log'):
+            if os.path.exists(os.path.join(out, k)):
+                shutil.move(os.path.join(out, k), os.path.join(keep, k))
         shutil.rmtree(out)
     os.makedirs(os.path.join(out, 'py'))
+    if os.path.isdir(keep):
+        for k in os.listdir(keep):
+            shutil.move(os.path.join(keep, k), os.path.join(out, k))
+        os.rmdir(keep)
     for p in reads + [gc.HOST]:                         # the files, in their folders as under ~/projects
         dst = os.path.join(out, 'files', os.path.relpath(p, PROJECTS))
         os.makedirs(os.path.dirname(dst), exist_ok=True)

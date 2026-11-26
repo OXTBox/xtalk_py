@@ -9,7 +9,9 @@ its state dump with the same bench run here (in memory, translating at load). Pa
     files/ folder read as ~/projects (the game keeps the folder it found its games in);
   - the native handlers ran as often;
   - no script was translated at start (all came translated);
-  - nothing was read from ~/projects outside the export (the sources, XTJSON, LIB_GAMES...).
+  - nothing was opened (Python's open()) in ~/projects outside the export (the sources, XTJSON, LIB_GAMES...).
+    Not seen by it: files raylib opens itself (xt3d_Load*: models, textures, sounds) and `there is a file`
+    tests (they look, not open); a file a later level reads is not in this run either.
 """
 import os, subprocess, sys, tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -74,7 +76,7 @@ def main(a):
     w = open(log).read().splitlines()
     print('scripts translated at start:', w[0].split()[1])
     outside = [l[5:] for l in w[1:] if not l[5:].startswith(work + '/')]   # its own folder (cwd) is fine
-    print('files read outside the export: %d' % len(outside))
+    print('files opened (Python open) in ~/projects outside the export: %d' % len(outside))
     for p in outside[:10]:
         print('   ', p)
     ok = same and calls and w[0] == 'translated 0' and not outside
