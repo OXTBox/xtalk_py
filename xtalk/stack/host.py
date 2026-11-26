@@ -759,6 +759,7 @@ class StackHost(Host):
             if canon(k) == cp:
                 o.props[k] = value
                 return
+        p = cp                                 # textColor / foreColor / backColor: stored as the real property
         if p in ('hilite', 'hilited'):
             p = 'hilited'
         if p == 'vis':
