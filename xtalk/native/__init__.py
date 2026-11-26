@@ -30,6 +30,7 @@ def _table():
         t.setdefault(m.STACK.lower(), {}).update(m.HANDLERS)
         SIGS.setdefault(m.STACK.lower(), {}).update(m.SIGS)
         TRUSTS.setdefault(m.STACK.lower(), {}).update(getattr(m, 'TRUSTS', {}))
+        DEPENDS.setdefault(m.STACK.lower(), {}).update(getattr(m, 'DEPENDS', {}))
     return t
 
 
@@ -43,6 +44,7 @@ def signature(h):
 TABLE = None
 SIGS = {}                                   # stack -> {handler: signature of the xTalk it was written from}
 SKIPPED = set()
+DEPENDS = {}                                # stack -> {handler: the handlers its native function copies inside}
 TRUSTS = {}                                 # stack -> {handler: signature}: xTalk handlers that native code of
                                             # another script may stand in for (read their data directly) while
                                             # they are unchanged; rt.native_trusted names the ones that are
@@ -91,6 +93,14 @@ def apply(rt, stack_name, script=None):
                 from ..parser import parse_script
                 parsed = parse_script(script) if script else {}
             stated = parsed.get(name, h)
+        stale = [d for d in DEPENDS.get(stack_name.lower(), {}).get(name, ()) if d not in rt.native_trusted]
+        if stale:                             # a handler it copies inside changed: keep the xTalk
+            if (stack_name, name) not in SKIPPED:
+                SKIPPED.add((stack_name, name))
+                import sys
+                print('xtalk native: %s of stack %s copies %s, changed since: the xTalk handler runs'
+                      % (h[1], stack_name, ', '.join(stale)), file=sys.stderr)
+            continue
         if sigs.get(name) != signature(stated):    # the xTalk was changed since the native was written: keep the xTalk
             if (stack_name, name) not in SKIPPED:
                 SKIPPED.add((stack_name, name))

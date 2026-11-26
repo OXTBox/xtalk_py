@@ -112,7 +112,21 @@ def main(a):
                     fails += 1
                     if fails <= 5 or '-v' in a:
                         print('DIFFER %s %s %s\n  xtalk : %s\n  native: %s' % (mode, name, args, outs[0][:400], outs[1][:400]))
-    print('%d of %d native answers match their xTalk handler (interp + fast)' % (total - fails, total))
+    # a changed handler, or a changed helper a native copies inside, keeps its xTalk
+    import io, contextlib
+    for old, new, off in (('   return tX3 && tY3 && tZ3\n   \nend RotateLocalVector', '   return tX3 && tY3 && tZ3 && 0\nend RotateLocalVector', ('rotatelocalvector', 'updateobjecttransforms')),
+                          ('   return tX,tY,tZ\nend GetObjectRotation\n', '   return tX,tY,tZ,0\nend GetObjectRotation\n', ('xform.object',)),
+                          ('put tCZ,-tSZ,0,tSZ,tCZ,0,0,0,1 into tRZ', 'put tCZ,tSZ,0,tSZ,tCZ,0,0,0,1 into tRZ', ('xform.object',))):
+        assert src.count(old) == 1, old
+        native.SKIPPED.clear()
+        with contextlib.redirect_stderr(io.StringIO()):
+            rt = load('fast', src.replace(old, new), False)
+            done = native.apply(rt, 'VibeEngineXt3d', src.replace(old, new))
+        total += 1
+        if any(n in done for n in off) or 'mat3.mul' not in done:
+            fails += 1
+            print('EDIT NOT NOTICED: %r -> natives %s' % (new, done))
+    print('%d of %d native answers match their xTalk handler (interp + fast), edits noticed' % (total - fails, total))
     return 1 if fails else 0
 
 

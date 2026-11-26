@@ -54,7 +54,7 @@ def main(a):
     game = a[0] if a and not a[0].startswith('--') else 'uDead_CullTest'
     opt = lambda k, d: a[a.index(k) + 1] if k in a else d       # noqa: E731
     if '--check' in a:
-        return check(game, opt('--frames', '300'))
+        return check(game, opt('--frames', '450'))
     frames = int(opt('--frames', 900))
     label = opt('--label', 'run')
     from xt3d_game_check import make_stack, HOST
@@ -113,7 +113,8 @@ def main(a):
         import cProfile
         prof = cProfile.Profile()
         prof.enable()
-    per = []                             # (step, scene, rest) ms a frame
+    per = []                             # (step, scene, draw, rest) ms a frame
+    dumping, shots = '--dump' in a, []
     held = []
     t_all = time.perf_counter()
     for i in range(frames):
@@ -134,6 +135,8 @@ def main(a):
         whole = time.perf_counter() - t
         st, sc, dr = spent['vibe.step'] - s0, spent['vibe.frame'] - f0, spent['xbdrawgame'] - d0
         per.append((st * 1000, sc * 1000, dr * 1000, (whole - st - sc - dr) * 1000))
+        if dumping and i % 30 == 29:          # the picture every 30 frames (the draw natives are checked by it)
+            shots.append('frame %d image "view" sha1 %s' % (i + 1, image_sha1(rt)))
     wall = time.perf_counter() - t_all
     if prof is not None:
         prof.disable()
@@ -165,11 +168,7 @@ def main(a):
         lines.append('script errors %d, first: %s' % (len(rt.errors), ' '.join(map(str, rt.errors[0]))[:300]))
     print('\n'.join(lines))
     if '--dump' in a:
-        img = rt.host.resolve('image "view"', must=False)
-        d = getattr(img, 'imagedata', None) if img is not None else None
-        import hashlib
-        out = ['image "view" sha1 %s' % (hashlib.sha1(d.encode('latin-1')).hexdigest() if isinstance(d, str) else d),
-               dump_text(last.get('frame', ''))]
+        out = shots + ['image "view" sha1 %s' % image_sha1(rt), dump_text(last.get('frame', ''))]
         for k in sorted(rt.G):
             out.append('global %s' % k)
             out.append(dump_text(rt.G[k], 1))
@@ -187,6 +186,13 @@ def main(a):
         print('saved', p)
     v.close()
     return 0
+
+
+def image_sha1(rt):
+    import hashlib
+    img = rt.host.resolve('image "view"', must=False)
+    d = getattr(img, 'imagedata', None) if img is not None else None
+    return hashlib.sha1(d.encode('latin-1')).hexdigest() if isinstance(d, str) else repr(d)
 
 
 def git_head():

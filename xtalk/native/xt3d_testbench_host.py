@@ -112,6 +112,11 @@ def xb_draw_game(rt, fr):
                     c3 = _items(to_text(c), 3)
                     cc = [_arg(x) for x in c3[:3]]
             strokes.append((seq, cc))
+    tl = _num(rt.host.get_prop(view, 'left', None))
+    tt = _num(rt.host.get_prop(view, 'top', None))
+    vw, vh = S.get('svieww', ''), S.get('sviewh', '')
+    vwn, vhn = _num(vw), _num(vh)
+    _arg(vw), _arg(vh)
     # ---- now the same calls as the xTalk, in the same order
     proj = rt.fn(fr, 'Vibe.Projection', [], [])
     if isinstance(proj, dict):
@@ -150,8 +155,6 @@ def xb_draw_game(rt, fr):
         last = wires(model, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, col[0], col[1], col[2], col[3])
     X['xt3d_setbackfaceculling']('true')
     last = X['xt3d_endmode3d']()
-    tl = _num(rt.host.get_prop(view, 'left', None))
-    tt = _num(rt.host.get_prop(view, 'top', None))
     line = X['xt3d_drawlineex']
     for seq, cc in strokes:
         prev = None
@@ -166,12 +169,11 @@ def xb_draw_game(rt, fr):
     if not (_is_true(S.get('sviewonly', ''))):
         txt = '%s fps   hiding %s   %s' % (to_text(S.get('sgamefps', '')), to_text(rt.fn(fr, 'xbCullMode', [], [])),
                                           to_text(S.get('sgamestats', '')))
-        last = X['xt3d_drawtext'](txt, 10.0 * t_k, (_num(S.get('sviewh', '')) - 28.0) * t_k, 16.0 * t_k,
+        last = X['xt3d_drawtext'](txt, 10.0 * t_k, (vhn - 28.0) * t_k, 16.0 * t_k,
                                   120.0, 120.0, 120.0, 255.0)
     X['xt3d_endtexturemode']()
     X['xt3d_begintexturemode'](S['starget'])
-    vw, vh = S.get('svieww', ''), S.get('sviewh', '')
-    X['xt3d_drawtexturepro'](S['sbigtexture'], 0.0, 0.0, _num(vw) * t_k, -(_num(vh) * t_k), 0.0, 0.0, vw, vh,
+    X['xt3d_drawtexturepro'](S['sbigtexture'], 0.0, 0.0, vwn * t_k, -(vhn * t_k), 0.0, 0.0, vw, vh,
                              0.0, 0.0, 0.0, 255.0, 255.0, 255.0, 255.0)
     last = X['xt3d_endtexturemode']()
     rt.result = to_text(last)
@@ -243,6 +245,8 @@ def _is_true(v):
     return not isinstance(v, dict) and to_text(v).lower() == 'true'
 
 
+# xbGameModel / xbGameFill stand in for the engine's Vibe.Mesh + Mesh.Get: checked per call (rt.native_trusted
+# of the script that answers Vibe.Mesh), since that is another script
 SIGS = {'xbdrawgame': 'f3bf03ef86ea', 'xbgamemodel': '0fe4407cf0fd', 'xbgamefill': '428e303a965b'}   # the xTalk it was written from (tools/native_sigs.py)
 
 HANDLERS = {

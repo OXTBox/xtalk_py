@@ -249,7 +249,15 @@ SIGS = {'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c', 'update
 
 # handlers other scripts' native code may stand in for while they are unchanged (xt3d_testbench_host reads
 # gMeshCache instead of calling Vibe.Mesh, which copies the whole mesh)
-TRUSTS = {'vibe.mesh': '446f161f38e0', 'mesh.get': 'ebfde5d31561'}
+# ... and the helpers a native function here copies inside itself (DEPENDS)
+TRUSTS = {'vibe.mesh': '446f161f38e0', 'mesh.get': 'ebfde5d31561',
+          'getobjectrotation': '8ddc0533d9ae', 'getobjectposition': 'd9bba52341e1', 'mat3.rotzyx': '1ae5a7a90d1a',
+          'mat3.apply': '4bae9dda294e', 'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c'}
+
+# a native function runs only while every handler it copies is unchanged too (the engine calls its own
+# handlers first, so these are the ones the xTalk would run)
+DEPENDS = {'xform.object': ('getobjectrotation', 'getobjectposition', 'mat3.rotzyx', 'mat3.apply', 'mat3.mul'),
+           'updateobjecttransforms': ('rotatelocalvector',)}
 
 HANDLERS = {
     'mat3.mul': mat3_mul,

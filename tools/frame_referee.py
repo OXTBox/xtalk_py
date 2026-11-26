@@ -4,13 +4,14 @@
     .venv/bin/python -I tools/frame_referee.py A.dump B.dump [--tol 1e-6]
         compare two state dumps made by tools/bench_xt3d.py --dump: text must be equal, numbers equal to a
         relative tolerance (default 1e-6; 1e-9 absolute near zero)
-    .venv/bin/python -I tools/frame_referee.py --run [GAME] [--frames 120] [--modes fast,native0,interp]
+    .venv/bin/python -I tools/frame_referee.py --run [GAME] [--frames 450] [--modes native0,fast,interp,interpnative]
         make the dumps itself, one process each, and compare every one with the first:
           fast     the translated handlers with the native ones (the default way a game runs)
           native0  XTALK_NATIVE=0: every native handler off, only the translated xTalk
           interp   XTALK_INTERP=1: the interpreter, the reference the translator is checked against
+          interpnative  the interpreter with the native handlers on
 
-The dumps hold the last Vibe.Frame() (every object line: mesh, colour, 3x3 rotation, position) and every
+The dumps hold the view image's sha1 every 30 frames, the last Vibe.Frame() (every object line: mesh, colour, 3x3 rotation, position) and every
 global (the camera is gCameraYaw, gCameraPitch and the engine's camera globals).
 Answers 0 when all agree.
 """
@@ -48,7 +49,8 @@ def compare(fa, fb, tol=1e-6, quiet=False):
 def run(game, frames, modes):
     d = os.path.join(ROOT, 'run_files', 'bench')
     os.makedirs(d, exist_ok=True)
-    env_for = {'fast': {}, 'native0': {'XTALK_NATIVE': '0'}, 'interp': {'XTALK_INTERP': '1', 'XTALK_NATIVE': '0'}}
+    env_for = {'fast': {}, 'native0': {'XTALK_NATIVE': '0'}, 'interp': {'XTALK_INTERP': '1', 'XTALK_NATIVE': '0'},
+               'interpnative': {'XTALK_INTERP': '1', 'XTALK_NATIVE': '1'}}
     py = os.path.join(ROOT, '.venv', 'bin', 'python')
     dumps = []
     for m in modes:
@@ -56,7 +58,7 @@ def run(game, frames, modes):
         env = dict(os.environ, **env_for[m])
         r = subprocess.run([py, '-I', os.path.join(ROOT, 'tools', 'bench_xt3d.py'), game, '--frames', str(frames),
                             '--dump', p, '--no-save', '--label', 'referee_' + m], capture_output=True, text=True, env=env)
-        wall = [l for l in r.stdout.splitlines() if l.startswith(('wall', 'script errors'))]
+        wall = [l for l in r.stdout.splitlines() if l.startswith(('wall', 'script errors', 'native calls'))]
         print('%-8s %s' % (m, ' | '.join(wall)))
         if r.returncode:
             print(r.stderr[-1500:])
@@ -75,7 +77,7 @@ def main(a):
     if '--run' in a:
         rest = [x for x in a if not x.startswith('--')]
         game = rest[0] if rest and rest[0] not in (opt('--frames', ''), opt('--modes', '')) else 'uDead_CullTest'
-        return run(game, int(opt('--frames', 120)), opt('--modes', 'fast,native0,interp').split(','))
+        return run(game, int(opt('--frames', 450)), opt('--modes', 'native0,fast,interp,interpnative').split(','))
     files = [x for x in a if not x.startswith('--') and x != opt('--tol', None)]
     ok = compare(files[0], files[1], float(opt('--tol', 1e-6)))
     print('AGREE' if ok else 'DIFFER')
