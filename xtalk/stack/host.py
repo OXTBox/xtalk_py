@@ -247,6 +247,10 @@ class StackHost(Host):
             for s in self.rt.harvest.stacks:
                 if s.name.lower() in (val.lower(), v.lower()) or os.path.basename(s.node.get('file', '')).lower() == v.lower():
                     return s
+            if '/' in val.replace('\\', '/'):        # stack "<path of a file>": LiveCode opens the file into memory
+                path = self.real_path(val)
+                if path and os.path.isfile(path) and path.lower().endswith(('.livecodescript', '.livecode')):
+                    return self.rt.script_stack(path)
             return None
         return self._pick(self.rt.harvest.stacks, how, val)
 
