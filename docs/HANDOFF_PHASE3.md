@@ -1,6 +1,30 @@
 # Handoff: the next phase of the Pythonization
 
-## START HERE (25 Nov 2026 night, system clock): the owner's first play in a real window
+## START HERE (25 Nov 2026, late night, system clock): his first-play list, fixed on branch `phase3-play-fixes`
+Not merged, not pushed. Next is **a "human clicks things" play with him**: `tools/play_xt3d.sh`, then read the end
+of `run_files/play_xt3d.log` (report, longest frame, `his note:` lines). ISSUES 0026 has the story.
+1. **Close box** -> View.should_close after every drawn frame (main loop, wait, menu, dialog). In play mode,
+   `on_close` writes the report and `os._exit`s. Cause of his minute: not proven (hidden shutdown 0.02 s); it was
+   likely the old teardown on X11, which is now skipped. The report's "longest frame" will tell.
+2. **Escape** did reach the game (his stats froze at about frame 1200: the game had ended), but the window kept
+   the picture. Now the window closes when the game ends.
+3. **Escape = free / take back the mouse and keys** (View, play mode only, corner label). While a field has the
+   keyboard (GameNotes), Escape is the script's. Decisions for him: the game's own Escape (pause menu) no longer
+   comes in play mode, and F2 is the View's panel key, not GameNotes'.
+4. **Mouse look**: uDead = lockCursor + set the screenMouseLoc each frame (not cursor none). That now grabs too
+   (`View.warped`); the first grab starts at the warp point. Hidden test with a fake mouse: right = yaw only,
+   down = pitch only, still = no turn. Built, NOT yet seen with a real mouse.
+5. **4 fps**: not a leak. R (rush) -> kills -> 48 `uDead.Blood` splats (51 -> 119 objects), step 24 -> 150 ms.
+   The speed job is next: profile at ~120 objects (`--keys "51:20,-51:25,114:60,-114:64"`, about frame 560).
+   Hot spots so far (profiled at 51 objects): UpdateObjectTransforms 34%, uDead.FieldWork 18%, numstr/fmt_num, gchunk.
+6. GameNotes works: front scripts (insert/remove script, the frontScripts/backScripts; front first for engine
+   messages only), `the defaultStack` = stack "Name" (measured), `value(expr, object)`, `the system date`
+   11/25/2026 (measured). His notes land in the sandbox (`run_files/elsewhere/.../GAME_NOTES.txt`) and are printed
+   in the play report, NOT in the real inbox. `Users.Driver` stays caught (LIB_USERS not loaded by the bench).
+Check without a window: `XTALK_PLAY_TEST="note:100,close:200" .venv/bin/python -I tools/xt3d_game_check.py --window`.
+Tests: interp 421, transpile 847, stack 138 (both modes), measured 30, xt3d 248; survey identical.
+
+## Earlier START HERE (25 Nov 2026 night, system clock): the owner's first play in a real window
 **Merged + pushed to xtalk_py main on his word.** He plays with `tools/play_xt3d.sh [GAME] [WxH]` (default
 uDead_CullTest 720x540, window at 200,32); the report lands at the end of `run_files/play_xt3d.log` (read it
 instead of asking). `tools/xt3d_game_check.py --window` is the same thing from Python.
