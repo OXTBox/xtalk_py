@@ -21,9 +21,32 @@ Bug found on the way: raylib's Matrix struct declares m0, m4, m8, m12, m1...: ma
 Parser fixes on the way (each measured): comment after a continuing `\`; `there is no X`; `then` on the next line.
 Corpus 41,176 handlers to Python (was 41,145), none worse. Survey identical.
 
-Next: harvest the testbench stack (`testbench/xt3d_Bench_LibMCP.livecode`, `lcmcp harvest`), run its host
-script with the generated engine `vibe_engine_xt3d` (10k lines: the load + speed test), then uDead CullTest
-(whole-window mode). Profile per tick, then cProfile by own time.
+**uDead CullTest PLAYS in Python (25 Nov, late)** through the unchanged testbench host script (script-only:
+nothing to harvest), opened in its view-only mode (global gXbViewRect: one image filling the window = the
+owner's "games fill the window"). `.venv/bin/python -I tools/xt3d_game_check.py [GAME] --frames N --keys
+"65361:100,1:225,-49:228" [--snap png] [--profile] [--eval 'expr;;expr']`. Snapshot: HUD, corridor, figures,
+crates; hiding modes 0-3 all work (3 = hidden lines through filled solids, as xRay).
+
+| Mode | xRay in LiveCode (19 Nov) scene + draw, fps | Python step / scene / draw, fps |
+|---|---|---|
+| 0 | 7.0 + 17.6, 20.9 | 14-23 / 14 / 17, 18-22 |
+| 1-2 | 8.4 + 19.0, 19 | 19-30 / 16.6 / 21, 14-17 |
+| 3 | 8.5 + 18.7, 18.8 | 29-32 / 17 / 21, 14-15 |
+
+Draw is at par; scene is ~2x and the game step ~3x LiveCode. Next for speed (profile by own time):
+number-to-text (fmt_num/numstr), gchunk, invoke overhead, UpdateObjectTransforms / uDead.FieldWork.
+Not yet seen on the owner's screen: offer `tools/xt3d_game_check.py` with a real window (needs a window mode
+in the tool: it only runs hidden now), or a small launcher.
+
+What the runtime gained for this (all measured first; LIVECODE_FACTS): start/stop using script-only stacks,
+the stacksInUse, delete stack, effective filename; itemDel/lineDel/numberFormat/caseSensitive per handler;
+case-insensitive array keys (values.XtArray); there is a file/folder; binfile bytes; textDecode/Encode; date
+forms and `convert`; `constant a = 1, b = 2`; $ENV; the topStack; the environment; the loadedExtensions;
+`delete item 1 of "3,"` = empty (was ","; it hung mode 1). Tools: Interp.CATCH_LOG (errors a try caught),
+tracebacks show generated lines, rt.test_keys.
+Open: `the defaultStack` gives `stack "X"` in the standalone (ours: bare name; not changed); `insert script
+into front` (GameNotes) unsupported; `url "file:"` is UTF-8 text here, bytes in LiveCode; DevServer missing
+(fine). Corpus 41,259 handlers to Python, none worse.
 
 ## Earlier START HERE (written 25 Nov 2026 late, system clock)
 **Phase 2 is finished and Phase 3 starts now: xt3d on Python raylib, first game uDead CullTest** (owner's word).
