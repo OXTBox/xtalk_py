@@ -780,6 +780,7 @@ class Interp:
         n = e[1]
         if n == 'result':
             return self.result
+        n = self.ALIAS.get(n, n)                 # the itemDel = the itemDelimiter
         if n in self.props:
             return self.props[n]
         if n in ('seconds',):

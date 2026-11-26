@@ -46,7 +46,31 @@ forms and `convert`; `constant a = 1, b = 2`; $ENV; the topStack; the environmen
 tracebacks show generated lines, rt.test_keys.
 Open: `the defaultStack` gives `stack "X"` in the standalone (ours: bare name; not changed); `insert script
 into front` (GameNotes) unsupported; `url "file:"` is UTF-8 text here, bytes in LiveCode; DevServer missing
-(fine). Corpus 41,259 handlers to Python, none worse.
+(fine). Corpus (run_files left out, like for like): 41,143 -> 41,190 handlers to Python, no file worse.
+`tests/test_measured.py`: the rules measured by hand on 25 Nov, 27 checks in all three run modes (keep green).
+
+**Caveats on the numbers:** the hidden window draws with llvmpipe (software OpenGL, `MESA: ZINK failed`), so
+"draw" is CPU drawing; his GPU may do better. Object counts differ from the 19 Nov table (Python 42-44 / 53,
+xRay text 45 / 55): game changed since, or a divergence. Not checked. **The game has no referee yet**: compare
+`Vibe.Frame()` object lines at one `uDead.TestPlace` pose with real xRay (`tools/gamebench` in the bridge), and
+interpreted vs fast. Raycasting_101 re-timed only at the 60 fps cap (no change seen).
+
+**Fix before merge, or decide with him:**
+- xt3d file paths skip the runtime's rules: no C:/ -> /mnt/c mapping (the bench's `C:/xt3d/test_models` won't
+  load) and NO write sandbox (FileRemove/Rename/Move/Copy, SaveFileText, ExportImage, MakeDirectory,
+  TakeScreenshot, SetTraceLogFile, RenderTextureExport reach the real disk). Route them through host.real_path /
+  sandboxed in helpers before letting him run xt3d scripts of his own.
+- Only xt3d_CloseWindow is overridden: BeginDrawing/EndDrawing, SetTargetFPS, window size/fullscreen calls will
+  fight the view (the window demo; whole-window mode).
+- xt3d handle tables and helpers.HOST['view'] are not reset when a View closes; test_xt3d has no stale check of
+  generated.py against the manifest.
+- `there is a file` reads the real disk while writes go to the sandbox.
+- He can't see it yet: xt3d_game_check.py runs hidden only. Needs a real-window mode (gNoMouse true for uDead)
+  and a desktop shortcut.
+- Left running on his screen 25 Nov: the xt3d bench standalone (xt3d_Bench.exe, port 8768, started by
+  tools/xt3d_golden.py) and the LIB_MCP measuring standalone (port 8767): I was not allowed to close them.
+- Paperwork: ISSUES entries for delete item / per-handler props / array keys; ROADMAP.md and CLAUDE.md do not
+  mention Phase 3 yet.
 
 ## Earlier START HERE (written 25 Nov 2026 late, system clock)
 **Phase 2 is finished and Phase 3 starts now: xt3d on Python raylib, first game uDead CullTest** (owner's word).
