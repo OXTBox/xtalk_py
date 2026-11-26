@@ -1,7 +1,39 @@
 # Handoff: the next phase of the Pythonization
 
-## START HERE (Phase 3 under way; 25 Nov 2026 evening, system clock)
-**Branch `phase3-xt3d` (xtalk_py; NOT merged, NOT pushed).** The owner chose (25 Nov): run his testbench host
+## START HERE (25 Nov 2026 night, system clock): the owner's first play in a real window
+**Merged + pushed to xtalk_py main on his word.** He plays with `tools/play_xt3d.sh [GAME] [WxH]` (default
+uDead_CullTest 720x540, window at 200,32); the report lands at the end of `run_files/play_xt3d.log` (read it
+instead of asking). `tools/xt3d_game_check.py --window` is the same thing from Python.
+
+**What he saw (his words, 25 Nov night), to fix in this order, then a new "human clicks things" test with him:**
+1. **The close box is not absolute.** Windows took "about a minute or more" to close after a click (once ~1 s).
+   Wanted: a close-box click ALWAYS ends the program at once, whatever the scripts are doing (check
+   `rl.window_should_close()` inside every inner loop: wait_frames, menu/dialog loops, long message runs; on
+   close skip `xbStopGame` if it is slow, free GPU things, exit). Likely partly the 4 fps below (each frame
+   ~250 ms) plus the shutdown path (xbStopGame, v.close): time each part.
+2. **Escape did nothing** (he pressed it several times). The log shows NO `key escape` among the keys pressed
+   (w/s/a/d/arrows/e/f/r/1-3 were seen): View sets `set_exit_key(0)` and Escape never reaches the scripts as
+   a key in this path. The host ends the game on Escape (testbench line ~12/1274); find why it's lost.
+3. **Escape must free the mouse and keyboard** (toggle): in a game, Escape = stop capturing (cursor visible,
+   free to move, keys not fed to the game) so he can look away and say "x happened"; Escape again = capture again.
+   Probably a View-level toggle (not the scripts'), shown on screen in a corner.
+4. **Mouse look is "super freaky"**: left/right mouse seems to turn up/down, or never left/right (keys do turn).
+   His reading: the game turns by "distance from centre = change of angle", and because the mouse is not
+   locked/re-centred in Python that distance gets huge. Measure in LiveCode what the host/engine does
+   (mouseLoc, setting the screenMouseLoc / lockCursor / gNoMouse, xbMouse* handlers near testbench line 460)
+   and make View's capture (view.py `capture`/`warp`, raylib disable_cursor) give the same mouseLoc as LiveCode.
+5. **Slow, and slower the longer it plays**: started 22 fps (mode 0, 43 objects), then mode 3 at 70 -> 136
+   objects: step 34 -> 211 ms, scene 22 -> 42, draw 25 -> 32, **4 fps**. 1465 frames in 191 s. The object count
+   grows (more of the level loaded/revealed? or a leak: compare with xRay in LiveCode at the same place and
+   mode) and step time grows faster than objects: profile at that point (`--frames 900 --keys ... --profile`).
+6. Seen in the trial (caught by the game's own try, not shown): `Users.Driver` (LIB_LOADING, the loading
+   screen's user) is unknown, and `insert script of stack "GameNotes" into front` is unsupported.
+
+Then the older list below ("Fix before merge" items still open: file paths C:/ + write sandbox for xt3d's own
+file calls, more window overrides, reset tables when a View closes, stale check of generated.py, referee pose).
+
+## Earlier START HERE (Phase 3 under way; 25 Nov 2026 evening, system clock)
+**Branch `phase3-xt3d` (merged + pushed 25 Nov night).** The owner chose (25 Nov): run his testbench host
 script itself, its xt3d calls going through the generated mapping (not a Python host of our own).
 
 | Step | State | Where |
