@@ -305,3 +305,7 @@ standalone per library group.
   with elements equals no text: `a is empty` false, `a = empty` false, `a is "x"` false, `a <> empty` true; an array
   whose elements were all deleted is empty (measured 26 Nov; before, the runtime stopped with "can't treat an array
   as text": 5 games hit it, NineBall at `if sDot is empty`).
+- bitAnd / bitXor / bitOr / bitNot (measured 26 Nov): bitAnd binds tighter than bitXor, bitXor than bitOr; all looser
+  than = (`6 bitAnd 2 = 2` is an error: 2 = 2 first) and tighter than `and`. Operands: rounded half away from zero
+  (2.5 -> 3, 5.7 -> 6), below 0 -> 0, then the low 32 bits (4294967297 -> 1); empty -> 0. bitNot: 32 bits
+  (bitNot 0 = 4294967295). Before: not in the parser (lib_cellmap's 5 handlers, Amazing_Couple's maze).

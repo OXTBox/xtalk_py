@@ -44,6 +44,13 @@ def rnd_half_away(x, places=0):
 
 
 
+def u32(v):
+    """a value as the bit operators take it (measured 26 Nov): rounded half away from zero, below 0 = 0, then the
+    low 32 bits (4294967297 -> 1)"""
+    n = rnd_half_away(to_num(to_text(v)))
+    return 0 if n < 0 else int(n) % 4294967296
+
+
 def split_form(parts):
     """split / combine <var> by|with|using <d1> [and <d2>] | by row | by column | [by <d>] as set
     -> (target node, mode 'delim'|'row'|'column'|'set', d1 node or None, d2 node or None)"""
@@ -1049,6 +1056,8 @@ class Interp:
     def unop(self, op, v):
         if op == 'not':
             return 'false' if to_bool(v) else 'true'
+        if op == 'bitnot':
+            return numstr(~u32(v) & 0xFFFFFFFF)
         n = to_num(to_text(v))
         return numstr(-n if op == '-' else n)
 
@@ -1088,6 +1097,9 @@ class Interp:
             except (ValueError, IndexError):
                 raise XtError('expression: bad operand')
             return 'true' if x1 <= x < x2 and y1 <= y < y2 else 'false'
+        if op in ('bitand', 'bitor', 'bitxor'):
+            a, b = u32(l), u32(r)
+            return numstr(a & b if op == 'bitand' else a | b if op == 'bitor' else a ^ b)
         a, b = to_num(to_text(l)), to_num(to_text(r))
         if op == '+':
             return numstr(a + b)

@@ -616,9 +616,28 @@ class Parser:
         return l
 
     def p_and(self):
-        l = self.p_eq()
+        l = self.p_bitor()
         while self.accept_word('and'):
-            l = ('bin', 'and', l, self.p_eq())
+            l = ('bin', 'and', l, self.p_bitor())
+        return l
+
+    # bitAnd binds tighter than bitXor, bitXor than bitOr; all looser than = and tighter than and (measured 26 Nov)
+    def p_bitor(self):
+        l = self.p_bitxor()
+        while self.accept_word('bitor'):
+            l = ('bin', 'bitor', l, self.p_bitxor())
+        return l
+
+    def p_bitxor(self):
+        l = self.p_bitand()
+        while self.accept_word('bitxor'):
+            l = ('bin', 'bitxor', l, self.p_bitand())
+        return l
+
+    def p_bitand(self):
+        l = self.p_eq()
+        while self.accept_word('bitand'):
+            l = ('bin', 'bitand', l, self.p_eq())
         return l
 
     def p_eq(self):
@@ -719,6 +738,8 @@ class Parser:
     def p_un(self):
         if self.accept_word('not'):
             return ('un', 'not', self.p_un())
+        if self.accept_word('bitnot'):
+            return ('un', 'bitnot', self.p_un())
         return self.p_pow()
 
     def p_pow(self):
