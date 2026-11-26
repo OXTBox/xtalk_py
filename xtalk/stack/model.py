@@ -59,6 +59,55 @@ def regular_points(rect, sides, angle):
 OXT_DARK = {'foregroundColor': '255,255,255', 'backgroundColor': '32,32,32', 'hiliteColor': '0,120,215'}
 
 
+class Props(dict):
+    """an object's properties (harvest names, any case) with an index: keys_for(canonical name) -> the keys
+    that mean it, in order, so a lookup is one step, not a walk over every property (a frame asks often)"""
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self._idx = None
+
+    def keys_for(self, cp):
+        idx = self._idx
+        if idx is None:
+            from .host import canon
+            idx = {}
+            for k in self:
+                idx.setdefault(canon(k), []).append(k)
+            self._idx = idx
+        return idx.get(cp, ())
+
+    def __setitem__(self, k, v):
+        if k not in self:
+            self._idx = None
+        super().__setitem__(k, v)
+
+    def __delitem__(self, k):
+        self._idx = None
+        super().__delitem__(k)
+
+    def pop(self, *a):
+        self._idx = None
+        return super().pop(*a)
+
+    def popitem(self):
+        self._idx = None
+        return super().popitem()
+
+    def clear(self):
+        self._idx = None
+        super().clear()
+
+    def update(self, *a, **kw):
+        self._idx = None
+        super().update(*a, **kw)
+
+    def setdefault(self, k, v=None):
+        if k not in self:
+            self._idx = None
+        return super().setdefault(k, v)
+
+
 class Obj:
     """a stack, card or control"""
 
@@ -67,7 +116,7 @@ class Obj:
         self.node = node
         self.name = node.get('name', '')
         self.id = int(node.get('id', 0))
-        self.props = dict(node.get('props', {}))
+        self.props = Props(node.get('props', {}))
         self.rect = [int(round(x)) for x in node.get('rect', [0, 0, 0, 0])]
         self.text = node.get('text', '')
         self.styles = None          # a field's styled text: one style per character (styled.py), None = plain
@@ -195,11 +244,15 @@ class Stack(Obj):
     # ---- properties
     def default(self, kind, prop):
         """(the harvest's key, value) of a type default, matched without case, or (None, None)"""
-        d = self.defaults.get(kind, {})
-        for k, v in d.items():
-            if k.lower() == prop:
-                return k, v
-        return None, None
+        low = self.__dict__.get('_low_defaults')
+        if low is None:                    # the defaults never change after loading: one lower-case index
+            low = self._low_defaults = {}
+        idx = low.get(kind)
+        if idx is None:
+            idx = low[kind] = {}
+            for k, v in self.defaults.get(kind, {}).items():
+                idx.setdefault(k.lower(), (k, v))
+        return idx.get(prop, (None, None))
 
 
 class Harvest:

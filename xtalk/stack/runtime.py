@@ -575,6 +575,7 @@ class StackRuntime:
                 return                         # the clock stays: what is due runs on the next frame
             t, _, o, text = heapq.heappop(self.timers)
             self.clock = max(self.clock, t)
+            self.changed = True                # a script ran: the window draws again (not its idle picture)
             try:
                 self.send_text(o, text)
             except SCRIPT_ERRORS as e:
@@ -790,13 +791,15 @@ class StackRuntime:
         k = canon(key)
         x = o
         while x is not None:
-            for pk, v in x.props.items():
-                if canon(pk) == k and v != '':
+            for pk in x.props.keys_for(k):
+                v = x.props[pk]
+                if v != '':
                     return v
             x = x.parent if x.type != 'card' else x.stack
             if x is not None and x.type == 'stack':
-                for pk, v in x.props.items():
-                    if canon(pk) == k and v != '':
+                for pk in x.props.keys_for(k):
+                    v = x.props[pk]
+                    if v != '':
                         return v
                 return next((v for ek, v in x.effective.items() if canon(ek) == k), None)
         return None
