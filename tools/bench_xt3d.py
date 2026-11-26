@@ -14,7 +14,8 @@ What makes it the same every time (HANDOFF_NATIVE step 0):
   - every frame lets exactly FRAME_MS of messages run (no real-time budget).
 
 Timings are real (perf_counter), taken in Python around the host's own brackets: step = Vibe.Step,
-scene = Vibe.Frame, draw = the rest of the host's tick (xbDrawGame) plus the window's card drawing.
+scene = Vibe.Frame, draw = xbDrawGame (3D into the image), rest = everything else in a frame (the host's
+tick around them, the window drawing the card with its image).
 The game's own stats line is in test-clock milliseconds, so it is not printed.
 
 --dump writes the state after the last frame: the last Vibe.Frame() array and every global (sorted). Two runs
@@ -86,7 +87,7 @@ def main(a):
 
     # timing brackets: the engine's Vibe.Step and Vibe.Frame, wherever they are called from
     from xtalk.stack.runtime import ObjInterp as StackContext
-    spent = {'vibe.step': 0.0, 'vibe.frame': 0.0}
+    spent = {'vibe.step': 0.0, 'vibe.frame': 0.0, 'xbdrawgame': 0.0}
     last = {}
     inside = set()
     plain_invoke = StackContext.invoke
@@ -124,15 +125,15 @@ def main(a):
         rt.test_keys = list(now)
         rt.held_codes, rt.keys_down, rt.buttons_down = list(now), set(), set()
         rt.mouse_move(w // 2, h // 2)
-        s0, f0 = spent['vibe.step'], spent['vibe.frame']
+        s0, f0, d0 = spent['vibe.step'], spent['vibe.frame'], spent['xbdrawgame']
         t = time.perf_counter()
         rl.begin_drawing()
         v.draw_card()
         rl.end_drawing()
         rt.tick(FRAME_MS)
         whole = time.perf_counter() - t
-        st, sc = spent['vibe.step'] - s0, spent['vibe.frame'] - f0
-        per.append((st * 1000, sc * 1000, (whole - st - sc) * 1000))
+        st, sc, dr = spent['vibe.step'] - s0, spent['vibe.frame'] - f0, spent['xbdrawgame'] - d0
+        per.append((st * 1000, sc * 1000, dr * 1000, (whole - st - sc - dr) * 1000))
     wall = time.perf_counter() - t_all
     if prof is not None:
         prof.disable()
@@ -152,9 +153,11 @@ def main(a):
              'objects in the last frame %d' % objects]
     from xtalk import native
     if native.USED:
-        lines.append('native calls: ' + ', '.join('%s %d' % (k[1], n) for k, n in sorted(native.USED.items())))
+        lines.append('native calls: ' + ', '.join('%s %d%s' % (k[1], n, ' (%d to the xTalk)' % native.FELL[k]
+                                                             if native.FELL.get(k) else '')
+                                                for k, n in sorted(native.USED.items())))
     busy = [p for p in per if p[0] + p[1] > 0]   # frames where the game stepped or drew
-    for name, k in (('step', 0), ('scene', 1), ('draw+rest', 2)):
+    for name, k in (('step', 0), ('scene', 1), ('draw', 2), ('rest', 3)):
         xs = [p[k] for p in busy] or [0]
         lines.append('%-10s avg %6.2f ms   worst %7.2f ms' % (name, sum(xs) / len(xs), max(xs)))
     lines.append('game frames %d of %d' % (len(busy), frames))
@@ -162,7 +165,11 @@ def main(a):
         lines.append('script errors %d, first: %s' % (len(rt.errors), ' '.join(map(str, rt.errors[0]))[:300]))
     print('\n'.join(lines))
     if '--dump' in a:
-        out = [dump_text(last.get('frame', ''))]
+        img = rt.host.resolve('image "view"', must=False)
+        d = getattr(img, 'imagedata', None) if img is not None else None
+        import hashlib
+        out = ['image "view" sha1 %s' % (hashlib.sha1(d.encode('latin-1')).hexdigest() if isinstance(d, str) else d),
+               dump_text(last.get('frame', ''))]
         for k in sorted(rt.G):
             out.append('global %s' % k)
             out.append(dump_text(rt.G[k], 1))

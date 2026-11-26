@@ -24,9 +24,9 @@ class Fallback(Exception):
 
 
 def _table():
-    from . import vibe_engine_xt3d
+    from . import vibe_engine_xt3d, xt3d_testbench_host
     t = {}
-    for m in (vibe_engine_xt3d,):
+    for m in (vibe_engine_xt3d, xt3d_testbench_host):
         t.setdefault(m.STACK.lower(), {}).update(m.HANDLERS)
         SIGS.setdefault(m.STACK.lower(), {}).update(m.SIGS)
     return t
@@ -43,6 +43,7 @@ TABLE = None
 SIGS = {}                                   # stack -> {handler: signature of the xTalk it was written from}
 SKIPPED = set()
 USED = {}                                   # (stack, handler) -> calls: what ran native (bench reports it)
+FELL = {}                                   # (stack, handler) -> calls that went to the xTalk handler (Fallback)
 
 
 def enabled():
@@ -98,6 +99,7 @@ def _wrap(fn, h, stack_name):
         try:
             return fn(rt, fr)
         except Fallback:
+            FELL[key] = FELL.get(key, 0) + 1
             if xt is not None:
                 return xt(rt, fr)
             rt.exec_block(body, fr)         # Return is caught by Interp.invoke, as for any handler
