@@ -79,6 +79,7 @@ def main(a):
     n = int(a[a.index('--n') + 1]) if '--n' in a else 300
     src = open(ENGINE).read()
     fails = total = 0
+    counts = {}
     for mode in ('interp', 'fast'):
         ref, nat = load(mode, src, False), load(mode, src, True)
         r = random.Random(7)
@@ -123,6 +124,7 @@ def main(a):
                     fails += 1
                     if fails <= 5 or '-v' in a:
                         print('DIFFER %s %s %s\n  xtalk : %s\n  native: %s' % (mode, name, args, outs[0][:400], outs[1][:400]))
+        counts[mode] = {k[1]: (n, native.FELL.get(k, 0)) for k, n in native.USED.items()}
     # a changed handler, or a changed helper a native copies inside, keeps its xTalk
     import io, contextlib
     for old, new, off in (('   return tX3 && tY3 && tZ3\n   \nend RotateLocalVector', '   return tX3 && tY3 && tZ3 && 0\nend RotateLocalVector', ('rotatelocalvector', 'updateobjecttransforms')),
@@ -138,6 +140,11 @@ def main(a):
             fails += 1
             print('EDIT NOT NOTICED: %r -> natives %s' % (new, done))
     print('%d of %d native answers match their xTalk handler (interp + fast), edits noticed' % (total - fails, total))
+    for mode, c in counts.items():
+        print('%s: ' % mode + ', '.join('%s %d native, %d to the xTalk' % (k, n - f, f) for k, (n, f) in sorted(c.items())))
+        if any(n - f < 50 for k, (n, f) in c.items()):
+            print('TOO FEW native runs in %s: the cases mostly went to the xTalk' % mode)
+            fails += 1
     return 1 if fails else 0
 
 

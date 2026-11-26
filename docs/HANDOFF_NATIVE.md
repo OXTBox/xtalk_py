@@ -16,7 +16,7 @@ uDead CullTest, 900 frames of the bench (hiding mode 3, rush, walk, turn), back 
 
 | Run | Wall | Frames a second | Step | Scene | Draw | Rest |
 |---|---|---|---|---|---|---|
-| native off (`XTALK_NATIVE=0`) = the old speed | 40-42 s | 22 | 7.6 ms | 17.6 ms | 19.8 ms | 2 ms |
+| native off (`XTALK_NATIVE=0`) = the old speed | 39.8 s | 22.6 | 7.1 ms | 17.0 ms | 18.4 ms | 1.7 ms |
 | native on (all below) | 20.2 s | 44.5 | 6.1 ms | 3.9 ms | 8.9 ms | 3.6 ms |
 
 Real play path (`tools/xt3d_game_check.py`, real clock, mode 3 + rush, hidden window): 11-13 fps -> 34-37 fps.
@@ -26,7 +26,7 @@ Real play path (`tools/xt3d_game_check.py`, real clock, mode 3 + rush, hidden wi
 What was built:
 - **Step 0, the bench:** `tools/bench_xt3d.py`. The scripts' clock is a test clock (`xtalk.interp.CLOCK`: moves
   with the frames and 0.05 ms a read), so uDead's "work for 7 ms" loop and `set the randomSeed to the milliseconds`
-  are the same every run; no real mouse; keys after the loading screen (it ignores keys before about frame 230).
+  are the same every run; no real mouse; keys from frame 240, after the loading screen (a key at frame 150 was lost, R at 210 counted).
   `--check` = two processes, the same state byte for byte (globals, every script's locals, the picture every 30
   frames). No game script was changed (the planned `gTestSeed` was not needed).
 - **Found on the way:** `set the randomSeed` did nothing in Python (ISSUES 0027): now measured and done.

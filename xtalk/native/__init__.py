@@ -119,6 +119,7 @@ def _wrap(fn, h, stack_name):
     body = h[3]
     key = (stack_name, h[1])
     USED[key] = 0
+    FELL[key] = 0
 
     def native(rt, fr):
         USED[key] += 1
