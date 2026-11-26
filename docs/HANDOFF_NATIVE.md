@@ -11,6 +11,54 @@ and use the help you need to do it."
 So the order below is mine to choose, and helper agents may be used: one per bubble, each with a clear test to
 pass. The **TWO ENGINES** note goes in every brief.
 
+## PROGRESS (25 Nov 2026, night): steps 0-2 done on branch `native-bench` (xtalk_py; NOT merged, NOT pushed)
+uDead CullTest, 900 frames of the bench (hiding mode 3, rush, walk, turn), back to back on a quiet machine:
+
+| Run | Wall | Frames a second | Step | Scene | Draw | Rest |
+|---|---|---|---|---|---|---|
+| native off (`XTALK_NATIVE=0`) = the old speed | 40-42 s | 22 | 7.6 ms | 17.6 ms | 19.8 ms | 2 ms |
+| native on (all below) | 20.2 s | 44.5 | 6.1 ms | 3.9 ms | 8.9 ms | 3.6 ms |
+
+Real play path (`tools/xt3d_game_check.py`, real clock, mode 3 + rush, hidden window): 11-13 fps -> 34-37 fps.
+**Nothing here has been seen on his screen yet.** His next `tools/play_xt3d.sh` on this branch uses the natives
+(they are on by default); `XTALK_NATIVE=0` turns them off.
+
+What was built:
+- **Step 0, the bench:** `tools/bench_xt3d.py`. The scripts' clock is a test clock (`xtalk.interp.CLOCK`: moves
+  with the frames and 0.05 ms a read), so uDead's "work for 7 ms" loop and `set the randomSeed to the milliseconds`
+  are the same every run; no real mouse; keys after the loading screen (it ignores keys before about frame 230).
+  `--check` = two processes, the same state byte for byte (globals, every script's locals, the picture every 30
+  frames). No game script was changed (the planned `gTestSeed` was not needed).
+- **Found on the way:** `set the randomSeed` did nothing in Python (ISSUES 0027): now measured and done.
+- **Step 1, the referee:** `tools/frame_referee.py --run [GAME]`: native off / on / interpreter / interpreter +
+  natives. uDead 450 frames: all four AGREE; Antack and BigBallOfVectors: native on = off.
+- **Step 2, native handlers:** `xtalk/native/` (one module a script, plain Python functions in place of xTalk
+  handlers, at load, both run modes):
+  - engine (`vibe_engine_xt3d.py`): Mat3.Mul (cached), RotateLocalVector, UpdateObjectTransforms, Xform.Object
+    (rotation + RotZYX + Mul + Apply + position in one go), Vibe.Color (Color.ToRGB cached);
+  - host (`xt3d_testbench_host.py`): xbDrawGame (the same xt3d calls straight to raylib), xbGameModel /
+    xbGameFill (a made model found without copying the mesh).
+  - **Safety:** each native is tied to the exact statements of the xTalk it copies (signature; also every helper
+    it copies inside, and the engine handlers the host reads around). When the engine is generated again and a
+    handler changed, that native switches itself off with a warning and the xTalk runs:
+    `tools/native_sigs.py` shows which. A value a native was not written for (text where a number belongs)
+    goes to the xTalk handler (Fallback), before anything is changed or drawn.
+  - `tests/test_native.py`: 3000 random cases, native = xTalk in both modes; an edited helper is noticed.
+- **Not covered:** xbDrawGame's DrawText line (only when not view-only) has never run. uDead.FieldWork (a card
+  script) waits for his grid (step 5 below).
+- **What is left in a frame:** step = uDead.FieldWork mostly (his grid changes it); draw = mostly the picture
+  coming back from the GPU into the image (RenderTextureImageData, ~2.5 ms) and the GPU wait: that is the "3D in
+  an image" design, not xTalk speed. A game drawing to the whole window (HANDOFF_PHASE3) would skip it.
+
+**Questions for him (step 5, his grid), waiting:**
+1. Grid size: one cell per map tile (uDead's 1.5 m cells), or coarser (2x2, 4x4 tiles)?
+2. The red target dots LEAD the zombies: how far ahead (cells or seconds), and do they move each step or only
+   when the target crosses a cell?
+3. Many targets: one dot per target, or one dot per cell however many targets stand in it?
+4. A* "pre-solved": a table of next steps from every cell to every cell (big for large maps), or only to the
+   cells where dots can be (doors, rooms)? Is a slightly longer path fine if it is much faster?
+5. Made once per map at level load (a pause), or saved in a file next to the map?
+
 ## Where we stand
 - **What runs:** `tools/play_xt3d.sh` starts Python with raylib (the `raylib` package: an OpenGL window via GLFW,
   shown by WSLg). `xtalk/stack/view.py` draws the card and feeds keys and mouse in LiveCode's terms; ImGui only

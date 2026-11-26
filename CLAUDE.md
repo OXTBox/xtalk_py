@@ -16,6 +16,9 @@ not useful to him.
   code"): `xtalk/fastgen.py` is the fast mode of the translator (handler variables as Python variables, numbers as
   floats); `XTALK_INTERP=1` runs the interpreter instead. The interpreter stays the shared rule set and the
   reference the fast mode is checked against (tests run every golden case both ways).
+- Native handlers (25 Nov, `xtalk/native/`): plain Python in place of xTalk handlers, tied to the xTalk they copy.
+  After a change there run `python3 -I tests/test_native.py` and `tools/frame_referee.py --run`; after the engine's
+  xt3d edition is generated again, `python3 -I tools/native_sigs.py` says which natives switched off.
 - The translator exists (24 Nov): `xtalk/transpile.py` + `xtalk/pyrt.py`. After any change to `xtalk/`, run BOTH
   `python3 -I tests/test_interp.py` and `python3 -I tests/test_transpile.py`; after a corpus sync or a library
   change, `python3 -I tools/translate.py --libs` (the test fails on stale `generated/` files). Never edit `generated/`.
