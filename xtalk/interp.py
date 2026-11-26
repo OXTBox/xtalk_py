@@ -595,7 +595,8 @@ class Interp:
         m = getattr(self, 'c_' + name, None)
         if m:
             return m(parts, fr)
-        vals = [(p[0], to_text(self.arg(p[1], fr)) if p[0] == 'e' else p[1]) for p in parts]
+        raw = name.lower() == 'dispatch'      # dispatch ... with an array: the array goes as it is
+        vals = [(p[0], (self.arg(p[1], fr) if raw else to_text(self.arg(p[1], fr))) if p[0] == 'e' else p[1]) for p in parts]
         self.result = to_text(self.host.command(name, vals) or '')
 
     def check_byref(self, name, kinds):

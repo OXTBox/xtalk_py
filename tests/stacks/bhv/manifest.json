@@ -1,0 +1,23 @@
+{
+ "format": "livecode-harvest",
+ "formatVersion": 2,
+ "mainStack": "xtB1",
+ "note": "hand-made test stack for tests/test_stack.py: harvested `behavior` properties (LIB_XTJSON writes the behavior of X, measured form button id N of stack \"S\"); Broken points at a missing button",
+ "stacks": [
+  {
+   "name": "xtB1",
+   "role": "main",
+   "file": "stack_xtB1.json",
+   "cards": 1,
+   "controls": 5
+  }
+ ],
+ "typeDefaults": {
+  "button": {
+   "visible": true,
+   "showName": true,
+   "style": "standard"
+  }
+ },
+ "errors": []
+}
