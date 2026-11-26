@@ -858,7 +858,7 @@ class View:
         if done == 'Cancel':
             return '', 'cancel'
         if sub in ('file', 'files', 'folder', 'folders'):
-            if self.rt.real_folders:                  # a real app: the real path (reading only; writes stay sandboxed)
+            if self.rt.real_folders:                  # a real folder: the real path (real_app also writes there)
                 return (text.rstrip('/') if sub.startswith('folder') else text) or '/', ''
             return self.rt.host.sandboxed(text), ''
         return text, ''

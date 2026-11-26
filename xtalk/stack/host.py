@@ -383,7 +383,7 @@ class StackHost(Host):
         path = command.strip().strip('"').replace('\\', '/')
         full = self.sandboxed(path)
         if not path.lower().endswith('.py') or full != os.path.abspath(path) or not os.path.isfile(full):
-            if self.rt.real_folders and self.rt.start_programs:
+            if getattr(self.rt, 'real_app', False) and self.rt.start_programs:
                 return self.windows_shell(command)
             raise XtError('shell: only a .py file in the stack\'s files folder is started (owner, 25 Nov): %s' % command)
         if not self.rt.start_programs:
@@ -1040,7 +1040,7 @@ class StackHost(Host):
                 rt.stop_using(st)
             return ''
         if name == 'create' and words[:1] == ['folder'] and es:
-            os.makedirs(self.sandboxed(self._path(es[0])), exist_ok=True)     # create folder: inside the sandbox
+            os.makedirs(self.write_path(self._path(es[0])), exist_ok=True)    # create folder (sandbox in tests)
             return ''
         if name == 'focus':                    # focus on field "F" / focus on nothing
             if not es or es[0].strip().lower() in ('nothing', ''):
@@ -1217,6 +1217,12 @@ class StackHost(Host):
             return '\n'.join(n for n in names if os.path.isfile(os.path.join(d, n)))
         return '\n'.join(['..'] + [n for n in names if os.path.isdir(os.path.join(d, n))])
 
+    def write_path(self, p):
+        """where a write to p goes: p itself in the owner's own window (rt.real_app), else the sandbox copy"""
+        if getattr(self.rt, 'real_app', False):
+            return os.path.abspath(self.real_path(p))
+        return self.sandboxed(p)
+
     def sandboxed(self, p):
         home = os.path.abspath(getattr(self, 'sandbox_root', None) or self.folders.get('home', 'run_files'))
         full = os.path.abspath(p) if not re.match(r'^[A-Za-z]:/|^[a-z]+:', p) else None
@@ -1242,7 +1248,7 @@ class StackHost(Host):
     def read_url(self, kind, ref):
         kind = self._kind(kind, ref)
         p = self._path(ref)
-        sp = self.sandboxed(p)                 # written here before: the sandbox copy is the file now (copy on
+        sp = self.write_path(p)                # written here before: the sandbox copy is the file now (copy on
         if os.path.exists(sp):                 # write), so `put x after URL "file:..."` adds instead of replacing
             p = sp
         if not os.path.exists(p):
@@ -1253,9 +1259,10 @@ class StackHost(Host):
         return open(p, encoding='utf-8', errors='replace').read()
 
     def write_url(self, kind, ref, text):
-        """writes stay in the sandbox (run_files): any other path is redirected under run_files/elsewhere/"""
+        """a real window writes the real file (owner 26 Nov: "as if they are real apps"); tests and surveys
+        write in the sandbox (run_files): any other path is redirected under run_files/elsewhere/"""
         kind = self._kind(kind, ref)
-        p = self.sandboxed(self._path(ref))
+        p = self.write_path(self._path(ref))
         d = os.path.dirname(p)
         if d:
             os.makedirs(d, exist_ok=True)

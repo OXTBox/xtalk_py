@@ -193,7 +193,7 @@ class ObjInterp(Runtime):
 
 
 class StackRuntime:
-    def __init__(self, folder, files_dir=None, real_folders=False, fast=None):
+    def __init__(self, folder, files_dir=None, real_folders=False, fast=None, real_app=False):
         try:                           # xt3d_... calls, when the raylib package is there (the .venv)
             from .. import xt3d
             xt3d.install()
@@ -210,11 +210,14 @@ class StackRuntime:
         self.host.folders = {'documents': os.path.join(files, 'Documents'), 'temporary': os.path.join(files, 'tmp'),
                              'desktop': os.path.join(files, 'Desktop'), 'home': files, 'resources': self.harvest.folder}
         self.host.sandbox_root = files     # every write goes in here, whatever the folders are
-        self.real_folders = real_folders
-        if real_folders:                   # a real window (an app): specialFolderPath and reading use the user's own
-            home = self.host.user_home()   # folders; writes still stay in the sandbox
+        self.real_folders = real_folders or real_app
+        self.real_app = real_app           # the owner's own window (open_stack, play): writes his real files, shell()
+                                           # runs through cmd.exe, the platform is Win32 (owner 26 Nov: real apps)
+        if self.real_folders:              # a real window: specialFolderPath and reading use the user's own folders;
+            home = self.host.user_home()   # writes too when real_app (checking tools: writes stay sandboxed)
             self.host.folders.update({'home': home, 'documents': os.path.join(home, 'Documents'),
                                       'desktop': os.path.join(home, 'Desktop'), 'pictures': os.path.join(home, 'Pictures')})
+        if real_app:
             self.host.platform = 'Win32'   # his stacks then take their Windows paths (shell(): cmd.exe, owner 26 Nov)
             src = linux_path(self.harvest.manifest.get('sourceFile', ''))
             if src and os.path.isfile(src) and self.harvest.main is not None and not getattr(self.harvest.main, 'filename', ''):
