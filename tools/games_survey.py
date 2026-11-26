@@ -154,6 +154,17 @@ def one(name, frames):
     except Exception as e:
         r['lit_pct'] = None
         r['picture'] = str(e)[:200]
+    try:                                 # games that draw with card controls (graphics, buttons) instead of the view
+        base = {'view', 'info', 'log', 'loadingveil'}
+        n_vis = 0
+        for o in rt.default_stack.current.flat():
+            if o.type in ('graphic', 'button', 'field', 'image') and o.name.lower() not in base \
+                    and str(o.props.get('visible', 'true')).lower() != 'false':
+                n_vis += 1
+        r['card_controls'] = n_vis
+    except Exception as e:
+        r['card_controls'] = None
+        r['controls_error'] = str(e)[:200]
     return r
 
 
@@ -197,7 +208,7 @@ def verdict(r):
         return 'CRASH'
     if r.get('errors') or r.get('load_errors'):
         return 'ERRORS'
-    if r.get('lit_pct') == 0:
+    if r.get('lit_pct') == 0 and not r.get('card_controls'):
         return 'BLACK'
     return 'ok'
 
@@ -230,9 +241,9 @@ def main(a):
     causes, games_of = collections.Counter(), collections.defaultdict(set)
     lines = ['games survey %s: %d games, %d frames' % (stamp, len(results), frames)]
     for r in results:
-        lines.append('\n==== %s  %s  frames %s  fps %s  step %s ms  scene %s ms  draw %s ms  lit %s%%' % (
+        lines.append('\n==== %s  %s  frames %s  fps %s  step %s ms  scene %s ms  draw %s ms  lit %s%%  card controls %s' % (
             r['game'], verdict(r), r.get('frames'), r.get('fps'), r.get('step_ms'), r.get('scene_ms'),
-            r.get('draw_ms'), r.get('lit_pct')))
+            r.get('draw_ms'), r.get('lit_pct'), r.get('card_controls')))
         for k in ('crash', 'timeout', 'closed_at', 'picture'):
             if r.get(k):
                 lines.append('  %s: %s' % (k, r[k]))
