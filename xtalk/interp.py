@@ -1106,7 +1106,10 @@ def f_param(it, fr, n):
     i = int(_n(n))
     return fr.args[i - 1] if 1 <= i <= len(fr.args) else ''
 
-def f_value(it, fr, text):
+def f_value(it, fr, text, obj=None):
+    """value(expr) here; value(expr, object): as if in that object's script (its handlers, its path)"""
+    if obj is not None and _t(obj) != '' and hasattr(it, 'value_in'):
+        return it.value_in(_t(text), _t(obj))
     return it.ev(parse_expr(_t(text)), fr)
 
 def f_random(it, fr, n):

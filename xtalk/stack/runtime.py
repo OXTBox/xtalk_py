@@ -45,6 +45,13 @@ class ObjInterp(Runtime):
         self.plain = rep['plain'] + rep['interpreted']
         self.install(py, '<%s>' % self.host.name_of(self.obj, 'long'))
 
+    def value_in(self, text, desc):
+        """value(expr, object) (Dictionary, not measured): the expression evaluated in that object's script"""
+        from ..parser import parse_expr
+        o = self.host.resolve(desc)
+        c = self.rt.ctx.get(id(o)) or ObjInterp(self.rt, o)
+        return c.ev(parse_expr(text), Frame([]))
+
     @property
     def HN(self):
         return self.rt.handler_names

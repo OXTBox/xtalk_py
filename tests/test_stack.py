@@ -597,6 +597,12 @@ check('the defaultStack is stack "Name"', rt.G['gr'], 'stack "xtM1"|true|xtM1|xt
 rt.run('global gR\nset the defaultStack to "xtM1"\nput the defaultStack into gR')
 check('set the defaultStack to a name: read back as stack "Name"', rt.G['gr'], 'stack "xtM1"')
 
+_g = os.path.join(ROOT, 'run_files', 'test', 'ValT.livecodescript')
+open(_g, 'w').write('script "ValT"\nfunction valOnly\n   return "vo:" & the short name of me\nend valOnly\n')
+rt.run('start using stack "%s"' % _g)
+rt.run('global gR\nput value("valOnly()", stack "ValT") into gR')
+check('value(expr, object): in that object\'s script', rt.G['gr'], 'vo:ValT')
+
 print('\n%d of %d stack checks pass' % (N[0] - len(BAD), N[0]))
 sys.exit(1 if BAD else 0)
 

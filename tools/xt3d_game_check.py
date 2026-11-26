@@ -157,6 +157,9 @@ def play(game, folder, w, h):
     card = rt.default_stack.children[0]
     info = rt.host.resolve('field "info"', must=False)
     stats, n, t1 = [], [0], [time.perf_counter()]
+    notes_file = os.path.join(ROOT, 'run_files', 'elsewhere') + os.path.expanduser('~/projects/LIB_LLMIN/LIB_GAMES/GAME_NOTES.txt')
+    notes_at = os.path.getsize(notes_file) if os.path.exists(notes_file) else 0   # GameNotes (` or F2) writes
+                                                  # there: the scripts' writes stay in run_files/elsewhere
 
     def report(why):
         dt = time.perf_counter() - t1[0]
@@ -171,7 +174,14 @@ def play(game, folder, w, h):
             print('caught by a try (%dx): %s' % (k, t[:700]))
         for e in rt.errors[:20]:
             print('script error:', *e)
-        print('script errors: %d' % len(rt.errors), flush=True)
+        print('script errors: %d' % len(rt.errors))
+        if os.path.exists(notes_file) and os.path.getsize(notes_file) > notes_at:
+            with open(notes_file, 'rb') as f:
+                f.seek(notes_at)
+                for line in f.read().decode('utf-8', 'replace').splitlines():
+                    if line.strip():
+                        print('his note:', line)
+        sys.stdout.flush()
 
     def closed():                                         # the close box, from any loop (View.after_frame)
         t = time.perf_counter()

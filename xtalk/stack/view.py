@@ -563,7 +563,8 @@ class View:
         busy = self.draw_panel()
         rl.end_drawing()
         self.after_frame()
-        if self.esc_frees and rl.is_key_pressed(rl.KEY_ESCAPE):   # play mode: Escape is the View's, not the game's
+        esc_mine = self.esc_frees and rt.focused is None   # play mode: Escape is the View's, not the game's
+        if esc_mine and rl.is_key_pressed(rl.KEY_ESCAPE):  # (typing in a field, e.g. GameNotes: the script's)
             self.freed = not self.freed
             if hasattr(rt, 'log_clicks'):
                 rt.log_clicks.append('key escape (%s)' % ('mouse and keys freed' if self.freed else 'back to the game'))
@@ -599,12 +600,12 @@ class View:
                 held.add(name)
         rt.keys_down = held | ({'altkey'} if 'optionkey' in held else set())
         rt.held_codes = [code for key, code in self.KEYCODES if rl.is_key_down(key)
-                         and not (code == 65307 and self.esc_frees)] + list(rt.test_keys)   # the keysDown
+                         and not (code == 65307 and esc_mine)] + list(rt.test_keys)   # the keysDown
                                                    # (test_keys: keys a check tool holds down, tools/xt3d_game_check.py)
         for key, code in self.KEYCODES:            # rawKeyDown (Raycasting_101: Esc / ` free the mouse)
             if rl.is_key_pressed(key):
                 if code == 65307:
-                    if self.esc_frees:            # play mode: Escape belongs to the View (above)
+                    if esc_mine:                  # play mode: Escape belongs to the View (above)
                         continue
                     if hasattr(rt, 'log_clicks'):
                         rt.log_clicks.append('key escape')
