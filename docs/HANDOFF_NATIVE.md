@@ -84,6 +84,28 @@ What was built:
    cells where dots can be (doors, rooms)? Is a slightly longer path fine if it is much faster?
 5. Made once per map at level load (a pause), or saved in a file next to the map?
 
+**His answers (26 Nov):**
+1. One grid cell per map tile, each cell the size of a character (the width of a leg stance in our stick-figure
+   world): uDead's 0.5 m cells (`kCellM`) already are that. Zombies and people must find their way in and out of
+   rooms through doors.
+2. The red dots do not lead ahead: one dot per zombie, at the point of target. A ground click = one red dot on the
+   ground; a person click = one red dot that follows the person (shows they are already a target); doors and
+   windows only got a colour shift, no dot.
+3. One dot per target, per click: several dots on one person show several zombies lead to it. In Rush the dot
+   appears on the target nearest the zombies.
+4. Only cells where zombies/people can really go were solved (no roofs, no cargo container tops): a height test
+   kept them off things; it limited map design but worked.
+5. Saved next to the level file: `LIB_LLMIN/AStarGrid.lua` (now in `LIB_LLMOUT/Read/`).
+
+**What the 2008 file is (read from `iGame3D_2026_CLAUDE/Data/Scripts/Games/RTS_Functions/RTS_astar.lua`):** not a
+table of paths but the walk graph. `setupAStarGrid` lays a grid (gGridSize 2 units) over the level's bounds;
+`createNodeGrid` casts rays straight down at each cell and keeps every floor it meets (several floors a cell; 250 =
+nothing below); a cell links to its 4 neighbours when three lines (0.1, 0.3, 0.65 up) and two side lines (0.25
+left/right) are clear and the step up is at most 0.30; cells within 0.25 of a wall lose their links.
+`flattenGrid` / `saveNodeGrid` write it as `flat_serialized_grid` (rcf 1 = new row, 2 = new column; `y`; `scs` =
+links as {row, column, floor}); the sample is 23 x 47 cells, 1868 floors. A* (`generateAStarPathBetweenPositions`)
+ran on demand over that graph. uDead's `sPass` + `sDoorAt` is the same graph for a flat map (one floor a cell).
+
 ## Where we stand
 - **What runs:** `tools/play_xt3d.sh` starts Python with raylib (the `raylib` package: an OpenGL window via GLFW,
   shown by WSLg). `xtalk/stack/view.py` draws the card and feeds keys and mouse in LiveCode's terms; ImGui only
