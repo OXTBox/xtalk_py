@@ -276,7 +276,13 @@ class View:
         rc = self.rect(o)
         if style in ('rectangle', 'roundrect'):
             if style == 'roundrect':
-                rnd = min(1.0, 20.0 / max(1, min(rc.width, rc.height)))
+                # roundRadius is the corner's diameter, held to half the width / height; default 15 (measured 26 Nov:
+                # LiveCode's corners are ellipses min(r/2, w/2) x min(r/2, h/2); raylib's are circles of the smaller)
+                try:
+                    rr = float(self.prop(o, 'roundRadius') or 15)
+                except ValueError:
+                    rr = 15.0
+                rnd = min(1.0, max(0.0, rr) / max(1, min(rc.width, rc.height)))
                 if filled:
                     rl.draw_rectangle_rounded(rc, rnd, 8, fill)
                 rl.draw_rectangle_rounded_lines_ex(rc, rnd, 8, lw, line)

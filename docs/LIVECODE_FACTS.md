@@ -225,6 +225,13 @@ standalone per library group.
   (size 24 in a size-12 field) stays 16. fixedLineHeight false: each line its font's own height: 10->15, 12->18,
   14->18, 18->26, 24->36; a size-24 line in a size-12 field makes that line 36 (we do not do this yet: one height a
   field).
+- **formattedHeight of a field** (measured 26 Nov, Segoe UI, sizes 11-14, 1-4 lines, margins 0 / 4 / 12 / "4,6,8,10"):
+  rows x line height - 8 + top margin + bottom margin (margins: one number for all four, or left,top,right,bottom).
+  Free line heights also measured: 11->15, 13->18. A size-11 line in a size-13 fixed field stays 17 high.
+  formattedWidth: the widest row + left + right margins (approximate; can exceed the field's width).
+- **roundRadius** (measured 26 Nov, pixels of an exported snapshot, antialiased false): it is the corner's DIAMETER;
+  each corner is an ellipse of min(r/2, width/2) x min(r/2, height/2). Default 15. Priority Tube sets it to the
+  bubble's height for a pill.
 - A handler parameter named like a script-level global is the parameter (the global is not read or changed:
   `ARG-`, global still `G`). `local g` in a handler below `global g` does not compile.
 - From memory (not measured): `rawKeyDown` gets the key code before keyDown (Esc 65307, backtick 96); `set the cursor

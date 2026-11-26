@@ -825,7 +825,16 @@ class StackRuntime:
             sbw = 16
         return size, self.line_height(o, size), m, scroll, sbw
 
-    FREE_LINE = {10: 15, 12: 18, 14: 18, 18: 26, 24: 36}   # Segoe UI, fixedLineHeight false (measured 25 Nov)
+    def field_margins(self, o):
+        """left, top, right, bottom: margins is one number for all four, or four items (default 8)"""
+        v = [x.strip() for x in str(self.host.obj_prop(o, 'margins') or '8').split(',')]
+        try:
+            n = [int(float(x)) for x in v]
+        except ValueError:
+            return 8, 8, 8, 8
+        return tuple(n) if len(n) == 4 else (n[0],) * 4
+
+    FREE_LINE = {10: 15, 11: 15, 12: 18, 13: 18, 14: 18, 18: 26, 24: 36}   # Segoe UI, fixedLineHeight false (measured 25 + 26 Nov)
 
     def line_height(self, o, size):
         """fixedLineHeight true (a new field): every line is the textHeight, floor(size * 4/3) unless set;

@@ -511,6 +511,16 @@ for _fixed in ('true', 'false'):
         rt.run('set the fixedLineHeight of field "LH" to %s\nset the textSize of field "LH" to %d' % (_fixed, _size))
         _lh.append(rt.field_metrics(rt.obj('field "LH"'))[1])
 check('line heights, fixed then free, sizes 10 12 14 18 24 (measured)', _lh, [13, 16, 18, 24, 32, 15, 18, 18, 26, 36])
+# formattedHeight (measured 26 Nov, Segoe UI): rows x line height - 8 + top margin + bottom margin
+_fh = []
+rt.run('set the width of field "LH" to 300\nset the fixedLineHeight of field "LH" to true')
+for _size, _m, _text in ((11, '0', 'one'), (11, '0', 'one\ntwo'), (13, '4', 'one\ntwo'), (12, '12', 'a\nb\nc\nd'),
+                         (12, '4,6,8,10', 'one\ntwo')):
+    _f = rt.obj('field "LH"')
+    rt.run('set the textSize of field "LH" to %d\nset the margins of field "LH" to "%s"' % (_size, _m))
+    _f.text = _text
+    _fh.append(rt.eval('the formattedHeight of field "LH"'))
+check('formattedHeight of a field: sizes, lines, margins (measured)', _fh, ['6', '20', '34', '80', '40'])
 
 # keysDown, rawKeyDown, globalLoc (a hidden window: window_pos 0,0, no mouse warp)
 rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
