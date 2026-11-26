@@ -570,7 +570,7 @@ class View:
                 rt.log_clicks.append('key escape (%s)' % ('mouse and keys freed' if self.freed else 'back to the game'))
             self.capture()
         if self.freed:                            # the game gets no mouse moves, clicks or keys; it plays on
-            rt.keys_down, rt.held_codes = set(), list(rt.test_keys)
+            rt.keys_down, rt.held_codes, rt.buttons_down = set(), list(rt.test_keys), set()
             rt.mouse_move(int(self.vmouse[0]), int(self.vmouse[1]))   # where the game last put it: no turning
             if rl.is_key_pressed(rl.KEY_F2):
                 self.panel = not self.panel
@@ -587,6 +587,7 @@ class View:
         else:
             m = rl.get_mouse_position()
             x, y = int(m.x), int(m.y)
+        rt.buttons_down = {b for b, k in (('2', 2), ('3', 1)) if rl.is_mouse_button_down(k)}   # mouse(3) = right
         rt.mouse_move(x, y)
         if not busy:
             if rl.is_mouse_button_pressed(0):

@@ -1034,6 +1034,8 @@ class Interp:
         if x is not None:                                      # xt3d_... (an extension's handler)
             return x(*args)
         f = BUILTINS.get(n)
+        if f is None and n == 'mouse' and args and hasattr(self.host, 'mouse_button'):
+            return self.host.mouse_button(args[0])             # mouse(3): the right button (Dictionary)
         if f is None and (not args or n == 'mouse'):          # mouseLoc() is the mouseLoc (measured 25 Nov)
             return self.e_prop(('prop', n), fr)
         if f is None:

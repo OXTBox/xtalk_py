@@ -471,6 +471,13 @@ class StackHost(Host):
         r = self.obj_prop(o, p)
         return r
 
+    def mouse_button(self, n):
+        """mouse(n): 1 left, 2 middle, 3 right -> down / up (the window sets rt.buttons_down)"""
+        n = str(n).strip()
+        if n in ('', '1'):
+            return 'down' if self.rt.button_down else 'up'
+        return 'down' if n in getattr(self.rt, 'buttons_down', ()) else 'up'
+
     def global_prop(self, p):
         rt = self.rt
         if p in self.TEMPLATES:            # the templateGraphic: names itself, resolve() finds it
