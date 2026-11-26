@@ -3,6 +3,9 @@
 
     .venv/bin/python -I tools/xt3d_game_check.py [GAME] [--frames N] [--keys "0:60,1:120"] [--snap OUT.png]
                                                  [--size 720x540] [--profile] [--eval 'expr;;expr']
+    .venv/bin/python -I tools/xt3d_game_check.py [GAME] --window [--size 720x540]
+                                                 a real window at 200,32 to play in; close it to stop
+                                                 (tools/play_xt3d.sh is the owner's command for this)
 
 GAME is a name in LIB_GAMES/Vibecode3D_Games (Vibecode3D_Play_<GAME>.livecodescript; default uDead_CullTest).
 The host is the bridge's testbench/xt3d_testBench_lib_mcp.livecodescript (read from the bridge, never changed),
@@ -50,6 +53,8 @@ def main(a):
             keys.append((int(at), key))
     folder = os.path.join(ROOT, 'run_files', 'xt3d_bench')
     make_stack(folder, w, h)
+    if '--window' in a:
+        return play(game, folder, w, h)
     from xtalk.interp import Interp
     Interp.CATCH_LOG = []                      # errors the scripts' own try caught: printed at the end
     from xtalk.stack import StackRuntime
@@ -123,6 +128,56 @@ def main(a):
     for o, e in rt.load_errors[:20]:
         print('does not compile:', o, e)
     print('%d frames in %.2f s (%.1f a second); saved %s' % (frames, dt, frames / dt, out))
+
+
+def play(game, folder, w, h):
+    """The owner's window: the game plays until he closes it; a report goes to the end of what is printed."""
+    if not os.environ.get('XTALK_KEEP_WAYLAND'):
+        os.environ['WAYLAND_DISPLAY'] = 'no-wayland'   # GLFW falls back to X11 under WSLg: placed at 200,32
+    from collections import Counter
+    from xtalk.interp import Interp
+    Interp.CATCH_LOG = []
+    from xtalk.stack import StackRuntime
+    from xtalk.stack.view import View
+    from xtalk.stack.view import rl
+    rt = StackRuntime(folder, real_folders=True)
+    rt.harvest.main.filename = HOST
+    rt.G['gxbviewrect'] = '0,0,%d,%d' % (w, h)
+    rt.log_clicks = []
+    v = View(rt)
+    rt.on_wait, rt.on_menu, rt.on_dialog = v.wait_frames, v.menu_frames, v.dialog_frames
+    rt.open()
+    card = rt.default_stack.children[0]
+    t0 = time.perf_counter()
+    rt.message(card, 'xbPlayGame', [game])
+    print('%s started in %.2f s (engine load included)' % (game, time.perf_counter() - t0), flush=True)
+    stats, n, t1 = [], 0, time.perf_counter()
+    while not rl.window_should_close() and not rt.closed:
+        v.frame()
+        n += 1
+        if n % 60 == 0:
+            try:
+                st = rt.ctx[id(rt.harvest.main)].invoke('xbGameStats', [])
+            except Exception as e:                        # noqa: BLE001
+                st = 'stats: %s' % e
+            stats.append(st)
+            print('frame %5d  %s' % (n, st), flush=True)
+    dt = time.perf_counter() - t1
+    try:
+        rt.message(card, 'xbStopGame')
+    except Exception as e:                                # noqa: BLE001
+        print('xbStopGame:', e)
+    v.close()
+    print('\n==== report ====')
+    print('%s: %d frames in %.0f s (%.1f a second on average)' % (game, n, dt, n / dt if dt else 0))
+    keys = Counter(c for c in rt.log_clicks if c.startswith('key '))
+    print('keys pressed:', ', '.join('%s x%d' % kv for kv in keys.most_common(20)) or 'none')
+    print('last stats:', stats[-1] if stats else 'none')
+    for t, k in Counter(Interp.CATCH_LOG).most_common(12):
+        print('caught by a try (%dx): %s' % (k, t[:700]))
+    for e in rt.errors[:20]:
+        print('script error:', *e)
+    print('script errors: %d' % len(rt.errors))
 
 
 if __name__ == '__main__':
