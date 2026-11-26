@@ -84,6 +84,7 @@ class View:
         # soft grab (WSL): raylib's disable_cursor needs the pointer warped back each frame, which WSLg does not
         # allow; instead the movement of the real pointer is counted (no grab; XTALK_HARD_GRAB=1 for the old way)
         self.soft_grab = 'microsoft' in os.uname().release.lower() and not os.environ.get('XTALK_HARD_GRAB')
+        self.other_down = {}           # right / middle button: the object it went down on
         self.look = {'right presses': 0, 'grabs': 0, 'moved x': 0, 'moved y': 0, 'frames grabbed': 0, 'recentre failed': 0}
         try:                           # soft grab: the pointer's movement times this (owner 25 Nov: not sensitive enough)
             self.look_speed = float(os.environ.get('XTALK_LOOK_SPEED', '2'))
@@ -657,6 +658,11 @@ class View:
             if rl.is_mouse_button_released(0):
                 rt.mouse_up(x, y, down_on=self.down_on)
                 self.down_on = None
+            for k, b in ((1, 3), (2, 2)):          # right = mouseDown 3, middle = 2 (Priority Tube's bubble menu)
+                if rl.is_mouse_button_pressed(k):
+                    self.other_down[b] = rt.mouse_down(x, y, b)
+                if rl.is_mouse_button_released(k):
+                    rt.mouse_up(x, y, b, down_on=self.other_down.pop(b, None))
         held = set()
         for key, name in ((rl.KEY_LEFT_SHIFT, 'shiftkey'), (rl.KEY_RIGHT_SHIFT, 'shiftkey'), (rl.KEY_LEFT_ALT, 'optionkey'),
                           (rl.KEY_LEFT_CONTROL, 'controlkey'), (rl.KEY_RIGHT_CONTROL, 'controlkey')):

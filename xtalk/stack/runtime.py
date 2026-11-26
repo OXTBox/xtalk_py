@@ -696,11 +696,14 @@ class StackRuntime:
     def mouse_down(self, x, y, button=1):
         self.mouse = (x, y)
         self._enter_leave()            # the mouse came here before it pressed
-        self.button_down = True
         o = self.control_at(x, y) or self.default_stack.current
-        self.pressed = o
         if hasattr(self, 'log_clicks'):
-            self.log_clicks.append('%s at %d,%d' % (self.host.name_of(o, 'short'), x, y))
+            self.log_clicks.append('%s at %d,%d%s' % (self.host.name_of(o, 'short'), x, y, '' if button == 1 else ' (button %s)' % button))
+        if button != 1:                # right / middle: only the message (no selecting, dragging or menu opening)
+            self.message(o, 'mouseDown', [str(button)])
+            return o
+        self.button_down = True
+        self.pressed = o
         last = self.last_down
         self.double = bool(last and last[0] is o and self.clock - last[1] <= 400 and abs(last[2] - x) <= 4 and abs(last[3] - y) <= 4)
         self.last_down = None if self.double else (o, self.clock, x, y)
@@ -740,6 +743,17 @@ class StackRuntime:
         return o
 
     def mouse_up(self, x, y, button=1, down_on=None):
+        if button != 1:                # right / middle: mouseUp (or mouseRelease off the object), nothing else
+            self.mouse_move(x, y)
+            if self.swallow_up:
+                self.swallow_up = False
+                return down_on
+            o = self.control_at(x, y) or self.default_stack.current
+            if down_on is not None and o is not down_on:
+                self.message(down_on, 'mouseRelease', [str(button)])
+            else:
+                self.message(o, 'mouseUp', [str(button)])
+            return o
         self.mouse_move(x, y)
         self.button_down = False
         self.pressed = None
