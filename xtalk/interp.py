@@ -799,7 +799,7 @@ class Interp:
             return h
         raise XtError('expression: unknown property "the %s"' % n)
 
-    MAY_BE_EMPTY = {'keysdown', 'pendingmessages', 'focusedobject', 'selection', 'selectedtext', 'selectedfield', 'selectedline', 'selectedchunk',
+    MAY_BE_EMPTY = {'keysdown', 'pendingmessages', 'frontscripts', 'backscripts', 'focusedobject', 'selection', 'selectedtext', 'selectedfield', 'selectedline', 'selectedchunk',
                     'target', 'mousecontrol', 'clicktext', 'clickline', 'clickchunk', 'clickfield', 'foundtext'}
 
     def e_idx(self, e, fr):
@@ -835,7 +835,10 @@ class Interp:
                 base = '%s id %s' % (typ, to_text(self.ev(ref[1], fr)))
             else:
                 v = to_text(self.ev(ref, fr))
-                base = '%s %s' % (typ, v if v.lstrip('-').isdigit() else '"%s"' % v)
+                if typ == 'stack' and v.startswith('stack "') and v.endswith('"'):
+                    base = v               # stack (the defaultStack): stack "X" names X (measured 26 Nov)
+                else:
+                    base = '%s %s' % (typ, v if v.lstrip('-').isdigit() else '"%s"' % v)
             if parent is not None:
                 base += ' of ' + (self.desc(parent, fr) if parent[0] == 'obj' else to_text(self.ev(parent[1], fr)))
             return base

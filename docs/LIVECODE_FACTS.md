@@ -267,8 +267,12 @@ standalone per library group.
   caseSensitive true, `a["x"]` is empty and `b["k"]`, `b["K"]` are two elements. `split` arrays too.
   The caseSensitive belongs to the handler like the itemDel (a called function sees false).
   Ours: values.XtArray. (The engine's SetObjectPosition stores ["X"], GetObjectPosition reads ["x"].)
-- (25 Nov) `the topStack` is `stack "Name"`; in the standalone `the defaultStack` also gave `stack "LIB_MCP"`
-  (ours still gives the bare name: not changed yet).
+- (25 Nov) `the topStack` is `stack "Name"`; in the standalone `the defaultStack` also gave `stack "LIB_MCP"`.
+  (26 Nov, measured again) `the short name of the defaultStack` = LIB_MCP; `the short name of "LIB_MCP"` (a bare
+  name) is an ERROR; `there is a stack t` with t = `stack "LIB_MCP"` is true. Ours now gives `stack "Name"` and
+  `stack t` accepts `stack "X"` (GameNotes' `this card of stack (the short name of the defaultStack)` needed it).
+- (26 Nov, the Dictionary, not measured) front scripts get engine messages before the object's path; back scripts
+  after the libraries. Ours: `insert script of X into front/back`, `remove script`, the frontScripts/backScripts.
 - (25 Nov) the date forms (US English Windows): 11/25/26 | Wednesday, November 25, 2026 | Wed, Nov 25, 2026 |
   5:35 PM | 5:35:01 PM | internet date Wed, 25 Nov 2026 17:35:01 -0800. `convert`: dateItems =
   y,m,d,h,min,s,weekday (1 = Sunday), overflow normalised (2026,11,40,25,0,0 -> 2026,12,11,1,0,0,6); a date alone
