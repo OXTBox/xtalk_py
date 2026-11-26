@@ -9,6 +9,7 @@ from . import chunks as ch                                    # noqa: F401  (use
 from .values import XtError, XtArray, to_text, to_num, to_bool, numstr, plain   # noqa: F401
 from .interp import (Interp, Frame, BUILTINS as B, EXTERNALS, CONST as K, Thrown, Break, Pass,   # noqa: F401
                      ExitRepeat, NextRepeat, _re_search)
+from .interp import split_value as rt_split_value, combine_value as rt_combine_value   # noqa: F401
 from .host import wildcard
 from .parser import parse_statements
 

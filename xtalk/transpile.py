@@ -14,7 +14,7 @@ kept as parsed xTalk and interpreted (the report counts those).
 import ast, re, warnings
 from .values import XtError
 from .parser import Parser, parse_expr, parse_statements, tokenize
-from .interp import CONST, BUILTINS, Interp
+from .interp import CONST, BUILTINS, Interp, split_form
 
 __all__ = ['translate_script', 'translate_expr', 'translate_statements', 'TranslateError']
 
@@ -501,6 +501,17 @@ class Gen:
         if not parts or parts[0][0] != 'e':
             raise TranslateError('do without code')
         self.emit(ind, 'rt.do_text(fr, to_text(%s))' % self.ex(parts[0][1]))
+
+    def c_split(self, parts, ind, fn='split_value'):
+        try:
+            target, mode, d1, d2 = split_form(parts)
+        except XtError:
+            raise TranslateError(fn[:-6] + ' form')
+        ds = ['None' if d is None else 'to_text(%s)' % self.ex(d) for d in (d1, d2)]
+        self.emit(ind, self.assign(target, 'rt_%s(%s, %r, %s, %s)' % (fn, self.ex(target), mode, ds[0], ds[1]), 'into'))
+
+    def c_combine(self, parts, ind):
+        self.c_split(parts, ind, 'combine_value')
 
     def c_filter(self, parts, ind):
         i, kind = 0, 'line'

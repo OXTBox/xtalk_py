@@ -288,3 +288,16 @@ standalone per library group.
   same after random() calls; the same seed gives the same random() numbers (12345: 226, 920). Ours did NOTHING
   with the randomSeed until 25 Nov night; now it rounds, reads back and seeds Python's random (same seed = same
   numbers every run, but not LiveCode's numbers: a run in Python and one in LiveCode never match draw for draw).
+
+## split / combine and `is among the keys` (measured 26 Nov 2026, LiveCode 9.6.3 standalone)
+- `split t by comma`: keys 1..n; ONE delimiter at the very end makes no empty last element ("a,b,," -> 3 elements,
+  the 3rd empty); "a,,b" -> 3. Empty text stays empty and is not an array. One piece ("x") -> an array of 1.
+- `split t by comma and "="`: key = the text before the first "=", value = the rest ("m=a=b" -> m: "a=b"); no "="
+  -> the key with an empty value; a key seen again takes the later value. ("A=1,a=2" gives 2 elements in LiveCode,
+  keys A and a, t["a"] = 1: not copied, our arrays fold case.)
+- `with` and `using` = `by`. `by row` = by return; `by column` = columns of tab-separated rows (t[2] = "y" & cr & "w").
+  `by comma as set`: each piece a key, the value true.
+- `combine a with comma`: elements in the KEYS' TEXT ORDER, any case: keys 1,2,10 -> 1,10,2; Alpha, beta, zeta.
+  `combine a by cr and "="`: key=value lines. Not an array -> empty. An element that is an array -> empty.
+- `x is among the keys of a` is true for a key (the keys are lines). `is among` with no chunk type (`is among "a,b"`,
+  `is among (the keys of a)`) does not compile in LiveCode.

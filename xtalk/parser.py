@@ -672,7 +672,8 @@ class Parser:
                         e = ('bin', 'in', l, self.p_cat())
                     elif w == 'among':
                         self.accept_word('the')
-                        which = self.accept_word('items', 'lines', 'words', 'chars') or 'items'
+                        which = self.accept_word('items', 'lines', 'words', 'chars') or \
+                            ('lines' if self.is_word('keys') else 'items')   # `is among the keys of a`: lines (measured 26 Nov)
                         self.accept_word('of')
                         e = ('bin', 'among' if which == 'items' else 'among_' + which, l, self.p_cat())
                     else:                                    # is a number / integer / ...

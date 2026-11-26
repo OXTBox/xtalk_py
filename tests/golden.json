@@ -241,7 +241,23 @@
   "put foo into tOut": "foo",
   "constant kN = 5\nput kN + 1 into tOut": "6",
   "put foo into y\ntry\n  add 1 to y\n  put y into tOut\ncatch e\n  put \"error\" into tOut\nend try": "error",
-  "set the numberFormat to \"0.00\"\nput 1/3 into x\nset the numberFormat to \"0.######\"\nput x & \"|\" & (x + 0) & \"|\" & (1/3) into tA\nset the numberFormat to \"0.00\"\nput 2/3 into y\nput y & \"|\" into tB\nset the numberFormat to \"0.######\"\nput tA & \"|\" & tB & y into tOut": "0.333333|0.333333|0.333333|0.67|0.666667"
+  "set the numberFormat to \"0.00\"\nput 1/3 into x\nset the numberFormat to \"0.######\"\nput x & \"|\" & (x + 0) & \"|\" & (1/3) into tA\nset the numberFormat to \"0.00\"\nput 2/3 into y\nput y & \"|\" into tB\nset the numberFormat to \"0.######\"\nput tA & \"|\" & tB & y into tOut": "0.333333|0.333333|0.333333|0.67|0.666667",
+  "put \"a,b,,\" into t\nsplit t by comma\nput the number of elements of t & \"|\" & t[1] & \"|\" & (3 is among the keys of t) into tOut": "3|a|true",
+  "put \"a,,b\" into t\nsplit t by comma\nput the number of elements of t & \"|\" & t[2] & \"|\" & t[3] into tOut": "3||b",
+  "put empty into t\nsplit t by comma\nput (t is an array) & \"|\" & (t is empty) into tOut": "false|true",
+  "put \"x\" into t\nsplit t by comma\nput (t is an array) & \"|\" & t[1] into tOut": "true|x",
+  "put \"k=1,k=2,j,=5,m=a=b\" into t\nsplit t by comma and \"=\"\nput the number of elements of t & \"|\" & t[\"k\"] & \"|\" & (\"j\" is among the keys of t) & \"|\" & t[\"\"] & \"|\" & t[\"m\"] into tOut": "4|2|true|5|a=b",
+  "put \"1;2\" into t\nsplit t using \";\"\nput t[2] into tOut": "2",
+  "put \"1,2\" into t\nsplit t with comma\nput t[2] into tOut": "2",
+  "put \"a,b,a\" into t\nsplit t by comma as set\nput the number of elements of t & \"|\" & t[\"a\"] into tOut": "2|true",
+  "put \"x\" & tab & \"y\" & return & \"z\" & tab & \"w\" into t\nsplit t by row\nput the number of elements of t & \"|\" & t[2] into tOut": "2|z\tw",
+  "put \"x\" & tab & \"y\" & return & \"z\" & tab & \"w\" into t\nsplit t by column\nput the number of elements of t & \"|\" & t[2] into tOut": "2|y\nw",
+  "put \"c\" into a[10]\nput \"b\" into a[2]\nput \"a\" into a[1]\ncombine a with comma\nput a into tOut": "a,c,b",
+  "put \"1\" into a[\"zeta\"]\nput \"2\" into a[\"Alpha\"]\nput \"3\" into a[\"beta\"]\ncombine a by cr and \"=\"\nput a into tOut": "Alpha=2\nbeta=3\nzeta=1",
+  "put \"a\" into t\ncombine t with comma\nput t & \"|\" & (t is an array) into tOut": "|false",
+  "put \"x\" into a[1]\nput \"y\" into a[2][\"deep\"]\ncombine a with comma\nput a into tOut": "x,",
+  "put \"a b c\" into t\nsplit t by space\nput t[3] & \"|\" & the number of elements of t into tOut": "c|3",
+  "put 1 into t[\"a\"]\nput 1 into t[\"b\"]\nput (\"b\" is among the keys of t) & \"|\" & (\"c\" is among the keys of t) & \"|\" & (\"b\" is not among the keys of t) into tOut": "true|false|false"
  },
  "lib": {
   "libraries/lib_bit.livecodescript": {

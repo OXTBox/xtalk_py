@@ -43,6 +43,85 @@ def rnd_half_away(x, places=0):
     return math.copysign(r / f, x) if r else 0
 
 
+
+def split_form(parts):
+    """split / combine <var> by|with|using <d1> [and <d2>] | by row | by column | [by <d>] as set
+    -> (target node, mode 'delim'|'row'|'column'|'set', d1 node or None, d2 node or None)"""
+    if not parts or parts[0][0] != 'e':
+        raise XtError('split: no variable')
+    target, rest = parts[0][1], parts[1:]
+    mode, d1, d2 = 'delim', None, None
+    if rest and rest[0][0] == 'w' and rest[0][1] in ('by', 'with', 'using') and len(rest) > 1 and rest[1][0] == 'e':
+        e = rest[1][1]
+        if e[0] == 'var' and e[1].lower() in ('row', 'column'):
+            mode = e[1].lower()
+        elif e[0] == 'bin' and e[1] == 'and':
+            d1, d2 = e[2], e[3]
+        else:
+            d1 = e
+        rest = rest[2:]
+    if rest and rest[0] == ('w', 'as') and len(rest) > 1 and rest[1][0] == 'e' and rest[1][1][0] == 'var' \
+            and rest[1][1][1].lower() == 'set':
+        mode = 'set'
+        rest = rest[2:]
+    if rest or (mode == 'delim' and d1 is None):
+        raise XtError('split: form not known')
+    return target, mode, d1, d2
+
+
+def _pieces(text, d):
+    """text cut at d; one delimiter at the very end makes no empty last piece (measured 26 Nov)"""
+    if d == '':
+        return list(text)
+    p = text.split(d)
+    if len(p) > 1 and p[-1] == '':
+        p.pop()
+    return p
+
+
+def split_value(v, mode, d1=None, d2=None):
+    """the value `split` leaves (LIVECODE_FACTS 26 Nov): empty text stays empty (not an array); keys 1..n;
+    by d1 and d2: key before the first d2, the rest the value, a key seen again takes the later value"""
+    text = to_text(v)
+    if text == '':
+        return ''
+    a = XtArray()
+    if mode == 'set':
+        for x in _pieces(text, '\n' if d1 is None else d1):
+            a[x] = 'true'
+        return a
+    if mode == 'row':
+        d1 = '\n'
+    if mode == 'column':
+        rows = [r.split('\t') for r in _pieces(text, '\n')]
+        for k in range(max(len(r) for r in rows)):
+            a[str(k + 1)] = '\n'.join(r[k] if k < len(r) else '' for r in rows)
+        return a
+    for i, x in enumerate(_pieces(text, d1)):
+        if d2 is None:
+            a[str(i + 1)] = x
+        else:
+            k, _, val = x.partition(d2)
+            a[k] = val
+    return a
+
+
+def combine_value(v, mode, d1=None, d2=None):
+    """the text `combine` leaves: keys in text order, any case (1, 10, 2); not an array: empty; an element
+    that is an array gives empty (measured 26 Nov)"""
+    if not isinstance(v, XtArray):
+        return ''
+    if mode in ('row', 'column'):
+        d1 = '\n'
+    keys = sorted(v.keys(), key=lambda k: (str(k).lower(), str(k)))
+
+    def el(k):
+        x = v[k]
+        return '' if isinstance(x, XtArray) else to_text(x)
+    if d2 is None:
+        return d1.join(el(k) for k in keys)
+    return d1.join(str(k) + d2 + el(k) for k in keys)
+
 class Interp:
     def __init__(self, script=''):
         self.handlers = {}
@@ -521,6 +600,16 @@ class Interp:
     def c_do(self, parts, fr):
         code = to_text(self.ev(parts[0][1], fr))
         self.exec_block(parse_statements(code), fr)
+
+    def c_split(self, parts, fr):
+        target, mode, d1, d2 = split_form(parts)
+        self.assign(target, split_value(self.ev(target, fr), mode, None if d1 is None else to_text(self.ev(d1, fr)),
+                                        None if d2 is None else to_text(self.ev(d2, fr))), 'into', fr)
+
+    def c_combine(self, parts, fr):
+        target, mode, d1, d2 = split_form(parts)
+        self.assign(target, combine_value(self.ev(target, fr), mode, None if d1 is None else to_text(self.ev(d1, fr)),
+                                          None if d2 is None else to_text(self.ev(d2, fr))), 'into', fr)
 
     def c_filter(self, parts, fr):
         # filter [lines|items of] <container> with|without <pattern> [into <container>]
