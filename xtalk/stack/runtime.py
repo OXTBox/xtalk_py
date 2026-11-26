@@ -33,6 +33,18 @@ OPEN_MESSAGES = ('preOpenStack', 'preOpenCard', 'openStack', 'openCard')   # in 
 PRECOMPILED = {}
 
 
+def linux_path(p):
+    """a Windows path a harvest recorded (//wsl$/Ubuntu/home/..., C:/...) as this machine's path; '' when unknown"""
+    p = str(p or '').replace('\\', '/')
+    m = re.match(r'(?i)^//(?:wsl\$|wsl\.localhost)/[^/]+(/.*)$', p)
+    if m:
+        return m.group(1)
+    m = re.match(r'^([A-Za-z]):(/.*)$', p)
+    if m:
+        return '/mnt/' + m.group(1).lower() + m.group(2)
+    return p if p.startswith('/') else ''
+
+
 def script_body(text):
     """a script-only stack's text without its first line (`script "Name"`)"""
     m = re.match(r'\s*script\s+"[^"\n]*"[^\n]*(\n|$)', text)
@@ -203,6 +215,9 @@ class StackRuntime:
             home = self.host.user_home()   # folders; writes still stay in the sandbox
             self.host.folders.update({'home': home, 'documents': os.path.join(home, 'Documents'),
                                       'desktop': os.path.join(home, 'Desktop'), 'pictures': os.path.join(home, 'Pictures')})
+            src = linux_path(self.harvest.manifest.get('sourceFile', ''))
+            if src and os.path.isfile(src) and self.harvest.main is not None and not getattr(self.harvest.main, 'filename', ''):
+                self.harvest.main.filename = src   # the stack's own file: its data files sit next to it (Project Map)
         self.host.default_folder = self.harvest.folder
         self.ctx = {}
         self.trans_cache = {}          # (behavior script, its label) -> (python, report, compiled): see ObjInterp._load_behavior
