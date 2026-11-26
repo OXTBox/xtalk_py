@@ -390,11 +390,12 @@ class View:
                     w = self.measure(o, piece, size, st)
                     if st[4] and not lit:
                         rl.draw_rectangle(int(x), int(y), int(w + 0.5), int(lh), colour(st[4]))
-                    col = rl.WHITE if lit else (colour(st[3]) if st[3] else fg)
+                    link = 'link' in st[0]     # a link: its own colour, else the linkColor; underlined (measured)
+                    col = rl.WHITE if lit else (colour(st[3]) if st[3] else colour(styled.LINK_COLOUR) if link else fg)
                     rsize = st[2] or size
                     ty = y + (st[5] or 0) + (lh - 2 - rsize * 4 / 3) / 2 + 1
                     self.text(o, piece, x, ty, col, size, st)
-                    if 'underline' in st[0]:
+                    if 'underline' in st[0] or link:
                         rl.draw_line(int(x), int(ty + rsize * 4 / 3), int(x + w), int(ty + rsize * 4 / 3), col)
                     if 'strikeout' in st[0]:
                         rl.draw_line(int(x), int(ty + rsize * 2 / 3 + 1), int(x + w), int(ty + rsize * 2 / 3 + 1), col)

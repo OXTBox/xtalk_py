@@ -769,8 +769,41 @@ class StackRuntime:
             return o
         if o.type == 'button':
             self._auto_hilite(o)
+        if o.type == 'field' and button == 1 and not self.double:
+            link = self.link_at(o, x, y)
+            if link is not None:       # a link in a locked field: linkClicked in place of mouseUp (measured 26 Nov)
+                self.message(o, 'linkClicked', [link])
+                return o
         self.message(o, 'mouseDoubleUp' if self.double else 'mouseUp', [str(button)])
         return o
+
+    def link_at(self, o, x, y):
+        """a click on linked text of a locked field: its linkText, else the link's own words; None: no link"""
+        if self.host.obj_prop(o, 'locktext') != 'true' or not o.styles:
+            return None
+        rows = self.field_rows(o)
+        r = self.row_at(o, y)
+        if not 0 <= r < len(rows):
+            return None
+        _, a, b = rows[r]
+        rel = x - (o.rect[0] + self.field_metrics(o)[2] / 2 + 2)
+        if rel < 0 or rel >= self.text_width(o, a, b):
+            return None                # beside the text: no link
+        p = a                          # the character under the point (not the caret's gap)
+        while p + 1 < b and self.text_width(o, a, p + 1) <= rel:
+            p += 1
+        n = len(o.text)
+        if p >= n or o.text[p] == '\n' or p >= len(o.styles):
+            return None
+        st = o.styles[p] or styled.PLAIN
+        if 'link' not in st[0]:
+            return None
+        a, b = p, p + 1                # the link: the characters around it with the same style
+        while a > 0 and o.styles[a - 1] == st:
+            a -= 1
+        while b < n and b < len(o.styles) and o.styles[b] == st:
+            b += 1
+        return st[6] or o.text[a:b]
 
     def _enter_leave(self):
         """mouseLeave to the control the mouse left, mouseEnter to the one it is in now

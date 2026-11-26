@@ -1,19 +1,20 @@
 """Styled field text: one style per character, read from and written to htmlText. Plain Python, no GUI.
 
-A style is a tuple (flags, face, size, colour, bgcolour, shift): flags a frozenset of bold / italic /
-underline / strikeout; face text; size int; colours (r, g, b); shift int (sub/sup). None = not set on the
-run (the field's own setting shows). A field with no styles has `styles` None.
+A style is a tuple (flags, face, size, colour, bgcolour, shift, linktext): flags a frozenset of bold /
+italic / underline / strikeout / link; face text; size int; colours (r, g, b); shift int (sub/sup); linktext
+text. None = not set on the run (the field's own setting shows). A field with no styles has `styles` None.
 The rules (tag order, entities, which style new text takes) were measured 26 Nov: docs/LIVECODE_FACTS.md.
 """
 import html.entities
 from html.parser import HTMLParser
 
-PLAIN = (frozenset(), None, None, None, None, None)
+PLAIN = (frozenset(), None, None, None, None, None, None)
 FLAG_TAGS = (('italic', 'i'), ('bold', 'b'), ('strikeout', 'strike'), ('underline', 'u'))   # outer to inner
 TAG_FLAGS = {'b': 'bold', 'strong': 'bold', 'i': 'italic', 'em': 'italic', 'u': 'underline',
              'strike': 'strikeout', 's': 'strikeout'}
 SLOT = {'textstyle': 0, 'textfont': 1, 'textsize': 2, 'textcolor': 3, 'foregroundcolor': 3, 'forecolor': 3,
-        'backgroundcolor': 4, 'backcolor': 4, 'textshift': 5}
+        'backgroundcolor': 4, 'backcolor': 4, 'textshift': 5, 'linktext': 6}
+LINK_COLOUR = (0, 0, 239)      # the effective linkColor of a new stack (measured 26 Nov)
 
 COLOR_NAMES = {'white': (255, 255, 255), 'black': (0, 0, 0), 'red': (255, 0, 0), 'green': (0, 255, 0),
                'blue': (0, 0, 255), 'yellow': (255, 255, 0), 'gray': (190, 190, 190), 'grey': (190, 190, 190),
@@ -49,13 +50,13 @@ def flags_of(text):
     out = set()
     for w in str(text).lower().split(','):
         w = w.strip()
-        if w in ('bold', 'italic', 'underline', 'strikeout'):
+        if w in ('bold', 'italic', 'underline', 'strikeout', 'link'):
             out.add(w)
     return frozenset(out)
 
 
 def flags_text(flags):
-    order = ('bold', 'italic', 'underline', 'strikeout')
+    order = ('bold', 'italic', 'underline', 'strikeout', 'link')
     return ','.join(f for f in order if f in flags)
 
 
@@ -112,6 +113,14 @@ class _Reader(HTMLParser):
                 st[3] = parse_colour(a['color']) or st[3]
             if a.get('bgcolor'):
                 st[4] = parse_colour(a['bgcolor']) or st[4]
+        elif tag == 'a':               # <a href="x">: a link, linkText x; <a>: a link; <a name="x">: linkText only
+            if 'href' in a:            # (measured 26 Nov)
+                st[0] = st[0] | {'link'}
+                st[6] = a['href'] or None
+            elif 'name' in a:
+                st[6] = a['name'] or None
+            else:
+                st[0] = st[0] | {'link'}
         elif tag in ('sub', 'sup'):
             try:
                 st[5] = int(a.get('shift', 4 if tag == 'sub' else -4))
@@ -193,9 +202,19 @@ def _font_tag(st):
     return ('font ' + ' '.join(attrs)) if attrs else None
 
 
+def _a_tag(st):
+    """<a href="x"> (link + linkText) / <a> (link) / <a name="x"> (linkText only): outside the font tag
+    (measured 26 Nov: <a href="remove"><font color="#FF8C8C">Remove it</font></a>)"""
+    lt = st[6] if len(st) > 6 else None
+    if 'link' in st[0]:
+        return 'a href="%s"' % lt if lt else 'a'
+    return 'a name="%s"' % lt if lt else None
+
+
 def _wanted(st):
-    """the tags a run needs, outer to inner when opened together: style tags, sub/sup, then font"""
-    out = [tag for flag, tag in FLAG_TAGS if flag in st[0]]
+    """the tags a run needs, outer to inner when opened together: a, style tags, sub/sup, then font"""
+    a = _a_tag(st)
+    out = ([a] if a else []) + [tag for flag, tag in FLAG_TAGS if flag in st[0]]
     if st[5]:
         out.append('%s shift="%d"' % ('sub' if st[5] > 0 else 'sup', st[5]))
     f = _font_tag(st)
@@ -244,7 +263,7 @@ def set_range(styles, n, s, e, prop, value):
         styles = [PLAIN] * n
     if slot == 0:
         v = flags_of(value)
-    elif slot in (1,):
+    elif slot in (1, 6):
         v = str(value) or None
     elif slot in (2, 5):
         try:
