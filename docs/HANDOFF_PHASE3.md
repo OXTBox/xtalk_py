@@ -1,6 +1,31 @@
 # Handoff: the next phase of the Pythonization
 
-## START HERE (after /clear; written 25 Nov 2026 late, system clock)
+## START HERE (Phase 3 under way; 25 Nov 2026 evening, system clock)
+**Branch `phase3-xt3d` (xtalk_py; NOT merged, NOT pushed).** The owner chose (25 Nov): run his testbench host
+script itself, its xt3d calls going through the generated mapping (not a Python host of our own).
+
+| Step | State | Where |
+|---|---|---|
+| 1 generate the mapping | DONE: 493 functions, generated on the `raylib` package (C names, cffi) | `tools/gen_xt3d_py.py` -> `xtalk/xt3d/generated.py` (never edit) |
+| handle tables | DONE: lowest free number, 0/freed = zeroed stand-in (as the shim) | `xtalk/xt3d/tables.py` |
+| 2 the 43 helpers + the two LCB-only frame handlers | DONE (SetTraceLogFile: file opens, raylib's lines don't reach it) | `xtalk/xt3d/helpers.py` |
+| 3 hook | DONE: `interp.EXTERNALS`, found after the script's handlers, as function or command (value -> the result), interpreted + translated + fast | interp.py, pyrt.py |
+| 4 where it draws | image mode DONE: `set the imageData of image` makes a texture (view.pixel_texture); the stack window IS raylib's window (xt3d CloseWindow leaves it open). Whole-window game mode: not yet | view.py, host.py |
+| 5 targets | view demo RUNS unchanged (~60 fps, snapshot right); next the testbench host, then uDead | `tools/xt3d_view_check.py` |
+| 6 referee | `tools/xt3d_golden.py` asks the real bridge (the xt3d bench standalone, `tools/bench` in the bridge, port 8768) -> `tests/xt3d_golden.json`; `.venv/bin/python tests/test_xt3d.py` 248/248 | |
+
+Measured against the real bridge (LIVECODE_FACTS end): a number parameter cuts fractions toward zero, an empty
+argument is an error, negative for unsigned is an error, int results are signed 32-bit. Known difference: Version
+says raylib 6.5-dev (the Python package is built from it; the DLL from 6.2).
+Bug found on the way: raylib's Matrix struct declares m0, m4, m8, m12, m1...: matrices go by field name (MX).
+Parser fixes on the way (each measured): comment after a continuing `\`; `there is no X`; `then` on the next line.
+Corpus 41,176 handlers to Python (was 41,145), none worse. Survey identical.
+
+Next: harvest the testbench stack (`testbench/xt3d_Bench_LibMCP.livecode`, `lcmcp harvest`), run its host
+script with the generated engine `vibe_engine_xt3d` (10k lines: the load + speed test), then uDead CullTest
+(whole-window mode). Profile per tick, then cProfile by own time.
+
+## Earlier START HERE (written 25 Nov 2026 late, system clock)
 **Phase 2 is finished and Phase 3 starts now: xt3d on Python raylib, first game uDead CullTest** (owner's word).
 
 - **Merged and pushed (owner: "merge and push what we've done").** Branches `phase2-thorough` and
