@@ -105,6 +105,11 @@ class ObjInterp(Runtime):
 
 class StackRuntime:
     def __init__(self, folder, files_dir=None, real_folders=False, fast=None):
+        try:                           # xt3d_... calls, when the raylib package is there (the .venv)
+            from .. import xt3d
+            xt3d.install()
+        except ImportError:
+            pass
         self.fast = (os.environ.get('XTALK_INTERP', '') != '1') if fast is None else fast
         self.harvest = Harvest(os.path.expanduser(folder))
         self.default_stack = self.harvest.main

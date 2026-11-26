@@ -28,7 +28,7 @@ CONSTANTS = {'empty', 'true', 'false', 'space', 'comma', 'return', 'cr', 'lf', '
              'five', 'six', 'seven', 'eight', 'nine', 'ten', 'formfeed'}
 TOKEN = re.compile(r'''
     (?P<ws>[ \t\r]+)
-  | (?P<cont>\\[ \t\r]*\n)
+  | (?P<cont>\\[ \t\r]*(?:(?:--|\#|//)[^\n]*|/\*[^\n]*?\*/[ \t\r]*)?\n)   # a comment may follow \ (measured)
   | (?P<block>/\*.*?\*/)
   | (?P<comment>(--|\#|//)[^\n]*)
   | (?P<nl>\n)
@@ -463,8 +463,19 @@ class Parser:
 
     def st_if(self):
         cond = self.expr()
-        self.accept_word('then')
+        self.accept_then()
         return self.if_rest(cond)
+
+    def accept_then(self):
+        """`then` ends the condition's line, or starts the next one (HyperCard style, measured 25 Nov:
+        `if x is empty` / `then put 1 into y` / `else put 2 into y`)"""
+        if self.accept_word('then'):
+            return
+        j = self.i
+        while self.t[j][0] == 'nl':
+            j += 1
+        if j > self.i and self.t[j][0] == 'id' and self.t[j][1].lower() == 'then':
+            self.i = j + 1
 
     def if_rest(self, cond):
         if self.peek()[0] == 'nl':                         # block form
@@ -474,7 +485,7 @@ class Parser:
                 if self.is_word('if'):
                     self.i += 1
                     c2 = self.expr()
-                    self.accept_word('then')
+                    self.accept_then()
                     els = [self.if_rest(c2)]
                     return ('if', cond, then, els)
                 if self.peek()[0] == 'nl':
@@ -736,7 +747,7 @@ class Parser:
             return ('url', w, self.primary())
         if w == 'there' and self.is_word('is'):
             self.i += 1
-            neg = bool(self.accept_word('not'))
+            neg = bool(self.accept_word('not', 'no'))    # there is no image "x" (measured: = there is not a)
             self.accept_word('a', 'an')
             return ('exists', self.obj_ref(), neg)
         if (w in OBJTYPES or (w == 'this' and self.peek()[0] == 'id' and self.peek()[1].lower() in OBJTYPES)) \

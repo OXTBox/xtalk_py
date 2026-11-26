@@ -25,6 +25,19 @@ def xt3d_Version(*a):
                                      else rl.RAYLIB_VERSION)
 
 
+# ---- the window. In the stack runtime the stack's own window is raylib's window (HOST['view'] set by the
+# view): a script's InitWindow / InitHidden find it ready and do nothing, as the shim does, and its
+# CloseWindow must not close the stack, so it does nothing there either.
+HOST = {'view': None}
+
+
+def xt3d_CloseWindow(*a):
+    if HOST['view'] is not None or not ready():
+        return ''
+    rl.CloseWindow()
+    return ''
+
+
 def xt3d_InitHidden(*a):
     a = _pad(a, 3)
     if ready():                     # a second InitWindow would orphan every GPU resource

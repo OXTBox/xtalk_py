@@ -61,9 +61,15 @@ class View:
             rl.set_window_position(*pos)
         rl.set_exit_key(0)
         rl.set_target_fps(60)
+        try:                           # xt3d scripts draw with this window; their CloseWindow must not close it
+            from ..xt3d import helpers as xt3d_helpers
+            xt3d_helpers.HOST['view'] = self
+        except ImportError:
+            pass
         self.fonts = {}
         self.textures = {}
         self.icons = {}                # (stack, icon value) -> the image it names
+        self.pixels = {}               # id(image) -> (its imageData text, texture): pictures set by script
         self.menu = None               # a menu being shown: {'items', 'x', 'y', 'pick', 'opened', 'done'}
         self.dialog = None             # an answer/ask being shown
         self.down_on = None
@@ -393,7 +399,35 @@ class View:
             if show:
                 self.text(o, label, rc.x + rc.width + 2, y, rl.BLACK, 11)
 
+    def pixel_texture(self, o):
+        """an image whose imageData a script set: a texture of those pixels, made again only when the text
+        changes (an xt3d view sets a new frame every tick). Text that does not fit the rect is not drawn."""
+        data = o.imagedata
+        w, h = int(o.rect[2] - o.rect[0]), int(o.rect[3] - o.rect[1])
+        old = self.pixels.get(id(o))
+        if old is not None and old[0] is data:
+            return old[1]
+        if w <= 0 or h <= 0 or len(data) != w * h * 4:
+            return old[1] if old is not None else None
+        src = data.encode('latin-1', 'replace')
+        rgba = bytearray(w * h * 4)
+        rgba[0::4], rgba[1::4], rgba[2::4] = src[1::4], src[2::4], src[3::4]
+        alpha = getattr(o, 'alphadata', None)
+        rgba[3::4] = alpha.encode('latin-1', 'replace') if alpha is not None and len(alpha) == w * h else b'\xff' * (w * h)
+        tex = old[1] if old is not None and old[1].width == w and old[1].height == h else None
+        if tex is None:
+            if old is not None:
+                rl.unload_texture(old[1])
+            img = rl.gen_image_color(w, h, rl.BLACK)
+            tex = rl.load_texture_from_image(img)
+            rl.unload_image(img)
+        rl.update_texture(tex, rl.ffi.cast('void *', rl.ffi.from_buffer(rgba)))
+        self.pixels[id(o)] = (data, tex)
+        return tex
+
     def texture(self, o):
+        if getattr(o, 'imagedata', None) is not None:
+            return self.pixel_texture(o)
         fn = str(self.prop(o, 'fileName') or '')
         if fn:                                    # set the fileName of image: the picture comes from that file
             full = self.rt.host.real_path(fn)

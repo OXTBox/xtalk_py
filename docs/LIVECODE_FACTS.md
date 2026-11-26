@@ -252,3 +252,9 @@ standalone per library group.
 - An unset variable is its own name, and a copy of it is plain text: `put foo into y; put "bar" after y` -> foobar;
   `add 1 to y` then fails. A `local y` line AFTER y was used is a compile error in LiveCode (we accept it: open).
 - A `constant kN = 5` line inside a handler works there: `put kN + 1` -> 6.
+- (25 Nov, Phase 3) A comment may follow the `\` that continues a line: `put 1 & \   -- c`, `\ # c`, `\ // c` and
+  `\ /* c */` all compile and give 12 / 34 / 56 / 78 (the xt3d view demo has `& \   -- lint-ok: ...`).
+- (25 Nov, Phase 3, the real xt3d bridge: tests/xt3d_golden.json) An LCB handler's number parameter cuts a fraction
+  toward zero (2.7 -> 2, -2.7 -> -2); an empty argument is an error (899); a negative number for an unsigned one is
+  an error (863); a CInt result is signed (`xt3d_ColorToInt(255,0,0,255)` = -16776961). As a command, its value
+  goes into the result.

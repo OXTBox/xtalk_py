@@ -441,6 +441,8 @@ class StackHost(Host):
                 return next((v for k, v in s.items() if k.lower() == key.lower()), '')
             arr = next((v for k, v in o.custom.items() if k.lower() == p), None)
             return arr.get(key, '') if isinstance(arr, dict) else ''
+        if p in ('imagedata', 'alphadata') and o.type == 'image' and getattr(o, p, None) is not None:
+            return getattr(o, p)
         r = self.obj_prop(o, p)
         return r
 
@@ -465,6 +467,8 @@ class StackHost(Host):
             return str(rt.mouse[0 if p == 'mouseh' else 1])
         if p == 'mouse':                   # the mouse / mouse(1): up or down
             return 'down' if rt.button_down else 'up'
+        if p in ('screenpixelscale', 'screenpixelscales'):   # WSLg draws our window unscaled: one unit, one pixel
+            return '1'
         if p == 'screenrect':
             return '0,0,1536,864'
         if p == 'mainstacks':
@@ -640,6 +644,11 @@ class StackHost(Host):
             return
         if p == 'custompropertyset':
             o.cps = str(value)
+            return
+        if p in ('imagedata', 'alphadata') and o.type == 'image':
+            # the picture's pixels as text (4 bytes a pixel: unused, r, g, b; rows from the top); the window
+            # makes a texture of it when it draws (an xt3d frame each tick: xt3d_RenderTextureImageData)
+            setattr(o, p, value if isinstance(value, str) else str(value))
             return
         if p == 'script':
             self.rt.set_script(o, str(value))
