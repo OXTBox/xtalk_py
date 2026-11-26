@@ -1201,6 +1201,9 @@ class StackHost(Host):
     def read_url(self, kind, ref):
         kind = self._kind(kind, ref)
         p = self._path(ref)
+        sp = self.sandboxed(p)                 # written here before: the sandbox copy is the file now (copy on
+        if os.path.exists(sp):                 # write), so `put x after URL "file:..."` adds instead of replacing
+            p = sp
         if not os.path.exists(p):
             return ''
         if kind == 'binfile':                  # one char a byte (measured 25 Nov: a 6-byte UTF-8 file is 6 long)

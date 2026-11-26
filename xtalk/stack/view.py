@@ -126,7 +126,7 @@ class View:
         wx, wy = self.rt.window_pos
         if str(self.rt.props.get('lockcursor', '')).lower() == 'true':
             self.warped = (x - wx, y - wy)
-        if self.captured:
+        if self.captured or self.freed:       # freed (Escape in play mode): the real pointer is his alone
             self.vmouse = (x - wx, y - wy)
             return
         rl.set_mouse_position(int(x - wx), int(y - wy))
@@ -571,6 +571,7 @@ class View:
             self.capture()
         if self.freed:                            # the game gets no mouse moves, clicks or keys; it plays on
             rt.keys_down, rt.held_codes = set(), list(rt.test_keys)
+            rt.mouse_move(int(self.vmouse[0]), int(self.vmouse[1]))   # where the game last put it: no turning
             if rl.is_key_pressed(rl.KEY_F2):
                 self.panel = not self.panel
             rt.tick(min(rl.get_frame_time() * 1000, 100), budget=0.02)

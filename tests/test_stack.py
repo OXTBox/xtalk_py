@@ -603,6 +603,14 @@ rt.run('start using stack "%s"' % _g)
 rt.run('global gR\nput value("valOnly()", stack "ValT") into gR')
 check('value(expr, object): in that object\'s script', rt.G['gr'], 'vo:ValT')
 
+# put after / before URL adds to the file (GameNotes' notes); a read sees the sandbox copy once written
+_u = os.path.join(ROOT, 'run_files', 'test', 'url_after.txt')
+if os.path.exists(_u):
+    os.remove(_u)
+rt.run('put "one" & cr after URL ("file:%s")\nput "two" & cr after URL ("file:%s")\nput "zero" & cr before URL ("file:%s")'
+       % (_u, _u, _u))
+check('put after / before URL', rt.eval('URL ("file:%s")' % _u), 'zero\none\ntwo\n')
+
 print('\n%d of %d stack checks pass' % (N[0] - len(BAD), N[0]))
 sys.exit(1 if BAD else 0)
 

@@ -667,9 +667,17 @@ class Interp:
             self.host.set_prop(self.desc(target[2], fr), target[1], to_text(value))
             return
         if k == 'url':
-            self.host.write_url(target[1], to_text(self.ev(target[2], fr)), to_text(value))
+            self.put_url(target[1], to_text(self.ev(target[2], fr)), value, mode)
             return
         raise XtError("put: can't put into that")
+
+    def put_url(self, kind, ref, value, mode):
+        """put x into / after / before URL ("file:..."): after and before add to what the file holds"""
+        v = to_text(value)
+        if mode in ('after', 'before'):
+            cur = to_text(self.host.read_url(kind, ref))
+            v = cur + v if mode == 'after' else v + cur
+        self.host.write_url(kind, ref, v)
 
     def put_obj(self, desc, value, mode='into'):
         """put into a field (or any object): its text. mode 'keep': the new whole text from a chunk put

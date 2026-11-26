@@ -151,7 +151,7 @@ def play(game, folder, w, h):
     rt.G['gxbviewrect'] = '0,0,%d,%d' % (w, h)
     rt.log_clicks = []
     test = dict(x.split(':') for x in os.environ.get('XTALK_PLAY_TEST', '').split(',') if ':' in x)
-    v = View(rt, hidden=bool(test))      # XTALK_PLAY_TEST="note:100,close:300": a hidden check of this path
+    v = View(rt, hidden=bool(test))      # XTALK_PLAY_TEST="note:100;150,close:300" (or end:300): a hidden check
     rt.on_wait, rt.on_menu, rt.on_dialog = v.wait_frames, v.menu_frames, v.dialog_frames
     v.esc_frees = True
     rt.open()
@@ -159,8 +159,12 @@ def play(game, folder, w, h):
     info = rt.host.resolve('field "info"', must=False)
     stats, n, t1, slow = [], [0], [time.perf_counter()], [0.0]
     notes_file = os.path.join(ROOT, 'run_files', 'elsewhere') + os.path.expanduser('~/projects/LIB_LLMIN/LIB_GAMES/GAME_NOTES.txt')
-    notes_at = os.path.getsize(notes_file) if os.path.exists(notes_file) else 0   # GameNotes (` or F2) writes
-                                                  # there: the scripts' writes stay in run_files/elsewhere
+    real_notes = os.path.expanduser('~/projects/LIB_LLMIN/LIB_GAMES/GAME_NOTES.txt')
+    notes_before = ''                             # GameNotes (`) writes there: the scripts' writes stay in
+    for f in (notes_file, real_notes):            # run_files/elsewhere (a copy of the real file, then the notes)
+        if os.path.exists(f):
+            notes_before = open(f, encoding='utf-8', errors='replace').read()
+            break
 
     def report(why):
         dt = time.perf_counter() - t1[0]
@@ -177,12 +181,11 @@ def play(game, folder, w, h):
         for e in rt.errors[:20]:
             print('script error:', *e)
         print('script errors: %d' % len(rt.errors))
-        if os.path.exists(notes_file) and os.path.getsize(notes_file) > notes_at:
-            with open(notes_file, 'rb') as f:
-                f.seek(notes_at)
-                for line in f.read().decode('utf-8', 'replace').splitlines():
-                    if line.strip():
-                        print('his note:', line)
+        after = open(notes_file, encoding='utf-8', errors='replace').read() if os.path.exists(notes_file) else ''
+        new = after[len(notes_before):] if after.startswith(notes_before) else after
+        for line in new.splitlines():
+            if line.strip():
+                print('his note:', line)
         sys.stdout.flush()
 
     def closed():                                         # the close box, from any loop (View.after_frame)
@@ -197,13 +200,15 @@ def play(game, folder, w, h):
     t1[0] = time.perf_counter()
     while not rt.closed:
         tf = time.perf_counter()
-        if test.get('note') == str(n[0]):                # the owner's note: ` , a line, Return
+        if str(n[0]) in test.get('note', '').split(';'):   # the owner's note: ` , a line, Return (note:100;150)
             rt.raw_key(96)
-            for ch in 'a note from the play test':
+            for ch in 'a note from the play test at frame %d' % n[0]:
                 rt.key(ch)
             rt.special_key('return')
         if test.get('close') == str(n[0]):               # as if the close box was clicked
             rl.window_should_close = lambda: True
+        if test.get('end') == str(n[0]):                 # as if the game ended itself
+            rt.message(card, 'xbGameEnded')
         v.frame()
         slow[0] = max(slow[0], time.perf_counter() - tf)
         n[0] += 1

@@ -191,7 +191,7 @@ class Gen:
         if k == 'propof':
             return 'rt.host.set_prop(%s, %s, to_text(%s))' % (self.desc(t[2]), _r(t[1]), v)
         if k == 'url':
-            return 'rt.host.write_url(%s, to_text(%s), to_text(%s))' % (_r(t[1]), self.ex(t[2]), v)
+            return 'rt.put_url(%s, to_text(%s), %s, %s)' % (_r(t[1]), self.ex(t[2]), v, _r(mode))
         return 'rt.cant_put(%s)' % v
 
     # ------------------------------------------------------------ statements
