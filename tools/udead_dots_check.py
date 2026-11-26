@@ -6,7 +6,7 @@ GAME: uDead_CullTest (default) or uDead. A hidden window plays the game on the b
 screen (and hiding mode --mode, a key) it checks, each in the game's own image "view" (never the screen):
   1. three real clicks = three zombies sent to one cell: one shared map ("Oc..."), three dots;
   2. ground: a zombie sent to another zombie's spot, the camera 1.6 m off it: red pixels before / after;
-  3. person: one zombie sent at a living person, the camera looking up at their head: red pixels before / after,
+  3. person: one zombie sent at a living person, the camera looking down at their feet: red pixels before / after,
      and the person's map made again when they move a cell;
   4. door: one zombie sent at door 1 (as a door click does): the door's red pixels before / after.
 Orders 2-4 are written into the game's state (the camera aims at no particular thing in a test).
@@ -131,11 +131,11 @@ def main(a):
     check('ground dot shows', after > before, 'red pixels %d -> %d' % (before, after))
     clear_orders()
     step(3)
-    # 3. person: the camera 1.6 m off, looking up at the head
+    # 3. person: the camera 1.6 m off, looking down at the feet
     hs = [p for p in str(S['sh']).split(NL) if p and str(se[p]['state']) == 'alive']
     p = hs[0]
     px, pz = num(se[p]['x']), num(se[p]['z'])
-    place(px, pz - 1.6, 0, math.atan2(2.05 - 1.15, 1.6))
+    place(px, pz - 1.6, 0, -math.atan2(1.15, 1.6))
     step(3)
     before = red()
     zs = free_zombies()[:2]
