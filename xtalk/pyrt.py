@@ -7,7 +7,7 @@ a translated handler may `do` a string, and an interpreted one may call a transl
 import warnings
 from . import chunks as ch                                    # noqa: F401  (used by generated code)
 from .values import XtError, to_text, to_num, to_bool, numstr, plain   # noqa: F401
-from .interp import (Interp, Frame, BUILTINS as B, CONST as K, Thrown, Break, Pass,   # noqa: F401
+from .interp import (Interp, Frame, BUILTINS as B, EXTERNALS, CONST as K, Thrown, Break, Pass,   # noqa: F401
                      ExitRepeat, NextRepeat, _re_search)
 from .host import wildcard
 from .parser import parse_statements
@@ -85,6 +85,9 @@ class Runtime(Interp):
                 if i < len(setters) and setters[i] is not None and setters[i][0] in ASSIGNABLE_BYREF_FN:
                     setters[i][1](v)
             return r
+        x = EXTERNALS.get(n)
+        if x is not None:                          # xt3d_... (an extension's handler)
+            return x(*args)
         f = B.get(n)
         if f is None and (not args or n == 'mouse'):   # mouseLoc() is the mouseLoc (measured 25 Nov)
             return self.e_prop(('prop', n), fr)
@@ -113,6 +116,10 @@ class Runtime(Interp):
             r = self.invoke(name, vals)
             self.result = r if isinstance(r, str) else ''
             return self.refs
+        x = EXTERNALS.get(name.lower())
+        if x is not None:                          # an extension's handler as a command: its value is the result
+            self.result = to_text(x(*vals))
+            return None
         it = iter(vals)
         parts = [('e', to_text(next(it))) if w is None else ('w', w) for w in words]
         self.result = to_text(self.host.command(name, parts) or '')
@@ -129,6 +136,10 @@ class Runtime(Interp):
                 if i < len(setters) and setters[i] is not None and setters[i][0] in ASSIGNABLE_BYREF_CMD:
                     setters[i][1](v)
             return
+        x = EXTERNALS.get(name.lower())
+        if x is not None:                          # an extension's handler as a command: its value is the result
+            self.result = to_text(x(*vals))
+            return None
         it = iter(vals)
         parts = [('e', to_text(next(it))) if w is None else ('w', w) for w in words]
         self.result = to_text(self.host.command(name, parts) or '')

@@ -466,6 +466,10 @@ class Interp:
                 if i < len(nodes) and nodes[i][0] in ('var', 'idx', 'chunk'):
                     self.assign(nodes[i], v, 'into', fr)
             return
+        x = EXTERNALS.get(name.lower())
+        if x is not None:                       # an extension's handler as a command: its value is the result
+            self.result = to_text(x(*[self.ev(p[1], fr) for p in parts if p[0] == 'e']))
+            return
         m = getattr(self, 'c_' + name, None)
         if m:
             return m(parts, fr)
@@ -982,6 +986,9 @@ class Interp:
                 if i < len(e[2]) and e[2][i][0] in ('var', 'idx'):
                     self.assign(e[2][i], v, 'into', fr)
             return r
+        x = EXTERNALS.get(n)
+        if x is not None:                                      # xt3d_... (an extension's handler)
+            return x(*args)
         f = BUILTINS.get(n)
         if f is None and (not args or n == 'mouse'):          # mouseLoc() is the mouseLoc (measured 25 Nov)
             return self.e_prop(('prop', n), fr)
@@ -1127,6 +1134,10 @@ def f_baseconvert(it, fr, num, frm, to):
         out = digits[n % b] + out
         n //= b
     return out
+
+# handlers of extensions (xt3d: xtalk/xt3d install()s them): lower-case name -> function(*values) -> text.
+# Found after the script's own handlers, before the built-in functions and the host's commands.
+EXTERNALS = {}
 
 BUILTINS = {
     'baseconvert': f_baseconvert,
