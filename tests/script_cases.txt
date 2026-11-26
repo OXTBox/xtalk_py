@@ -502,3 +502,17 @@ put t[3] & "|" & the number of elements of t into tOut
 put 1 into t["a"]
 put 1 into t["b"]
 put ("b" is among the keys of t) & "|" & ("c" is among the keys of t) & "|" & ("b" is not among the keys of t) into tOut
+----
+put 1 into a[1]
+put (a is empty) & "|" & (a is not empty) & "|" & (a = empty) & "|" & (a is "x") & "|" & (a <> empty) & "|" & (a & "x") & "|" & the length of a into tOut
+----
+put 1 into a[1]
+delete variable a[1]
+put (a is empty) & "|" & (a = empty) into tOut
+----
+put 1 into a[1]
+if a is empty then
+put "E" into tOut
+else
+put "N" into tOut
+end if

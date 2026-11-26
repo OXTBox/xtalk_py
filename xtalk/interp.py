@@ -2,7 +2,7 @@
 import os, copy
 import math, random, time, base64, re
 from . import chunks as ch
-from .values import XtError, XtArray, CASE, to_num, fmt_num, numstr, plain, to_text, to_bool, is_numeric_text, compare, NUMBER_FORMAT
+from .values import XtError, XtArray, CASE, array_cmp, to_num, fmt_num, numstr, plain, to_text, to_bool, is_numeric_text, compare, NUMBER_FORMAT
 from .parser import parse_script, parse_expr, parse_statements, OBJTYPES
 from .host import Host, wildcard
 
@@ -1066,7 +1066,7 @@ class Interp:
             ls, rs = to_text(l), to_text(r)
             return ls + (' ' if op == '&&' else '') + rs
         if op in ('=', '<>', '<', '>', '<=', '>='):
-            c = compare(to_text(l), to_text(r))
+            c = array_cmp(l, r) if isinstance(l, dict) or isinstance(r, dict) else compare(to_text(l), to_text(r))
             return 'true' if {'=': c == 0, '<>': c != 0, '<': c < 0, '>': c > 0, '<=': c <= 0, '>=': c >= 0}[op] else 'false'
         if op == 'contains':
             return 'true' if to_text(r).lower() in to_text(l).lower() else 'false'

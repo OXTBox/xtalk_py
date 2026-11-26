@@ -175,7 +175,7 @@ class Runtime(Interp):
 import copy
 import math
 import math as _m
-from .values import NumStr, text_num, num_cmp, fmt_num, compare as _compare
+from .values import NumStr, text_num, num_cmp, fmt_num, compare as _compare, array_cmp
 from .interp import rnd_half_away   # noqa: F401
 
 
@@ -314,6 +314,8 @@ def xcmp(a, b):
     """-1/0/1 of two values (as values.compare, for values that may be floats)"""
     if type(a) is float and type(b) is float:
         return num_cmp(a, b)
+    if isinstance(a, dict) or isinstance(b, dict):
+        return array_cmp(a, b)
     x = _num_or_none(a)
     if x is not None:
         y = _num_or_none(b)
@@ -340,6 +342,8 @@ def tb(b):
 
 
 def isempty(v):
+    if isinstance(v, dict):
+        return len(v) == 0         # an array with elements is not empty (measured 26 Nov)
     return T(v) == ''
 
 

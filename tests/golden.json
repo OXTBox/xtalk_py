@@ -257,7 +257,10 @@
   "put \"a\" into t\ncombine t with comma\nput t & \"|\" & (t is an array) into tOut": "|false",
   "put \"x\" into a[1]\nput \"y\" into a[2][\"deep\"]\ncombine a with comma\nput a into tOut": "x,",
   "put \"a b c\" into t\nsplit t by space\nput t[3] & \"|\" & the number of elements of t into tOut": "c|3",
-  "put 1 into t[\"a\"]\nput 1 into t[\"b\"]\nput (\"b\" is among the keys of t) & \"|\" & (\"c\" is among the keys of t) & \"|\" & (\"b\" is not among the keys of t) into tOut": "true|false|false"
+  "put 1 into t[\"a\"]\nput 1 into t[\"b\"]\nput (\"b\" is among the keys of t) & \"|\" & (\"c\" is among the keys of t) & \"|\" & (\"b\" is not among the keys of t) into tOut": "true|false|false",
+  "put 1 into a[1]\nput (a is empty) & \"|\" & (a is not empty) & \"|\" & (a = empty) & \"|\" & (a is \"x\") & \"|\" & (a <> empty) & \"|\" & (a & \"x\") & \"|\" & the length of a into tOut": "false|true|false|false|true|x|0",
+  "put 1 into a[1]\ndelete variable a[1]\nput (a is empty) & \"|\" & (a = empty) into tOut": "true|true",
+  "put 1 into a[1]\nif a is empty then\nput \"E\" into tOut\nelse\nput \"N\" into tOut\nend if": "N"
  },
  "lib": {
   "libraries/lib_bit.livecodescript": {

@@ -301,3 +301,7 @@ standalone per library group.
   `combine a by cr and "="`: key=value lines. Not an array -> empty. An element that is an array -> empty.
 - `x is among the keys of a` is true for a key (the keys are lines). `is among` with no chunk type (`is among "a,b"`,
   `is among (the keys of a)`) does not compile in LiveCode.
+- An array used as text is EMPTY, never an error: `a & "x"` = "x", `the length of a` = 0. But in a comparison an array
+  with elements equals no text: `a is empty` false, `a = empty` false, `a is "x"` false, `a <> empty` true; an array
+  whose elements were all deleted is empty (measured 26 Nov; before, the runtime stopped with "can't treat an array
+  as text": 5 games hit it, NineBall at `if sDot is empty`).
