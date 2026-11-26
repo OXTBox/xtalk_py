@@ -917,8 +917,8 @@ class Interp:
             return numstr(int(now * (60 if n == 'ticks' else 1000)))
         if n == 'paramcount':
             return numstr(len(fr.args))
-        if n == 'platform':                      # LiveCode on Linux says "Linux" (the owner's scripts test for "Win32"
-            return 'Linux'                       # and then only show a path: no Windows shell commands from here)
+        if n == 'platform':                      # a real window: "Win32", as his LiveCode (shell() runs through cmd.exe,
+            return getattr(self.host, 'platform', 'Linux')   # owner 26 Nov); tests and surveys: "Linux", no shell
         d = date_time(n)
         if d is not None:
             return d

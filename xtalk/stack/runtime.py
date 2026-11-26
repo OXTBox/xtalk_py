@@ -215,9 +215,12 @@ class StackRuntime:
             home = self.host.user_home()   # folders; writes still stay in the sandbox
             self.host.folders.update({'home': home, 'documents': os.path.join(home, 'Documents'),
                                       'desktop': os.path.join(home, 'Desktop'), 'pictures': os.path.join(home, 'Pictures')})
+            self.host.platform = 'Win32'   # his stacks then take their Windows paths (shell(): cmd.exe, owner 26 Nov)
             src = linux_path(self.harvest.manifest.get('sourceFile', ''))
             if src and os.path.isfile(src) and self.harvest.main is not None and not getattr(self.harvest.main, 'filename', ''):
-                self.harvest.main.filename = src   # the stack's own file: its data files sit next to it (Project Map)
+                # the stack's own file (its data files sit next to it: Project Map), named as his Windows
+                # LiveCode names it (//wsl$/Ubuntu/...): paths built from it work in Explorer and cmd.exe too
+                self.harvest.main.filename = str(self.harvest.manifest['sourceFile']).replace('\\', '/')
         self.host.default_folder = self.harvest.folder
         self.ctx = {}
         self.trans_cache = {}          # (behavior script, its label) -> (python, report, compiled): see ObjInterp._load_behavior

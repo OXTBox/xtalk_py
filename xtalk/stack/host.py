@@ -376,13 +376,15 @@ class StackHost(Host):
         return super().dialog(kind, sub, icon, prompt, extra, title)
 
     def shell(self, command):
-        """shell(): in LiveCode the owner's stacks use it to start a Python script. Here only that is done
-        (owner, 25 Nov): a .py file inside the stack's files folder starts with Python, as its own program,
-        and the stack goes on (LiveCode's shell waits). Any other command is refused.
+        """shell(): a .py file inside the stack's files folder starts with Python, as its own program, and the
+        stack goes on (LiveCode's shell waits; TKInter-izer's scripts, 25 Nov). Any other command: in a real
+        window it runs through Windows cmd.exe (owner 26 Nov, windows_shell); in tests and surveys it is refused.
         Which Python: XTALK_SCRIPT_PYTHON if set (one with Tkinter, say), else the one running this."""
         path = command.strip().strip('"').replace('\\', '/')
         full = self.sandboxed(path)
         if not path.lower().endswith('.py') or full != os.path.abspath(path) or not os.path.isfile(full):
+            if self.rt.real_folders and self.rt.start_programs:
+                return self.windows_shell(command)
             raise XtError('shell: only a .py file in the stack\'s files folder is started (owner, 25 Nov): %s' % command)
         if not self.rt.start_programs:
             self.rt.not_started.append(full)
@@ -396,6 +398,21 @@ class StackHost(Host):
                              stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         self.rt.started.append(p)
         return ''
+
+    def windows_shell(self, command):
+        """shell() in a real window (owner, 26 Nov: "fully functional file system interaction"): the command
+        runs the way LiveCode runs it on Windows, through cmd.exe /c, and its output comes back (it waits;
+        `start ...` returns at once). From WSL: cmd.exe starts in C:\\ (a Linux folder would make it complain)."""
+        try:
+            # handed over in a variable: as an argument, WSL turns each " into \" and eats a backslash of \\wsl$
+            env = dict(os.environ, XT_CMD=str(command),
+                       WSLENV=(os.environ.get('WSLENV', '') + ':XT_CMD').strip(':'))
+            r = subprocess.run(['cmd.exe', '/d', '/c', '%XT_CMD%'], cwd='/mnt/c', stdin=subprocess.DEVNULL,
+                               capture_output=True, timeout=120, env=env)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return str(e)
+        out = (r.stdout + r.stderr).decode('utf-8', 'replace').replace('\r\n', '\n')
+        return out
 
     def within(self, desc, point):
         """within(object, point) (Dictionary): a graphic's inside counts only when it is filled;
@@ -1181,6 +1198,9 @@ class StackHost(Host):
     def real_path(p):
         """a path as a script gives it -> one this Python can open: C:/x or C:\\x -> /mnt/c/x under WSL"""
         p = str(p).replace('\\', '/')
+        m = re.match(r'(?i)^//(?:wsl\$|wsl\.localhost)/[^/]+(/.*)$', p)   # //wsl$/Ubuntu/home/... (his Windows
+        if m:                                                            # LiveCode's name for a WSL file)
+            return m.group(1)
         m = re.match(r'^([A-Za-z]):/(.*)$', p)
         if m and os.path.isdir('/mnt/%s' % m.group(1).lower()):
             return '/mnt/%s/%s' % (m.group(1).lower(), m.group(2))
@@ -1212,7 +1232,7 @@ class StackHost(Host):
     def _path(self, ref):
         low = ref.lower()
         path = ref[5:] if low.startswith('file:') else ref[8:] if low.startswith('binfile:') else ref
-        return path.replace('\\', '/')
+        return self.real_path(path)
 
     @staticmethod
     def _kind(kind, ref):
