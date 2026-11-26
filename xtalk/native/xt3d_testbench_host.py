@@ -156,15 +156,24 @@ def xb_draw_game(rt, fr):
     X['xt3d_setbackfaceculling']('true')
     last = X['xt3d_endmode3d']()
     line = X['xt3d_drawlineex']
-    for seq, cc in strokes:
+    from ..xt3d import generated as gen
+    direct = line is gen.xt3d_DrawLineEx and gen.ready()   # the 2D lines straight to raylib (the HUD's letters
+    for seq, cc in strokes:                                 # are hundreds a frame): what the wrapper would do
         prev = None
+        if direct and cc is not None:
+            colour = (gen.C(cc[0]), gen.C(cc[1]), gen.C(cc[2]), gen.C(255.0))
         for p in seq:
             if p is None:
                 prev = None
                 continue
             if prev is not None:
-                last = line((prev[0] - tl) * t_k, (prev[1] - tt) * t_k, (p[0] - tl) * t_k, (p[1] - tt) * t_k, t_k,
-                            cc[0], cc[1], cc[2], 255.0)
+                if direct:
+                    gen.rl.DrawLineEx(((prev[0] - tl) * t_k, (prev[1] - tt) * t_k), ((p[0] - tl) * t_k, (p[1] - tt) * t_k),
+                                      t_k, colour)
+                    last = ''
+                else:
+                    last = line((prev[0] - tl) * t_k, (prev[1] - tt) * t_k, (p[0] - tl) * t_k, (p[1] - tt) * t_k, t_k,
+                                cc[0], cc[1], cc[2], 255.0)
             prev = p
     if not (_is_true(S.get('sviewonly', ''))):
         txt = '%s fps   hiding %s   %s' % (to_text(S.get('sgamefps', '')), to_text(rt.fn(fr, 'xbCullMode', [], [])),
