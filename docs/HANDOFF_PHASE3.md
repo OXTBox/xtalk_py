@@ -18,6 +18,12 @@ of `run_files/play_xt3d.log` (report, longest frame, `his note:` lines). ISSUES 
 5. **4 fps**: not a leak. R (rush) -> kills -> 48 `uDead.Blood` splats (51 -> 119 objects), step 24 -> 150 ms.
    "About 3x LiveCode" is an estimate from the 19 Nov table (~45 objects), not measured at 119. The speed job is next: profile at ~120 objects (`--keys "51:20,-51:25,114:60,-114:64"`, about frame 560).
    Hot spots so far (profiled at 51 objects): UpdateObjectTransforms 34%, uDead.FieldWork 18%, numstr/fmt_num, gchunk.
+5b. **Blood capped (owner, 25 Nov late):** LIB_GAMES branch `udead-blood-limit`: kBloodMax 70 -> 3 (0 = none) in
+   both uDead scripts. Same rush: 12-14 fps, ~60 objects, step 22-42 ms. Profile (cProfile, 600 frames):
+   UpdateObjectTransforms 28%, uDead.FieldWork 17%, number to text (fmt_num/numstr) 8%, gchunk 7%, handler calls.
+   His plan: then presolve a grid on the maps (the 2008 game's red target dots + A* lived on a fixed grid), as its own
+   feature. His Escape from 2008: everything stops moving (physics off) but animations go on, plus a pause column of
+   buttons (Title/"menu", controls...). Not built yet.
 6. GameNotes works: front scripts (insert/remove script, the frontScripts/backScripts; front first for engine
    messages only), `the defaultStack` = stack "Name" (measured), `value(expr, object)`, `the system date`
    11/25/2026 (measured), and `put x after/before URL` now adds (it replaced: a second note wiped the first);
