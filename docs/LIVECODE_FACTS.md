@@ -309,3 +309,7 @@ standalone per library group.
   than = (`6 bitAnd 2 = 2` is an error: 2 = 2 first) and tighter than `and`. Operands: rounded half away from zero
   (2.5 -> 3, 5.7 -> 6), below 0 -> 0, then the low 32 bits (4294967297 -> 1); empty -> 0. bitNot: 32 bits
   (bitNot 0 = 4294967295). Before: not in the parser (lib_cellmap's 5 handlers, Amazing_Couple's maze).
+- `send X to card 1` when nothing handles X is an ERROR in LiveCode too (573 can't find handler; measured 26 Nov):
+  the Vibecode3D Launcher's `send setStackScript to card 1` in preOpenStack fails the same way there.
+- `the stacksInUse` is empty (not an error) with no libraries in use. `$#` = how many command-line arguments, `$1`... each
+  one (empty when missing), `$NAME` an environment variable.

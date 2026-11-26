@@ -24,3 +24,13 @@ Open:
 - Every game logs two caught errors from the loading screen (both in `try` on purpose): `Users.Driver` (LIB_USERS not
   loaded in the test host) and `export snapshot` (not built in Python).
 - Slowest in Python: DotMaze 16 fps, MeadowMarsh 18, DeadDays 21, SquadBuggy 26 (the rest 35-60).
+
+## The owner's own apps (26 Nov): harvested to run_files/target_harvests (lcmcp harvest), stack survey
+Owner 26 Nov: Pythonize OUR apps (Vibecode3D Library, xt3d, Project Map, Priority Tube, MCP work; iGame3D XT editor =
+deep test); the XTJSON harvests are test material only.
+- ProjectMap, PriorityTube: stopped at open on `the stacksInUse` (empty = "unknown property"): fixed, both open with
+  no errors. They draw their boards themselves (no buttons), so the survey clicks nothing: the real test is a window.
+- Vibecode3D_Launcher: `$#` / `$1` did not parse (fixed). Its `send setStackScript to card 1` fails in LiveCode too
+  (no handler anywhere): a launcher bug, left for the owner.
+- Example harvests: all clean (TKInter-izer 14/15, the missing button is not in the stack; XtRedeemer does not load:
+  not a stack harvest).

@@ -34,7 +34,7 @@ TOKEN = re.compile(r'''
   | (?P<nl>\n)
   | (?P<str>"[^"\n]*")
   | (?P<num>(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?)
-  | (?P<env>\$[A-Za-z_][A-Za-z0-9_]*)
+  | (?P<env>\$([A-Za-z_][A-Za-z0-9_]*|\d+|\#))      # $HOME, $1 (a command-line argument), $# (how many)
   | (?P<id>[A-Za-z_][A-Za-z0-9_']*(\.[A-Za-z0-9_]+)*)
   | (?P<op><=|>=|<>|&&|[&+\-*/^=<>(),\[\]])
   | (?P<other>.)

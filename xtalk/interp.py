@@ -44,6 +44,19 @@ def rnd_half_away(x, places=0):
 
 
 
+ARGS = []      # the command line a stack was started with, as $1, $2... ($0 the program); $# how many (LiveCode)
+
+
+def env_value(name):
+    """$NAME: an environment variable; $1..: a command-line argument; $#: how many arguments"""
+    if name == '#':
+        return str(len(ARGS))
+    if name.isdigit():
+        i = int(name)
+        return ARGS[i - 1] if 1 <= i <= len(ARGS) else ('xtalk_py' if i == 0 else '')
+    return os.environ.get(name, '')
+
+
 def u32(v):
     """a value as the bit operators take it (measured 26 Nov): rounded half away from zero, below 0 = 0, then the
     low 32 bits (4294967297 -> 1)"""
@@ -912,7 +925,8 @@ class Interp:
         raise XtError('expression: unknown property "the %s"' % n)
 
     MAY_BE_EMPTY = {'keysdown', 'pendingmessages', 'frontscripts', 'backscripts', 'focusedobject', 'selection', 'selectedtext', 'selectedfield', 'selectedline', 'selectedchunk',
-                    'target', 'mousecontrol', 'clicktext', 'clickline', 'clickchunk', 'clickfield', 'foundtext'}
+                    'target', 'mousecontrol', 'clicktext', 'clickline', 'clickchunk', 'clickfield', 'foundtext',
+                    'stacksinuse', 'loadedextensions', 'clipboard'}
 
     def e_idx(self, e, fr):
         if self.getvar_arr(fr, e[1]) is None:
@@ -1428,7 +1442,7 @@ def f_textencode(it, fr, x, enc='native'):
 BUILTINS = {
     'baseconvert': f_baseconvert,
     'textdecode': f_textdecode, 'textencode': f_textencode,
-    '$env': lambda it, fr, n: os.environ.get(_t(n), ''),
+    '$env': lambda it, fr, n: env_value(_t(n)),
     'globalloc': f_globalloc,
     'files': lambda it, fr, *a: it.host.list_dir('files', _t(a[0]) if a else None) if hasattr(it.host, 'list_dir') else '',
     'folders': lambda it, fr, *a: it.host.list_dir('folders', _t(a[0]) if a else None) if hasattr(it.host, 'list_dir') else '',
