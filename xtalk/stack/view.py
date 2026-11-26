@@ -86,9 +86,10 @@ class View:
         self.soft_grab = 'microsoft' in os.uname().release.lower() and not os.environ.get('XTALK_HARD_GRAB')
         self.look = {'right presses': 0, 'grabs': 0, 'moved x': 0, 'moved y': 0, 'frames grabbed': 0, 'recentre failed': 0}
         try:                           # soft grab: the pointer's movement times this (owner 25 Nov: not sensitive enough)
-            self.look_speed = float(os.environ.get('XTALK_LOOK_SPEED', '2.5'))
+            self.look_speed = float(os.environ.get('XTALK_LOOK_SPEED', '2'))
         except ValueError:
-            self.look_speed = 2.5
+            self.look_speed = 2.0
+        self.settle = 0                # frames to wait after moving the pointer back (WSL moves it late)
         self.recentre = True           # soft grab: put the hidden pointer back in the middle each frame (off if WSL refuses)
         self.on_close = None           # play mode: called the moment the close box is clicked (it ends the program)
         self.esc_frees = False         # play mode: Escape frees the mouse and keys (and again takes them back)
@@ -123,10 +124,7 @@ class View:
             else:
                 rl.hide_cursor()              # hidden while it looks; put back in the middle each frame (below)
                 self.cursor_hidden = True
-                if self.recentre:
-                    cx, cy = rl.get_screen_width() // 2, rl.get_screen_height() // 2
-                    rl.set_mouse_position(cx, cy)
-                    self.last_real, self.first_grab = (cx, cy), True
+                self.settle = 0
             self.captured = True
             self.look['grabs'] += 1
         elif not want and self.captured:
@@ -607,20 +605,31 @@ class View:
             if dx == 0 and dy == 0:               # WSL may give no movement for a grabbed mouse: use the pointer
                 dx, dy = m.x - self.last_real[0], m.y - self.last_real[1]
             if self.soft_grab:
-                lim = 60 if getattr(self, 'first_grab', False) else 200
-                self.first_grab = False
-                if self.recentre and (abs(dx) > lim or abs(dy) > lim):   # the move back did not happen: stop asking
-                    self.recentre, dx, dy = False, 0, 0
-                    self.look['recentre failed'] += 1
+                if self.settle > 0:               # just moved back: measure from where the pointer really is
+                    self.settle -= 1
+                    dx = dy = 0
+                    if self.settle == 0:          # did it get there? three refusals in a row: stop asking
+                        w, h = rl.get_screen_width(), rl.get_screen_height()
+                        if abs(m.x - w // 2) > w // 3 or abs(m.y - h // 2) > h // 3:
+                            self.look['recentre failed'] += 1
+                            self.refused = getattr(self, 'refused', 0) + 1
+                            if self.refused >= 3:
+                                self.recentre = False
+                        else:
+                            self.refused = 0
+                dx, dy = max(-40, min(40, dx)), max(-40, min(40, dy))     # one bad reading can't spin the view
                 dx, dy = dx * self.look_speed, dy * self.look_speed
             self.look['frames grabbed'] += 1
             self.look['moved x'] += abs(dx)
             self.look['moved y'] += abs(dy)
             self.last_real = (m.x, m.y)
-            if self.soft_grab and self.recentre:  # keep the real pointer inside the window
-                cx, cy = rl.get_screen_width() // 2, rl.get_screen_height() // 2
-                rl.set_mouse_position(cx, cy)
-                self.last_real = (cx, cy)
+            if self.soft_grab and self.recentre and self.settle == 0:   # near the edge: back to the middle
+                w, h = rl.get_screen_width(), rl.get_screen_height()
+                e = min(w, h) // 6
+                if not (e < m.x < w - e and e < m.y < h - e):
+                    rl.set_mouse_position(w // 2, h // 2)
+                    self.settle = 2
+                    self.look['moved back'] = self.look.get('moved back', 0) + 1
             self.vmouse = (self.vmouse[0] + dx, self.vmouse[1] + dy)
             x, y = int(self.vmouse[0]), int(self.vmouse[1])
         else:

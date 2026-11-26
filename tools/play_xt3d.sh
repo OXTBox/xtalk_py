@@ -3,7 +3,7 @@
 #   ~/projects/xtalk_py/tools/play_xt3d.sh                 uDead CullTest
 #   ~/projects/xtalk_py/tools/play_xt3d.sh GAME [WxH]      another game in LIB_GAMES/Vibecode3D_Games
 # Keys 0-3 switch uDead's hiding modes. Esc frees the mouse and keys (Esc again: back to the game).
-# Hold the right mouse button to look; XTALK_LOOK_SPEED=4 (default 2.5) turns faster.
+# Hold the right mouse button to look; XTALK_LOOK_SPEED=3 (default 2) turns faster.
 # The close box ends it at once (the report is written first). ` (left of 1) = a note to the AI (Return saves).
 # What it prints goes to xtalk_py/run_files/play_xt3d.log, with a report at the end.
 cd "$(dirname "$0")/.." || exit 1
