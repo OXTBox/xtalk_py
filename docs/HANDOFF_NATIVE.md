@@ -106,6 +106,15 @@ left/right) are clear and the step up is at most 0.30; cells within 0.25 of a wa
 links as {row, column, floor}); the sample is 23 x 47 cells, 1868 floors. A* (`generateAStarPathBetweenPositions`)
 ran on demand over that graph. uDead's `sPass` + `sDoorAt` is the same graph for a flat map (one floor a cell).
 
+**Step 5 done 26 Nov on LIB_GAMES branch `udead-grid-dots` (e11055d; not merged, not on his screen):** his red
+dots + one distance map a target in both uDead scripts (DESIGN.md has the rules). Checked: LiveCode compiles both;
+bench `--check` SAME; referee all four AGREE; a scratch test (3 clicks = 3 dots, 1 shared map; door turns red;
+2 zombies on one person = 2 dots, 1 map, remade when the person changes cell; rush dots). Bench 43.2 fps
+(`run_files/bench/2026-11-26_0707_udead-grid-dots.txt`; was 44.5). **Where the step time goes:** in the bench
+(no clicks) the floods are the regular whole-map ones: P (follow me) 116k cells, H 87k, Z 69k in 900 frames
+(about 9,600 open cells a map). Sharing order maps fixes many-zombies-one-target play, not the bench; the
+speed win left is a native flood (`uDead.FieldWork`) or smaller floods (P only as far as FOLLOW needs).
+
 ## Where we stand
 - **What runs:** `tools/play_xt3d.sh` starts Python with raylib (the `raylib` package: an OpenGL window via GLFW,
   shown by WSLg). `xtalk/stack/view.py` draws the card and feeds keys and mouse in LiveCode's terms; ImGui only
