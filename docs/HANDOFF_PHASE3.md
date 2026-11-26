@@ -1,4 +1,37 @@
-# Handoff: the next phase of the Pythonization (written 26 Nov 2026, evening)
+# Handoff: the next phase of the Pythonization
+
+## START HERE (after /clear; written 25 Nov 2026 late, system clock)
+**Phase 2 is finished and Phase 3 starts now: xt3d on Python raylib, first game uDead CullTest** (owner's word).
+
+- **Merged and pushed (owner: "merge and push what we've done").** Branches `phase2-thorough` and
+  `fast-translate` are in xtalk_py main, along with LIB_SYSTEM's ISSUES 0023/0024 and STATUS.
+- **Stacks run translated now.** Every script becomes Python when a stack opens (`xtalk/fastgen.py`), and
+  `XTALK_INTERP=1` brings back the interpreter. Read "Speed: the fast translator" below before touching
+  `xtalk/`:
+  - every golden case runs in both modes;
+  - a new feature needs both the interpreter rule and its fast-mode code;
+  - check with `tests/test_transpile.py` (fast pass), `test_stack.py` and the survey.
+- **The owner's look at Raycasting_101 (25 Nov late):**
+  - Walking with the keys works, with no script errors (84 s, 1,184 keys).
+  - Mouse look did not engage. Accepted; open, low priority. `CaptureMouse` sets cursor none + lockCursor, and
+    the grab may never have happened, or WSL may not pass the movement through. Look at it only if a game needs it.
+  - Walls sometimes jump from angled to flat on a turn. WON'T FIX: the raycaster is a "can we do it" test, not
+    something to perfect.
+- **Next:** "Phase 3 steps" below.
+  - The first decision is for the owner: run the testbench host script itself, its xt3d calls going through a
+    generated mapping (recommended: it tests Phase 3 fully), or write a Python host that draws `Vibe.Frame()`
+    directly.
+  - Expect the 10,209-line `vibe_engine_xt3d` to be the next speed test. Profile with the Raycasting recipe:
+    time each tick, then cProfile by own time. Host lookups by description text are the likely next hot spot.
+- **Pitfalls learned this round:**
+  - Never load the owner's photos in checks. A harvested image's fileName points at his own pictures; use test
+    pictures in the scratchpad.
+  - Numbers compare at full value with a tolerance, and numberFormat applies when a number becomes text. Both
+    are measured in LIVECODE_FACTS.
+  - LiveCode refuses a `local y` line after y was used; we accept it (open, harmless).
+
+(Older notes follow; the "Phase 2" parts are history now.)
+
 
 **Order (the owner's word, 26 Nov): first "Phase 2, thorough" (below), then Phase 3 (xt3d on Python raylib) with
 uDead CullTest as the first game.**
