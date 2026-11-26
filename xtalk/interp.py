@@ -285,8 +285,8 @@ class Interp:
         s, e = sp[r[0]][0], sp[r[1]][1]
         if kind in ('item', 'line'):                     # take one delimiter with it
             d = kw['item_delim'] if kind == 'item' else kw['line_delim']
-            if r[1] < n - 1:
-                e += len(d)
+            if text[e:e + len(d)] == d:                  # the delimiter after it (also a trailing one:
+                e += len(d)                              # delete item 1 of "3," is empty, measured 25 Nov)
             elif s >= len(d):
                 s -= len(d)
         elif kind == 'word':

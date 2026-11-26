@@ -274,3 +274,6 @@ standalone per library group.
   y,m,d,h,min,s,weekday (1 = Sunday), overflow normalised (2026,11,40,25,0,0 -> 2026,12,11,1,0,0,6); a date alone
   is midnight, a time alone today; bad input leaves the variable and the result is "invalid date";
   `to short date and long time` joins with a space. `binfile:` is one char a byte; textDecode(...,"UTF-8").
+- (25 Nov) `delete item 1 of "3,"` -> empty (the delimiter after the item goes with it, a trailing one too);
+  `delete item 1 of ","` -> empty; `delete item 2 of "a,b"` -> a. Ours left "," (the testbench's xbGameFill
+  queue then never emptied: uDead hung in hiding mode 1).
