@@ -7,6 +7,10 @@ lower-case names; it answers what the handler returns (text or an array: xTalk v
 numbers inside). The xTalk handler stays as the reference: tests run both and compare
 (tests/test_native.py), and tools/frame_referee.py compares whole games.
 
+Each module also has SIGS {handler: signature}: the xTalk handler it was written from. When the script
+changes (the engine's xt3d edition is generated again from a newer engine), a handler whose statements
+changed keeps its xTalk, with a warning, until the native function is checked and its signature updated.
+
 A function may raise Fallback before it changes anything: the xTalk handler then runs instead (a value it
 was not written for, e.g. text where a number belongs, gets the xTalk handler's own answer or error).
 
@@ -24,10 +28,20 @@ def _table():
     t = {}
     for m in (vibe_engine_xt3d,):
         t.setdefault(m.STACK.lower(), {}).update(m.HANDLERS)
+        SIGS.setdefault(m.STACK.lower(), {}).update(m.SIGS)
     return t
 
 
+def signature(h):
+    """what a native function was written from: the handler's parameters and statements (comments, blank
+    lines and where it sits in the file do not count). tools/native_sigs.py prints them."""
+    import hashlib
+    return hashlib.sha1(repr((tuple(p.lower() for p in h[2]), h[3])).encode()).hexdigest()[:12]
+
+
 TABLE = None
+SIGS = {}                                   # stack -> {handler: signature of the xTalk it was written from}
+SKIPPED = set()
 USED = {}                                   # (stack, handler) -> calls: what ran native (bench reports it)
 
 
@@ -35,9 +49,10 @@ def enabled():
     return os.environ.get('XTALK_NATIVE', '1') != '0'
 
 
-def apply(rt, stack_name):
+def apply(rt, stack_name, script=None):
     """put the native functions in place of rt's handlers of that name (rt.handlers: name -> handler tuple,
-    (kind, name, params, body, byref[, translated function])); answers the names replaced"""
+    (kind, name, params, body, byref[, translated function])); answers the names replaced. script: the
+    script's text (fast-mode handlers keep no statements to check the signature against)"""
     global TABLE
     if not enabled() or not stack_name:
         return []
@@ -47,9 +62,25 @@ def apply(rt, stack_name):
     if not natives:
         return []
     done = []
+    sigs = SIGS.get(stack_name.lower(), {})
+    parsed = None
     for name, fn in natives.items():
         h = rt.handlers.get(name)
         if h is None:
+            continue
+        stated = h
+        if h[3] is None:                     # fast mode keeps no statements: read them from the script
+            if parsed is None:
+                from ..parser import parse_script
+                parsed = parse_script(script) if script else {}
+            stated = parsed.get(name, h)
+        if sigs.get(name) != signature(stated):    # the xTalk was changed since the native was written: keep the xTalk
+            if (stack_name, name) not in SKIPPED:
+                SKIPPED.add((stack_name, name))
+                import sys
+                print('xtalk native: %s of stack %s changed since its native version was written (signature %s, '
+                      'native written for %s): the xTalk handler runs' % (h[1], stack_name, signature(stated),
+                                                                          sigs.get(name)), file=sys.stderr)
             continue
         rt.handlers[name] = h[:5] + (_wrap(fn, h, stack_name),)
         done.append(name)

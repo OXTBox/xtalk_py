@@ -28,7 +28,7 @@ def load(mode, src, natives):
         rt.install(py)
     if natives:
         os.environ['XTALK_NATIVE'] = '1'
-        done = native.apply(rt, 'VibeEngineXt3d')
+        done = native.apply(rt, 'VibeEngineXt3d', src)
         assert done, 'no native handler applied'
     return rt
 

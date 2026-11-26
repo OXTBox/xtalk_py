@@ -48,7 +48,7 @@ class ObjInterp(Runtime):
             r = None
         if self.obj.type == 'stack':           # handlers written in Python for this stack (xtalk/native)
             from .. import native
-            self.natives = native.apply(self, self.obj.name)
+            self.natives = native.apply(self, self.obj.name, script)
         return r
 
     def value_in(self, text, desc):

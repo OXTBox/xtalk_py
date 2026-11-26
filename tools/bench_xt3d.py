@@ -29,8 +29,9 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 FRAME_MS = 50.0 / 3                      # 60 frames a second of game time
 READ_MS = 0.05                           # each read of the clock moves it this much (see above)
 START_MS = 1_000_000_000.0               # the test clock's first moment
-# the bench keys: (from frame, to frame, key). Hiding mode 3, R (rush) at 60, then walk (W) and turn (left arrow)
-KEYS = [(10, 14, '3'), (60, 64, 'r'), (120, 900, 'w'), (300, 360, 65361), (600, 640, 65363)]
+# the bench keys: (from frame, to frame, key), after the loading screen (the game reads no keys before it ends):
+# hiding mode 3 at 240, R (rush) at 270, then walk (W) and turn (left, then right arrow)
+KEYS = [(240, 246, '3'), (270, 276, 'r'), (300, 900, 'w'), (420, 480, 65361), (650, 690, 65363)]
 
 
 def keys_at(i):
@@ -137,12 +138,14 @@ def main(a):
         prof.disable()
         import pstats
         pstats.Stats(prof).sort_stats('tottime').print_stats(30)
+        if opt('--profile-out', ''):
+            prof.dump_stats(opt('--profile-out', ''))
     StackContext.invoke = plain_invoke
 
     objects = len([x for x in str((last.get('frame') or {}).get('objects', '') if hasattr(last.get('frame'), 'get') else '').split('\n') if x])
     lines = ['bench %s  game %s  frames %d  %s' % (label, game, frames, time.strftime('%Y-%m-%d %H:%M:%S')),
              'git %s' % git_head(),
-             'native %s  mode %s' % (os.environ.get('XTALK_NATIVE', '(default)'),
+             'native %s  mode %s' % ('off' if os.environ.get('XTALK_NATIVE') == '0' else 'on',
                                       'interpreter' if os.environ.get('XTALK_INTERP') else 'fast'),
              'start (engine load + level) %.2f s' % start_s,
              'wall %.2f s  (%.1f frames a second)' % (wall, frames / wall),
@@ -163,6 +166,10 @@ def main(a):
         for k in sorted(rt.G):
             out.append('global %s' % k)
             out.append(dump_text(rt.G[k], 1))
+        for c in sorted(rt.ctx.values(), key=lambda c: rt.host.name_of(c.obj, 'long')):   # every script's locals
+            for k in sorted(c.S):
+                out.append('local %s of %s' % (k, rt.host.name_of(c.obj, 'long')))
+                out.append(dump_text(c.S[k], 1))
         open(opt('--dump', ''), 'w').write('\n'.join(out) + '\n')
         print('dumped the state to', opt('--dump', ''))
     if '--no-save' not in a:

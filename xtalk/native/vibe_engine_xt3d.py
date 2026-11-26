@@ -168,6 +168,9 @@ def _isnum(v):
         return False
 
 
+# the xTalk each function was written from (tools/native_sigs.py): a changed handler keeps its xTalk
+SIGS = {'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c', 'updateobjecttransforms': '7e4930120ed1'}
+
 HANDLERS = {
     'mat3.mul': mat3_mul,
     'rotatelocalvector': rotate_local_vector,
