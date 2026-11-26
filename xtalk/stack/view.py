@@ -81,6 +81,10 @@ class View:
         self.cursor_hidden = False
         self.captured, self.vmouse, self.last_real = False, (0, 0), (0, 0)
         self.warped = None             # where the scripts last put the mouse while lockCursor was true (mouse look)
+        # soft grab (WSL): raylib's disable_cursor needs the pointer warped back each frame, which WSLg does not
+        # allow; instead the movement of the real pointer is counted (no grab; XTALK_HARD_GRAB=1 for the old way)
+        self.soft_grab = 'microsoft' in os.uname().release.lower() and not os.environ.get('XTALK_HARD_GRAB')
+        self.look = {'right presses': 0, 'grabs': 0, 'moved x': 0, 'moved y': 0, 'frames grabbed': 0}
         self.on_close = None           # play mode: called the moment the close box is clicked (it ends the program)
         self.esc_frees = False         # play mode: Escape frees the mouse and keys (and again takes them back)
         self.freed = False
@@ -109,10 +113,13 @@ class View:
             m = rl.get_mouse_position()
             self.last_real = (m.x, m.y)
             self.vmouse = self.warped if self.warped is not None else (m.x, m.y)   # no jump on the first frame
-            rl.disable_cursor()
+            if not self.soft_grab:
+                rl.disable_cursor()
             self.captured = True
+            self.look['grabs'] += 1
         elif not want and self.captured:
-            rl.enable_cursor()
+            if not self.soft_grab:
+                rl.enable_cursor()
             self.captured = False
             self.cursor_hidden = False
         hide = hide and not self.freed
@@ -126,8 +133,11 @@ class View:
         wx, wy = self.rt.window_pos
         if str(self.rt.props.get('lockcursor', '')).lower() == 'true':
             self.warped = (x - wx, y - wy)
+            if not self.captured and not self.freed:
+                self.capture()                # the grab starts now: the next read in this frame sees the warp
         if self.captured or self.freed:       # freed (Escape in play mode): the real pointer is his alone
             self.vmouse = (x - wx, y - wy)
+            self.rt.mouse = (int(x - wx), int(y - wy))   # the mouseLoc changes at once (as in LiveCode)
             return
         rl.set_mouse_position(int(x - wx), int(y - wy))
 
@@ -576,11 +586,15 @@ class View:
                 self.panel = not self.panel
             rt.tick(min(rl.get_frame_time() * 1000, 100), budget=0.02)
             return
+        self.capture()                            # a grab the scripts asked for last frame starts before they read
         if self.captured:                         # a mouse-look game: only the movement counts (see capture())
             d, m = rl.get_mouse_delta(), rl.get_mouse_position()
-            dx, dy = d.x, d.y
+            dx, dy = (0, 0) if self.soft_grab else (d.x, d.y)
             if dx == 0 and dy == 0:               # WSL may give no movement for a grabbed mouse: use the pointer
                 dx, dy = m.x - self.last_real[0], m.y - self.last_real[1]
+            self.look['frames grabbed'] += 1
+            self.look['moved x'] += abs(dx)
+            self.look['moved y'] += abs(dy)
             self.last_real = (m.x, m.y)
             self.vmouse = (self.vmouse[0] + dx, self.vmouse[1] + dy)
             x, y = int(self.vmouse[0]), int(self.vmouse[1])
@@ -588,6 +602,8 @@ class View:
             m = rl.get_mouse_position()
             x, y = int(m.x), int(m.y)
         rt.buttons_down = {b for b, k in (('2', 2), ('3', 1)) if rl.is_mouse_button_down(k)}   # mouse(3) = right
+        if rl.is_mouse_button_pressed(1):
+            self.look['right presses'] += 1
         rt.mouse_move(x, y)
         if not busy:
             if rl.is_mouse_button_pressed(0):
