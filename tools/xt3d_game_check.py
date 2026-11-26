@@ -116,8 +116,11 @@ def main(a):
         print('  control %s %r rect %s visible %s blend %s' % (o.type, o.name, o.rect, o.props.get('visible', ''),
                                                            o.props.get('blendLevel', '')))
     info = rt.host.resolve('field "info"', must=False)
+    t4 = time.perf_counter()
     rt.message(card, 'xbStopGame')
+    t5 = time.perf_counter()
     v.close()
+    print('closing: xbStopGame %.2f s, View.close %.2f s' % (t5 - t4, time.perf_counter() - t5))
     if info is not None:
         print('info field:', info.text[:300].replace('\n', ' | '))
     from collections import Counter
@@ -131,7 +134,10 @@ def main(a):
 
 
 def play(game, folder, w, h):
-    """The owner's window: the game plays until he closes it; a report goes to the end of what is printed."""
+    """The owner's window: the game plays until he closes it (or the game ends); a report goes to the end of
+    what is printed. The close box is absolute: the report is written and the program ends at once, whatever
+    the scripts are doing (no xbStopGame: the program ends, nothing is left to free). Escape frees the mouse
+    and keys (the game plays on without them); Escape again gives them back."""
     if not os.environ.get('XTALK_KEEP_WAYLAND'):
         os.environ['WAYLAND_DISPLAY'] = 'no-wayland'   # GLFW falls back to X11 under WSLg: placed at 200,32
     from collections import Counter
@@ -146,38 +152,51 @@ def play(game, folder, w, h):
     rt.log_clicks = []
     v = View(rt)
     rt.on_wait, rt.on_menu, rt.on_dialog = v.wait_frames, v.menu_frames, v.dialog_frames
+    v.esc_frees = True
     rt.open()
     card = rt.default_stack.children[0]
+    info = rt.host.resolve('field "info"', must=False)
+    stats, n, t1 = [], [0], [time.perf_counter()]
+
+    def report(why):
+        dt = time.perf_counter() - t1[0]
+        print('\n==== report ====')
+        print('%s: %d frames in %.0f s (%.1f a second on average); %s' % (game, n[0], dt, n[0] / dt if dt else 0, why))
+        keys = Counter(c for c in rt.log_clicks if c.startswith('key '))
+        print('keys pressed:', ', '.join('%s x%d' % kv for kv in keys.most_common(20)) or 'none')
+        print('last stats:', stats[-1] if stats else 'none')
+        if info is not None:
+            print('info field:', info.text[:300].replace('\n', ' | '))
+        for t, k in Counter(Interp.CATCH_LOG).most_common(12):
+            print('caught by a try (%dx): %s' % (k, t[:700]))
+        for e in rt.errors[:20]:
+            print('script error:', *e)
+        print('script errors: %d' % len(rt.errors), flush=True)
+
+    def closed():                                         # the close box, from any loop (View.after_frame)
+        t = time.perf_counter()
+        report('closed with the close box')
+        print('report written in %.2f s; ending now' % (time.perf_counter() - t), flush=True)
+        os._exit(0)
+    v.on_close = closed
     t0 = time.perf_counter()
     rt.message(card, 'xbPlayGame', [game])
     print('%s started in %.2f s (engine load included)' % (game, time.perf_counter() - t0), flush=True)
-    stats, n, t1 = [], 0, time.perf_counter()
-    while not rl.window_should_close() and not rt.closed:
+    t1[0] = time.perf_counter()
+    while not rt.closed:
         v.frame()
-        n += 1
-        if n % 60 == 0:
+        n[0] += 1
+        if n[0] % 60 == 0:
             try:
                 st = rt.ctx[id(rt.harvest.main)].invoke('xbGameStats', [])
             except Exception as e:                        # noqa: BLE001
                 st = 'stats: %s' % e
             stats.append(st)
-            print('frame %5d  %s' % (n, st), flush=True)
-    dt = time.perf_counter() - t1
-    try:
-        rt.message(card, 'xbStopGame')
-    except Exception as e:                                # noqa: BLE001
-        print('xbStopGame:', e)
-    v.close()
-    print('\n==== report ====')
-    print('%s: %d frames in %.0f s (%.1f a second on average)' % (game, n, dt, n / dt if dt else 0))
-    keys = Counter(c for c in rt.log_clicks if c.startswith('key '))
-    print('keys pressed:', ', '.join('%s x%d' % kv for kv in keys.most_common(20)) or 'none')
-    print('last stats:', stats[-1] if stats else 'none')
-    for t, k in Counter(Interp.CATCH_LOG).most_common(12):
-        print('caught by a try (%dx): %s' % (k, t[:700]))
-    for e in rt.errors[:20]:
-        print('script error:', *e)
-    print('script errors: %d' % len(rt.errors))
+            print('frame %5d  %s' % (n[0], st), flush=True)
+        if info is not None and n[0] % 15 == 0 and not info.text.startswith('Playing'):
+            break                                         # the game ended itself (or stopped with an error)
+    report('the game ended: ' + (info.text.split('\n')[0] if info is not None else '?'))
+    os._exit(0)
 
 
 if __name__ == '__main__':

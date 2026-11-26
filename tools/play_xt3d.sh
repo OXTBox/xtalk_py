@@ -2,7 +2,8 @@
 # Play a Vibecode3D game in Python through the xt3d testbench host (Phase 3), window at 200,32.
 #   ~/projects/xtalk_py/tools/play_xt3d.sh                 uDead CullTest
 #   ~/projects/xtalk_py/tools/play_xt3d.sh GAME [WxH]      another game in LIB_GAMES/Vibecode3D_Games
-# Keys 0-3 switch uDead's hiding modes. Close the window (or Esc) to stop.
+# Keys 0-3 switch uDead's hiding modes. Esc frees the mouse and keys (Esc again: back to the game).
+# The close box ends it at once (the report is written first).
 # What it prints goes to xtalk_py/run_files/play_xt3d.log, with a report at the end.
 cd "$(dirname "$0")/.." || exit 1
 mkdir -p run_files

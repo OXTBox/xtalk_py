@@ -80,6 +80,10 @@ class View:
         rt.on_clipboard_set = lambda t: rl.set_clipboard_text(t)
         self.cursor_hidden = False
         self.captured, self.vmouse, self.last_real = False, (0, 0), (0, 0)
+        self.warped = None             # where the scripts last put the mouse while lockCursor was true (mouse look)
+        self.on_close = None           # play mode: called the moment the close box is clicked (it ends the program)
+        self.esc_frees = False         # play mode: Escape frees the mouse and keys (and again takes them back)
+        self.freed = False
         if not hidden:                 # a hidden (test) window never moves the real mouse
             rt.window_pos = tuple(pos)
             rt.on_warp = self.warp
@@ -95,16 +99,23 @@ class View:
         so this is the only way a mouse-look game works. The cursor back / lockCursor false lets it go."""
         rt = self.rt
         hide = str(rt.props.get('cursor', '')).lower() == 'none'
-        want = hide and str(rt.props.get('lockcursor', '')).lower() == 'true'
+        locked = str(rt.props.get('lockcursor', '')).lower() == 'true'
+        if not locked:
+            self.warped = None
+        # mouse look is lockCursor + either cursor none (Raycasting_101) or the mouse put back by script each
+        # frame (uDead: lockCursor, then set the screenMouseLoc to the centre); Escape in play mode lets it go
+        want = locked and (hide or self.warped is not None) and not self.freed
         if want and not self.captured:
             m = rl.get_mouse_position()
-            self.vmouse = self.last_real = (m.x, m.y)
+            self.last_real = (m.x, m.y)
+            self.vmouse = self.warped if self.warped is not None else (m.x, m.y)   # no jump on the first frame
             rl.disable_cursor()
             self.captured = True
         elif not want and self.captured:
             rl.enable_cursor()
             self.captured = False
             self.cursor_hidden = False
+        hide = hide and not self.freed
         if not self.captured and hide != self.cursor_hidden:
             (rl.hide_cursor if hide else rl.show_cursor)()
             self.cursor_hidden = hide
@@ -113,6 +124,8 @@ class View:
         """set the screenMouseLoc: x,y on the screen -> inside this window. While the mouse is grabbed the
         virtual mouse moves (always works); otherwise the real pointer is asked to move (WSL may ignore it)"""
         wx, wy = self.rt.window_pos
+        if str(self.rt.props.get('lockcursor', '')).lower() == 'true':
+            self.warped = (x - wx, y - wy)
         if self.captured:
             self.vmouse = (x - wx, y - wy)
             return
@@ -197,6 +210,18 @@ class View:
             if o.type == 'group' or not self.rt._shown(o):
                 continue
             getattr(self, 'draw_' + o.type, self.draw_other)(o)
+        if self.esc_frees:
+            self.draw_escape_label()
+
+    def draw_escape_label(self):
+        """play mode: a corner line that says whether the game has the mouse and keys"""
+        if self.freed:
+            t, bg = 'FREE: mouse and keys are yours.  Esc = back to the game', rl.Color(150, 30, 30, 230)
+        else:
+            t, bg = 'Esc = free the mouse', rl.Color(0, 0, 0, 140)
+        w = rl.measure_text(t, 10)
+        rl.draw_rectangle(rl.get_screen_width() - w - 12, 2, w + 10, 16, bg)
+        rl.draw_text(t, rl.get_screen_width() - w - 7, 5, 10, rl.Color(255, 255, 255, 255))
 
     def rect(self, o):
         l, t, r, b = o.rect
@@ -537,6 +562,18 @@ class View:
         self.draw_card()
         busy = self.draw_panel()
         rl.end_drawing()
+        self.after_frame()
+        if self.esc_frees and rl.is_key_pressed(rl.KEY_ESCAPE):   # play mode: Escape is the View's, not the game's
+            self.freed = not self.freed
+            if hasattr(rt, 'log_clicks'):
+                rt.log_clicks.append('key escape (%s)' % ('mouse and keys freed' if self.freed else 'back to the game'))
+            self.capture()
+        if self.freed:                            # the game gets no mouse moves, clicks or keys; it plays on
+            rt.keys_down, rt.held_codes = set(), list(rt.test_keys)
+            if rl.is_key_pressed(rl.KEY_F2):
+                self.panel = not self.panel
+            rt.tick(min(rl.get_frame_time() * 1000, 100), budget=0.02)
+            return
         if self.captured:                         # a mouse-look game: only the movement counts (see capture())
             d, m = rl.get_mouse_delta(), rl.get_mouse_position()
             dx, dy = d.x, d.y
@@ -561,10 +598,16 @@ class View:
             if rl.is_key_down(key):
                 held.add(name)
         rt.keys_down = held | ({'altkey'} if 'optionkey' in held else set())
-        rt.held_codes = [code for key, code in self.KEYCODES if rl.is_key_down(key)] + list(rt.test_keys)   # the keysDown
+        rt.held_codes = [code for key, code in self.KEYCODES if rl.is_key_down(key)
+                         and not (code == 65307 and self.esc_frees)] + list(rt.test_keys)   # the keysDown
                                                    # (test_keys: keys a check tool holds down, tools/xt3d_game_check.py)
         for key, code in self.KEYCODES:            # rawKeyDown (Raycasting_101: Esc / ` free the mouse)
             if rl.is_key_pressed(key):
+                if code == 65307:
+                    if self.esc_frees:            # play mode: Escape belongs to the View (above)
+                        continue
+                    if hasattr(rt, 'log_clicks'):
+                        rt.log_clicks.append('key escape')
                 rt.raw_key(code)
         self.capture()
         if rl.is_key_pressed(rl.KEY_F2):
@@ -628,11 +671,12 @@ class View:
         """a script shows a menu: draw until a pick or the menu closes (the handler waits)"""
         self.menu = {'items': items, 'x': x, 'y': y, 'pick': None, 'done': False}
         try:
-            while not rl.window_should_close() and self.menu['pick'] is None and not self.menu['done']:
+            while not self.should_close() and self.menu['pick'] is None and not self.menu['done']:
                 rl.begin_drawing()
                 self.draw_card()
                 self.draw_panel()
                 rl.end_drawing()
+                self.after_frame()
             return self.menu['pick']
         finally:
             self.menu = None
@@ -742,11 +786,12 @@ class View:
         self.dialog = {'kind': kind, 'sub': sub, 'icon': icon, 'prompt': prompt, 'title': title, 'typing': typing,
                        'text': text, 'buttons': buttons, 'done': None, 'focused': False}
         try:
-            while not rl.window_should_close() and self.dialog['done'] is None:
+            while not self.should_close() and self.dialog['done'] is None:
                 rl.begin_drawing()
                 self.draw_card()
                 self.draw_panel()
                 rl.end_drawing()
+                self.after_frame()
             done, text = self.dialog['done'], self.dialog['text']
         finally:
             self.dialog = None
@@ -765,18 +810,32 @@ class View:
     def wait_frames(self, ms):
         """a script waits: keep drawing (no clicks or timers, as LiveCode's wait without messages)"""
         end = rl.get_time() + ms / 1000.0
-        while rl.get_time() < end and not rl.window_should_close():
+        while rl.get_time() < end and not self.should_close():
             rl.begin_drawing()
             self.draw_card()
             self.draw_panel()
             rl.end_drawing()
+            self.after_frame()
+
+    def after_frame(self):
+        """after every drawn frame (the main loop, waits, menus, dialogs): a close-box click in play mode ends
+        the program at once, whatever the scripts are doing (the owner, 25 Nov: the close box is absolute)"""
+        self.should_close()
+
+    def should_close(self):
+        """the close box was clicked; in play mode (on_close) the program ends here and never returns"""
+        c = rl.window_should_close()
+        if c and self.on_close is not None:
+            cb, self.on_close = self.on_close, None
+            cb()
+        return c
 
     def run(self):
         self.rt.on_wait = self.wait_frames
         self.rt.on_menu = self.menu_frames
         self.rt.on_dialog = self.dialog_frames
         self.rt.open()
-        while not rl.window_should_close() and not self.rt.closed:
+        while not self.should_close() and not self.rt.closed:
             self.frame()
         self.rt.close_stack()
         self.close()
