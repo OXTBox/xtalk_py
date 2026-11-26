@@ -230,6 +230,17 @@ class StackHost(Host):
                 group = target
         return target
 
+    def library(self, desc):
+        """the stack of `start using stack X`: one in memory by name, else a script-only stack file"""
+        o = self.resolve(desc, must=False)
+        if o is not None and o.type == 'stack':
+            return o
+        m = re.match(r'\s*stack\s+"(.*)"\s*$', desc, re.S)
+        path = self.real_path(m.group(1)) if m else ''
+        if path and os.path.isfile(path):
+            return self.rt.script_stack(path)
+        raise XtError("start using: can't find stack %s" % desc)
+
     def _find_stack(self, how, val):
         if how == 'name':
             v = val.replace('\\', '/').split('/')[-1]
@@ -316,6 +327,9 @@ class StackHost(Host):
         """delete graphic "x": it goes; anything pointing at it lets go"""
         rt = self.rt
         o = self.resolve(desc)
+        if o.type == 'stack' and getattr(o, 'filename', None) and o is not rt.harvest.main:
+            rt.forget_stack(o)                 # a script-only stack loaded from its file
+            return
         if o.type == 'stack':
             raise XtError("delete: can't delete a stack here")
         holder = o.stack if o.type == 'card' else o.parent
@@ -417,6 +431,12 @@ class StackHost(Host):
         return regular_points(o.rect, n, a)
 
     def exists(self, desc):
+        m = re.match(r'\s*(file|folder|directory)\s+"(.*)"\s*$', desc, re.S | re.I)
+        if m:                                  # there is a file "x" / a folder "x": looked at, never changed
+            path = self.real_path(m.group(2))
+            if not os.path.isabs(path):
+                path = os.path.join(self.default_folder, path)
+            return os.path.isfile(path) if m.group(1).lower() == 'file' else os.path.isdir(path)
         return self.resolve(desc, must=False) is not None
 
     def count(self, kind, parent):
@@ -443,6 +463,9 @@ class StackHost(Host):
             return arr.get(key, '') if isinstance(arr, dict) else ''
         if p in ('imagedata', 'alphadata') and o.type == 'image' and getattr(o, p, None) is not None:
             return getattr(o, p)
+        if p in ('filename', 'effective filename') and o.type == 'stack':
+            st = o if p == 'filename' else o.mainstack or o
+            return getattr(st, 'filename', '')
         r = self.obj_prop(o, p)
         return r
 
@@ -459,7 +482,9 @@ class StackHost(Host):
             return rt.focused.text[s:e]
         if p == 'target':
             return self.name_of(rt.target) if rt.target is not None else ''
-        if p in ('defaultstack', 'topstack'):
+        if p == 'topstack':                    # stack "Name" (measured 25 Nov)
+            return 'stack "%s"' % rt.default_stack.name
+        if p == 'defaultstack':                # the standalone gave stack "LIB_MCP" too (25 Nov): NOT changed yet
             return rt.default_stack.name
         if p == 'mouseloc':
             return '%d,%d' % rt.mouse
@@ -471,6 +496,13 @@ class StackHost(Host):
             return '1'
         if p == 'screenrect':
             return '0,0,1536,864'
+        if p == 'environment':                 # we run stacks the way a standalone does
+            return 'standalone application'
+        if p == 'loadedextensions':            # xt3d (the raylib bridge) when its Python twin is installed
+            from ..interp import EXTERNALS
+            return 'org.xtalk.xtbridge' if 'xt3d_version' in EXTERNALS else ''
+        if p == 'stacksinuse':
+            return '\n'.join(st.name for st in rt.using)
         if p == 'mainstacks':
             return rt.harvest.main.name
         if p == 'clipboard':                   # what is on it: text, or empty (measured 26 Nov)
@@ -933,6 +965,13 @@ class StackHost(Host):
             return ''
         if name in COMMANDS_QUIET:
             return ''
+        if name in ('start', 'stop') and words[:1] == ['using'] and es:   # start using stack "x" (a name or a file)
+            st = self.library(es[0])
+            if name == 'start':
+                rt.start_using(st)
+            else:
+                rt.stop_using(st)
+            return ''
         if name == 'create' and words[:1] == ['folder'] and es:
             os.makedirs(self.sandboxed(self._path(es[0])), exist_ok=True)     # create folder: inside the sandbox
             return ''
@@ -1117,17 +1156,33 @@ class StackHost(Host):
         return self.folders.get(name.lower(), '')
 
     def _path(self, ref):
-        path = ref[5:] if ref.lower().startswith('file:') else ref
+        low = ref.lower()
+        path = ref[5:] if low.startswith('file:') else ref[8:] if low.startswith('binfile:') else ref
         return path.replace('\\', '/')
 
+    @staticmethod
+    def _kind(kind, ref):
+        """URL ("binfile:" & x): the kind is in the text"""
+        return 'binfile' if ref.lower().startswith('binfile:') else 'file' if ref.lower().startswith('file:') else kind
+
     def read_url(self, kind, ref):
+        kind = self._kind(kind, ref)
         p = self._path(ref)
-        return open(p, encoding='utf-8', errors='replace').read() if os.path.exists(p) else ''
+        if not os.path.exists(p):
+            return ''
+        if kind == 'binfile':                  # one char a byte (measured 25 Nov: a 6-byte UTF-8 file is 6 long)
+            return open(p, 'rb').read().decode('latin-1')
+        # file: is UTF-8 text here; LiveCode gives one char a byte there too (also 6): NOT the same yet
+        return open(p, encoding='utf-8', errors='replace').read()
 
     def write_url(self, kind, ref, text):
         """writes stay in the sandbox (run_files): any other path is redirected under run_files/elsewhere/"""
+        kind = self._kind(kind, ref)
         p = self.sandboxed(self._path(ref))
         d = os.path.dirname(p)
         if d:
             os.makedirs(d, exist_ok=True)
+        if kind == 'binfile':                  # one char a byte back to the byte
+            open(p, 'wb').write(text.encode('latin-1', 'replace'))
+            return
         open(p, 'w', encoding='utf-8').write(text)

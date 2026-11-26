@@ -5,6 +5,7 @@ manifest's typeDefaults for its type, then empty. Geometry lives in `rect` only.
 """
 import json, math, os
 from .styled import from_html
+from ..values import XtArray
 
 CONTROL_TYPES = ('button', 'field', 'graphic', 'image', 'group', 'scrollbar', 'player', 'widget')
 
@@ -29,9 +30,9 @@ def to_xtalk(v):
     if isinstance(v, list):
         if all(isinstance(x, (int, float, str)) and not isinstance(x, bool) for x in v):
             return ','.join(num_text(x) if not isinstance(x, str) else x for x in v)
-        return {str(i + 1): to_xtalk(x) for i, x in enumerate(v)}
+        return XtArray({str(i + 1): to_xtalk(x) for i, x in enumerate(v)})
     if isinstance(v, dict):
-        return {str(k): to_xtalk(x) for k, x in v.items()}
+        return XtArray({str(k): to_xtalk(x) for k, x in v.items()})
     return str(v)
 
 

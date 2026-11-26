@@ -129,6 +129,7 @@ class StackRuntime:
         self.host.default_folder = self.harvest.folder
         self.ctx = {}
         self.load_errors = []
+        self.using = []                # library stacks (start using): on every message path, after the stacks
         self.errors = []               # script errors while running: (message, object, error text)
         self.answers = []              # what `answer` would have shown
         self.target = None
@@ -167,6 +168,7 @@ class StackRuntime:
         self.on_wait = None
         self.keys_down = set()         # 'shiftkey', 'optionkey'... while held (the window fills it)
         self.held_codes = []           # the key codes held now (the keysDown; the window fills it)
+        self.test_keys = []            # key codes a test holds down (the window adds them to the keysDown)
         self.recent, self.recent_i, self._nav = [], -1, False   # recent cards (up/down arrows go through them)
         self.window_pos = (0, 0)       # the window's place on the screen (globalLoc); the window sets it
         self.on_warp = None            # the window: move the real mouse to a screen point
@@ -232,7 +234,53 @@ class StackRuntime:
                 o = o.mainstack if o.mainstack is not o else None
             else:
                 o = o.parent
+        out.extend(x for x in self.using if x not in out)                    # then the libraries (start using)
         return out
+
+    # ------------------------------------------------------------ script-only stacks and libraries
+    def script_stack(self, path):
+        """a script-only stack file (`script "Name"`, then its script) as a stack in memory; the one already
+        loaded when a stack of that name is there"""
+        from .model import Stack
+        text = open(path, encoding='utf-8', errors='replace').read().lstrip('\ufeff').replace('\r\n', '\n')
+        m = re.match(r'\s*script\s+"([^"]*)"', text)
+        name = m.group(1) if m else os.path.splitext(os.path.basename(path))[0]
+        old = self.harvest.stack(name)
+        if old is not None:
+            return old
+        node = {'type': 'stack', 'name': name, 'id': 1001, 'role': 'sub', 'rect': [0, 0, 400, 400],
+                'cards': [{'type': 'card', 'name': '', 'id': 1002, 'number': 1, 'controls': []}]}
+        st = Stack(node, os.path.dirname(path), {})
+        st.mainstack = st                  # a script-only stack is a main stack of its own
+        st.filename = path
+        st.script = text
+        self.harvest.stacks.append(st)
+        c = ObjInterp(self, st)
+        c.load(text.split('\n', 1)[1] if m else text)
+        for e in c.load_errors:
+            self.load_errors.append((self.host.name_of(st, 'long'), e))
+        self.ctx[id(st)] = c
+        self.names_changed()
+        return st
+
+    def start_using(self, st):
+        if st not in self.using:
+            self.using.insert(0, st)           # the newest library first (stacksInUse order)
+            self.message(st, 'libraryStack')
+
+    def stop_using(self, st):
+        if st in self.using:
+            self.message(st, 'releaseStack')
+            self.using.remove(st)
+
+    def forget_stack(self, st):
+        """delete stack "X" (a script-only stack loaded here): gone from memory"""
+        self.stop_using(st)
+        if st in self.harvest.stacks and st is not self.harvest.main:
+            self.harvest.stacks.remove(st)
+        for x in [st] + st.children + [c for card in st.children for c in card.flat()]:
+            self.ctx.pop(id(x), None)
+        self.names_changed()
 
     def contexts(self, o):
         return [self.ctx[id(x)] for x in self.path(o) if id(x) in self.ctx]

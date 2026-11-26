@@ -34,6 +34,7 @@ TOKEN = re.compile(r'''
   | (?P<nl>\n)
   | (?P<str>"[^"\n]*")
   | (?P<num>(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?)
+  | (?P<env>\$[A-Za-z_][A-Za-z0-9_]*)
   | (?P<id>[A-Za-z_][A-Za-z0-9_']*(\.[A-Za-z0-9_]+)*)
   | (?P<op><=|>=|<>|&&|[&+\-*/^=<>(),\[\]])
   | (?P<other>.)
@@ -69,6 +70,7 @@ class Parser:
     def __init__(self, text):
         self.t = tokenize(text)
         self.i = 0
+        self.more_consts = []
         self.no_prop = 0
 
     # ---- token helpers
@@ -156,6 +158,8 @@ class Parser:
             if self.is_word('global') or self.is_word('local') or self.is_word('constant'):
                 st = self.statement()
                 top.append(st)
+                top.extend(self.more_consts)          # constant kA = 1, kB = 2 (measured: compiles)
+                self.more_consts = []
                 if st[0] == 'global':
                     self.sglobals.extend(n.lower() for n in st[1] if n.lower() not in self.sglobals)
                 self.skip_nl()
@@ -315,6 +319,23 @@ class Parser:
             group = self.p_un()
         return ('create', typ, invisible, name, group)
 
+    def st_convert(self):
+        """convert tD to dateItems / to short date and long time: the format stays words"""
+        target = self.expr()
+        parts = [('e', target)]
+        if self.accept_word('from'):          # convert x from english date to short system date
+            ws = []
+            while self.peek()[0] not in ('nl', 'eof') and not self.is_word('to'):
+                ws.append(self.next()[1])
+            parts += [('w', 'from'), ('w', ' '.join(ws))]
+        if self.accept_word('to'):
+            parts.append(('w', 'to'))
+            ws = []
+            while self.peek()[0] not in ('nl', 'eof') and not self.is_word('else'):
+                ws.append(self.next()[1])
+            parts.append(('w', ' '.join(ws)))
+        return ('cmd', 'convert', parts)
+
     def st_delete(self):
         self.accept_word('variable', 'local', 'global')     # delete local sA (measured: empties it)
         return ('delete', self.expr())
@@ -418,7 +439,14 @@ class Parser:
     def st_constant(self):
         name = self.next()[1]
         self.expect_op('=')
-        return ('constant', name, self.expr())
+        st = ('constant', name, self.expr())
+        self.more_consts = []
+        while self.is_op(','):                 # constant kA = 1, kB = 2: the rest go in after (script level)
+            self.i += 1
+            n2 = self.next()[1]
+            self.expect_op('=')
+            self.more_consts.append(('constant', n2, self.expr()))
+        return st
 
     def st_exit(self):
         w = self.next()[1].lower()
@@ -716,6 +744,8 @@ class Parser:
 
     def primary(self):
         k, s, line = self.next()
+        if k == 'env':                         # $HOME: an environment variable (read only here)
+            return ('call', '$env', [('str', s[1:])])
         if k == 'num':
             return self.postfix(('num', s))
         if k == 'str':

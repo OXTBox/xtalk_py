@@ -258,3 +258,19 @@ standalone per library group.
   toward zero (2.7 -> 2, -2.7 -> -2); an empty argument is an error (899); a negative number for an unsigned one is
   an error (863); a CInt result is signed (`xt3d_ColorToInt(255,0,0,255)` = -16776961). As a command, its value
   goes into the result.
+- (25 Nov) The itemDelimiter, lineDelimiter and numberFormat belong to the handler: each handler starts with
+  comma / return / 0.######, and a change never reaches its caller or the handlers it calls (tA sets "/", calls
+  tB: tB sees ","; tB sets ":", tA still has "/"; a command tF setting "/" leaves its caller at ","). Found
+  because the xt3d testbench's xbFindAbove leaves the itemDel at "/".
+- (25 Nov) Array keys ignore case while the caseSensitive is false: `a["x"]` finds what was put into `a["X"]`;
+  `put 9 into a["name"]` after `a["Name"]` changes that element and the keys still say `Name`; with the
+  caseSensitive true, `a["x"]` is empty and `b["k"]`, `b["K"]` are two elements. `split` arrays too.
+  The caseSensitive belongs to the handler like the itemDel (a called function sees false).
+  Ours: values.XtArray. (The engine's SetObjectPosition stores ["X"], GetObjectPosition reads ["x"].)
+- (25 Nov) `the topStack` is `stack "Name"`; in the standalone `the defaultStack` also gave `stack "LIB_MCP"`
+  (ours still gives the bare name: not changed yet).
+- (25 Nov) the date forms (US English Windows): 11/25/26 | Wednesday, November 25, 2026 | Wed, Nov 25, 2026 |
+  5:35 PM | 5:35:01 PM | internet date Wed, 25 Nov 2026 17:35:01 -0800. `convert`: dateItems =
+  y,m,d,h,min,s,weekday (1 = Sunday), overflow normalised (2026,11,40,25,0,0 -> 2026,12,11,1,0,0,6); a date alone
+  is midnight, a time alone today; bad input leaves the variable and the result is "invalid date";
+  `to short date and long time` joins with a space. `binfile:` is one char a byte; textDecode(...,"UTF-8").

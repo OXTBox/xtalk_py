@@ -6,7 +6,7 @@ a translated handler may `do` a string, and an interpreted one may call a transl
 """
 import warnings
 from . import chunks as ch                                    # noqa: F401  (used by generated code)
-from .values import XtError, to_text, to_num, to_bool, numstr, plain   # noqa: F401
+from .values import XtError, XtArray, to_text, to_num, to_bool, numstr, plain   # noqa: F401
 from .interp import (Interp, Frame, BUILTINS as B, EXTERNALS, CONST as K, Thrown, Break, Pass,   # noqa: F401
                      ExitRepeat, NextRepeat, _re_search)
 from .host import wildcard
@@ -26,6 +26,8 @@ class Runtime(Interp):
         with warnings.catch_warnings():              # `return` inside `finally` is what the xTalk said
             warnings.simplefilter('ignore', SyntaxWarning)
             code = compile(module_text, name, 'exec')
+        import linecache                             # tracebacks show the generated line
+        linecache.cache[name] = (len(module_text), None, module_text.splitlines(True), name)
         exec(code, env)
         env['install'](self)
         return env
@@ -116,6 +118,9 @@ class Runtime(Interp):
             r = self.invoke(name, vals)
             self.result = r if isinstance(r, str) else ''
             return self.refs
+        if name.lower() == 'convert' and vals:     # convert tD to dateItems: the variable changes
+            v = self.convert_cmd(vals, words)
+            return {0: v} if v is not None else None
         x = EXTERNALS.get(name.lower())
         if x is not None:                          # an extension's handler as a command: its value is the result
             self.result = to_text(x(*vals))
@@ -124,6 +129,14 @@ class Runtime(Interp):
         parts = [('e', to_text(next(it))) if w is None else ('w', w) for w in words]
         self.result = to_text(self.host.command(name, parts) or '')
         return None
+
+    def convert_cmd(self, vals, words):
+        from .interp import convert_date
+        it = iter(vals)
+        text = [to_text(next(it)) if w is None else w for w in words]
+        target = ' '.join(text[text.index('to') + 1:]) if 'to' in text[1:] else ''
+        v, self.result = convert_date(text[0], target)
+        return v
 
     def cmd(self, fr, name, vals, setters, words):
         """a command line: a handler of the script, else the host (go, show, answer...).
@@ -135,6 +148,11 @@ class Runtime(Interp):
             for i, v in self.refs.items():
                 if i < len(setters) and setters[i] is not None and setters[i][0] in ASSIGNABLE_BYREF_CMD:
                     setters[i][1](v)
+            return
+        if name.lower() == 'convert' and vals:
+            v = self.convert_cmd(vals, words)
+            if v is not None and setters and setters[0] is not None:
+                setters[0][1](v)
             return
         x = EXTERNALS.get(name.lower())
         if x is not None:                          # an extension's handler as a command: its value is the result
@@ -322,13 +340,13 @@ def isempty(v):
 
 def aget1(arr, k):
     """arr[k] (one key)"""
-    return arr.get(k, '') if type(arr) is dict else ''
+    return arr.get(k, '') if isinstance(arr, dict) else ''
 
 
 def aget(arr, keys):
     cur = arr
     for k in keys:
-        if type(cur) is not dict:
+        if not isinstance(cur, dict):
             return ''
         cur = cur.get(k, '')
     return cur
@@ -336,13 +354,13 @@ def aget(arr, keys):
 
 def aput(arr, keys, value, mode):
     """put value into arr[keys...]: returns the array (a new one when arr was not an array)"""
-    if type(arr) is not dict:
-        arr = {}
+    if not isinstance(arr, dict):
+        arr = XtArray()
     top, cur = arr, arr
     for k in keys[:-1]:
         nxt = cur.get(k)
-        if type(nxt) is not dict:
-            nxt = {}
+        if not isinstance(nxt, dict):
+            nxt = XtArray()
             cur[k] = nxt
         cur = nxt
     last = keys[-1]
@@ -356,11 +374,11 @@ def aput(arr, keys, value, mode):
 
 def adel(arr, keys):
     """delete arr[keys...]"""
-    if type(arr) is not dict:
+    if not isinstance(arr, dict):
         return
     for k in keys[:-1]:
         arr = arr.get(k)
-        if type(arr) is not dict:
+        if not isinstance(arr, dict):
             return
     arr.pop(keys[-1], None)
 

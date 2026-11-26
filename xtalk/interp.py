@@ -1,8 +1,8 @@
 """The xTalk interpreter: runs the parser's tuples. Everything is text."""
-import copy
+import os, copy
 import math, random, time, base64, re
 from . import chunks as ch
-from .values import XtError, to_num, fmt_num, numstr, plain, to_text, to_bool, is_numeric_text, compare, NUMBER_FORMAT
+from .values import XtError, XtArray, CASE, to_num, fmt_num, numstr, plain, to_text, to_bool, is_numeric_text, compare, NUMBER_FORMAT
 from .parser import parse_script, parse_expr, parse_statements, OBJTYPES
 from .host import Host, wildcard
 
@@ -114,6 +114,14 @@ class Interp:
             self.depth = 0
             raise XtError('handler: stack overflow')
         fr = Frame(args)
+        P = self.props                         # itemDel, lineDel, numberFormat belong to the handler: each one
+        saved = (P['itemdelimiter'], P['linedelimiter'], P['numberformat'], NUMBER_FORMAT[0],   # starts at the
+                 P.get('casesensitive', 'false'), CASE[0])                               # defaults; a change
+        P['itemdelimiter'], P['linedelimiter'] = ',', '\n'          # never reaches the caller (caseSensitive too)
+        if CASE[0]:
+            P['casesensitive'], CASE[0] = 'false', False
+        if saved[2] != '0.######' or saved[3] != '0.######':       # or the handlers it calls (measured 25 Nov)
+            P['numberformat'] = NUMBER_FORMAT[0] = '0.######'
         pl = {p.lower() for p in params}       # a parameter named like a script global wins (measured 25 Nov)
         fr.globals.update(g for g in self.SG.get(name.lower(), ()) if g not in pl)
         for i, p in enumerate(params):    # full number kept (measured); an array is copied
@@ -132,6 +140,7 @@ class Interp:
         finally:
             self.depth -= 1
             self.refs = {i: fr.vars.get(params[i].lower(), '') for i in byref if i < len(params)}
+            P['itemdelimiter'], P['linedelimiter'], P['numberformat'], NUMBER_FORMAT[0], P['casesensitive'], CASE[0] = saved
         return ''
 
     # ------------------------------------------------------------ variables
@@ -322,6 +331,8 @@ class Interp:
             f(name, v)
         if name == 'numberformat':
             NUMBER_FORMAT[0] = v
+        if name == 'casesensitive':
+            CASE[0] = to_text(v).lower() == 'true'
 
     def x_return(self, st, fr):
         raise Return(self.ev(st[1], fr))
@@ -357,11 +368,22 @@ class Interp:
             except (Thrown, XtError) as e:
                 if var is None and not catch:
                     raise
+                self.caught(e)
                 if var:
                     self.setvar(fr, var, e.v if isinstance(e, Thrown) else str(e))
                 self.exec_block(catch, fr)
         finally:
             self.exec_block(fin, fr)
+
+    CATCH_LOG = None                   # a list: every error a script's try caught goes in (tools, debugging)
+
+    def caught(self, e):
+        if Interp.CATCH_LOG is not None:
+            import traceback
+            where = ['%s%s' % (f.name, (' [' + f.line.strip()[:400] + ']') if f.line and f.name.startswith('h_') else '')
+                     for f in traceback.extract_tb(e.__traceback__)][-6:]
+            Interp.CATCH_LOG.append('%s (in %s; %s)' % (e.v if isinstance(e, Thrown) else e, getattr(self, 'obj', ''),
+                                                        ' > '.join(where)))
 
     def x_switch(self, st, fr):
         """the first case that matches (else the default) starts; from there every body runs,
@@ -465,6 +487,13 @@ class Interp:
             for i, v in self.refs.items():
                 if i < len(nodes) and nodes[i][0] in ('var', 'idx', 'chunk'):
                     self.assign(nodes[i], v, 'into', fr)
+            return
+        if name.lower() == 'convert' and parts and parts[0][0] == 'e':
+            text = [to_text(self.ev(p[1], fr)) if p[0] == 'e' else p[1] for p in parts]
+            target = ' '.join(text[text.index('to') + 1:]) if 'to' in text[1:] else ''
+            v, self.result = convert_date(text[0], target)
+            if v is not None:
+                self.assign(parts[0][1], v, 'into', fr)
             return
         x = EXTERNALS.get(name.lower())
         if x is not None:                       # an extension's handler as a command: its value is the result
@@ -667,12 +696,12 @@ class Interp:
         store = self.G if n in fr.globals else (self.S if n not in fr.vars and n in self.S else fr.vars)
         arr = store.get(n)
         if not isinstance(arr, dict):
-            arr = {}
+            arr = XtArray()
             store[n] = arr
         for kk in keys[:-1]:
             nxt = arr.get(kk)
             if not isinstance(nxt, dict):
-                nxt = {}
+                nxt = XtArray()
                 arr[kk] = nxt
             arr = nxt
         last = keys[-1]
@@ -761,6 +790,9 @@ class Interp:
             return numstr(int(time.time() * (60 if n == 'ticks' else 1000)))
         if n == 'paramcount':
             return numstr(len(fr.args))
+        d = date_time(n)
+        if d is not None:
+            return d
         h = self.host.get_prop('', n)
         if h != '' or n in self.MAY_BE_EMPTY:
             return h
@@ -1139,8 +1171,135 @@ def f_baseconvert(it, fr, num, frm, to):
 # Found after the script's own handlers, before the built-in functions and the host's commands.
 EXTERNALS = {}
 
+def date_time(n):
+    """the date / the time in their forms, as LiveCode 9.6.3 gives them on the owner's Windows (US English),
+    measured 25 Nov: 11/25/26 | Wednesday, November 25, 2026 | Wed, Nov 25, 2026 | 5:35 PM | 5:35:01 PM |
+    Wed, 25 Nov 2026 17:35:01 -0800 (the internet date). None for any other name."""
+    if not (n.endswith('date') or n.endswith('time')) or n not in DATE_FORMS:
+        return None
+    return date_form(DATE_FORMS[n], time.localtime())
+
+
+def date_form(f, t):
+    """one of DATE_FORMS' values for a time.struct_time"""
+    h12 = t.tm_hour % 12 or 12
+    ampm = 'AM' if t.tm_hour < 12 else 'PM'
+    if f == 'short date':
+        return '%d/%d/%02d' % (t.tm_mon, t.tm_mday, t.tm_year % 100)
+    if f == 'long date':
+        return time.strftime('%A, %B ', t) + '%d, %d' % (t.tm_mday, t.tm_year)
+    if f == 'abbr date':
+        return time.strftime('%a, %b ', t) + '%d, %d' % (t.tm_mday, t.tm_year)
+    if f == 'short time':
+        return '%d:%02d %s' % (h12, t.tm_min, ampm)
+    if f == 'long time':
+        return '%d:%02d:%02d %s' % (h12, t.tm_min, t.tm_sec, ampm)
+    return time.strftime('%a, ', t) + '%d ' % t.tm_mday + time.strftime('%b %Y %H:%M:%S %z', t)
+
+
+DATE_FORMS = {'date': 'short date', 'short date': 'short date', 'long date': 'long date',
+              'abbreviated date': 'abbr date', 'abbrev date': 'abbr date', 'abbr date': 'abbr date',
+              'time': 'short time', 'short time': 'short time', 'abbreviated time': 'short time',
+              'abbrev time': 'short time', 'abbr time': 'short time', 'long time': 'long time',
+              'internet date': 'internet date',
+              # English = US forms; the system forms are the same on the owner's US-English Windows
+              'english date': 'short date', 'short english date': 'short date', 'long english date': 'long date',
+              'abbreviated english date': 'abbr date', 'system date': 'short date', 'short system date': 'short date',
+              'long system date': 'long date', 'abbreviated system date': 'abbr date', 'english time': 'short time',
+              'long english time': 'long time', 'system time': 'short time', 'long system time': 'long time'}
+
+
+_DATE_IN = [('%m/%d/%y', 'd'), ('%m/%d/%Y', 'd'), ('%A, %B %d, %Y', 'd'), ('%a, %b %d, %Y', 'd'),
+            ('%I:%M %p', 't'), ('%I:%M:%S %p', 't'), ('%a, %d %b %Y %H:%M:%S %z', 'dt')]
+
+
+def convert_date(text, target):
+    """convert x to dateItems / seconds / long date / short date and long time ... (measured 25 Nov):
+    -> (new text, '') or (None, 'invalid date'). dateItems = year,month,day,hour,minute,second,weekday
+    (1 = Sunday) and may overflow (day 40 of November = 10 December); a date alone is midnight, a time
+    alone is today."""
+    import datetime as _dt
+    v = text.strip()
+    t = None
+    try:
+        if is_numeric_text(v):
+            t = time.localtime(float(v))
+        elif v.count(',') == 6 and all(is_numeric_text(x.strip()) for x in v.split(',')):
+            y, mo, d, h, mi, sec = (int(float(x)) for x in v.split(',')[:6])
+            t = time.localtime(time.mktime((y, mo, d, h, mi, sec, 0, 0, -1)))
+        else:
+            today = time.localtime()
+            parts = v.rsplit(' ', 2) if ' ' in v else [v]
+            cands = [(v, None)] + ([(' '.join(parts[:-2]), ' '.join(parts[-2:]))] if len(parts) == 3 else [])
+            for dpart, tpart in cands:
+                for fmt, kind in _DATE_IN:
+                    try:
+                        p = _dt.datetime.strptime(dpart, fmt)
+                    except ValueError:
+                        continue
+                    if kind == 't':
+                        p = p.replace(year=today.tm_year, month=today.tm_mon, day=today.tm_mday)
+                    if tpart is not None:
+                        q = next((_dt.datetime.strptime(tpart, f2) for f2, k2 in _DATE_IN if k2 == 't'
+                                  and _try_time(tpart, f2)), None)
+                        if q is None:
+                            continue
+                        p = p.replace(hour=q.hour, minute=q.minute, second=q.second)
+                    t = time.localtime(p.timestamp()) if kind == 'dt' else time.localtime(time.mktime(p.timetuple()[:8] + (-1,)))
+                    break
+                if t is not None:
+                    break
+    except (ValueError, OverflowError, OSError):
+        t = None
+    if t is None:
+        return None, 'invalid date'
+    out = []
+    for f in re.split(r'\s+and\s+', target.strip().lower()):
+        f = re.sub(r'\s+', ' ', f)
+        if f == 'dateitems':
+            out.append('%d,%d,%d,%d,%d,%d,%d' % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec,
+                                                 (t.tm_wday + 1) % 7 + 1))
+        elif f == 'seconds':
+            out.append(str(int(time.mktime(t))))
+        elif f in DATE_FORMS:
+            out.append(date_form(DATE_FORMS[f], t))
+        else:
+            raise XtError('convert: unknown format %s' % f)
+    return ' '.join(out), ''
+
+
+def _try_time(s, f):
+    import datetime as _dt
+    try:
+        _dt.datetime.strptime(s, f)
+        return True
+    except ValueError:
+        return False
+
+
+_ENC = {'utf-8': 'utf-8', 'utf8': 'utf-8', 'utf-16': 'utf-16-le', 'utf16': 'utf-16-le', 'native': 'latin-1',
+        'ascii': 'ascii', 'iso-8859-1': 'latin-1', 'macroman': 'mac-roman', 'windows-1252': 'cp1252'}
+
+
+def f_textdecode(it, fr, x, enc='native'):
+    """binary (one char a byte, as binfile: gives) -> text (measured 25 Nov: 6 bytes of UTF-8 -> 5 chars).
+    Text that is not one char a byte (a file: read here is already text) comes back as it is."""
+    t = _t(x)
+    try:
+        return t.encode('latin-1').decode(_ENC.get(_t(enc).lower(), 'utf-8'), 'replace')
+    except UnicodeEncodeError:
+        return t
+
+
+def f_textencode(it, fr, x, enc='native'):
+    """text -> binary, one char a byte (measured: textEncode of h + e-acute in UTF-8 is 3 long)"""
+    return _t(x).encode(_ENC.get(_t(enc).lower(), 'utf-8'), 'replace').decode('latin-1')
+
+
 BUILTINS = {
     'baseconvert': f_baseconvert,
+    'textdecode': f_textdecode, 'textencode': f_textencode,
+    '$env': lambda it, fr, n: os.environ.get(_t(n), ''),
     'globalloc': f_globalloc,
     'files': lambda it, fr, *a: it.host.list_dir('files', _t(a[0]) if a else None) if hasattr(it.host, 'list_dir') else '',
     'folders': lambda it, fr, *a: it.host.list_dir('folders', _t(a[0]) if a else None) if hasattr(it.host, 'list_dir') else '',

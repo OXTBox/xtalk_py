@@ -568,6 +568,7 @@ class FastGen(Gen):
         self.emit(ind, 'try:')
         self.block(body, ind + 1)
         self.emit(ind, 'except (Thrown, XtError) as %s:' % e)
+        self.emit(ind + 1, 'rt.caught(%s)' % e)
         self.emit(ind + 1, self.set_var(var, '(%s.v if isinstance(%s, Thrown) else str(%s))' % (e, e, e)))
         self.block(catch, ind + 1)
         if fin:

@@ -9,6 +9,78 @@ _NUM = re.compile(r'^\s*[+-]?(\d+\.?\d*([eE][+-]?\d+)?|\.\d+([eE][+-]?\d+)?)\s*$
 def is_number(s):
     return isinstance(s, str) and bool(_NUM.match(s)) or (isinstance(s, str) and s.strip() == '' and False)
 
+CASE = [False]                         # the caseSensitive (the Interp keeps it in step; per handler)
+
+
+class XtArray(dict):
+    """an xTalk array: a key finds its element whatever its case while the caseSensitive is false (measured
+    25 Nov: a["x"] finds the element put as a["X"]; putting a["name"] after a["Name"] changes that element and
+    the keys still say Name; with caseSensitive true they are two elements). Keys keep their first spelling."""
+    __slots__ = ('lk',)
+
+    def __init__(self, *a, **k):
+        dict.__init__(self, *a, **k)
+        self.lk = None                     # lower-case key -> the key as stored (made when first needed)
+
+    def _real(self, k):
+        if dict.__contains__(self, k) or CASE[0] or type(k) is not str:
+            return k
+        lk = self.lk
+        if lk is None:
+            lk = self.lk = {}
+            for x in dict.keys(self):
+                if type(x) is str:
+                    lk.setdefault(x.lower(), x)
+        return lk.get(k.lower(), k)
+
+    def __getitem__(self, k):
+        return dict.__getitem__(self, self._real(k))
+
+    def get(self, k, d=None):
+        return dict.get(self, self._real(k), d)
+
+    def __contains__(self, k):
+        return dict.__contains__(self, self._real(k))
+
+    def __setitem__(self, k, v):
+        r = self._real(k)
+        if r is k and self.lk is not None and type(k) is str and not dict.__contains__(self, k):
+            self.lk.setdefault(k.lower(), k)
+        dict.__setitem__(self, r, v)
+
+    def __delitem__(self, k):
+        dict.__delitem__(self, self._real(k))
+        self.lk = None
+
+    def pop(self, k, *d):
+        self.lk = None
+        return dict.pop(self, self._real(k), *d)
+
+    def setdefault(self, k, d=None):
+        if k in self:
+            return self[k]
+        self[k] = d
+        return d
+
+    def update(self, *a, **k):
+        for kk, v in dict(*a, **k).items():
+            self[kk] = v
+
+    def clear(self):
+        dict.clear(self)
+        self.lk = None
+
+    def __copy__(self):
+        return XtArray(self)
+
+    def __deepcopy__(self, memo):
+        import copy
+        n = XtArray()
+        for k, v in dict.items(self):
+            dict.__setitem__(n, k, copy.deepcopy(v, memo) if isinstance(v, dict) else v)
+        return n
+
+
 class NumStr(str):
     """the text of a number that still remembers its full-precision value: LiveCode rounds a
     number to numberFormat only when it is stored (put ... into x), not between operators"""

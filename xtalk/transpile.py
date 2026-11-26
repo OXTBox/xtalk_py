@@ -462,6 +462,7 @@ class Gen:
             self.emit(ind, 'try:')
             self.block(body, ind + 1)
             self.emit(ind, 'except (Thrown, XtError) as %s:' % e)
+            self.emit(ind + 1, 'rt.caught(%s)' % e)
             if var:
                 self.emit(ind + 1, 'rt.setvar(fr, %s, %s.v if isinstance(%s, Thrown) else str(%s))' % (_r(var), e, e, e))
             self.block(catch, ind + 1)

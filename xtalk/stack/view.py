@@ -561,7 +561,8 @@ class View:
             if rl.is_key_down(key):
                 held.add(name)
         rt.keys_down = held | ({'altkey'} if 'optionkey' in held else set())
-        rt.held_codes = [code for key, code in self.KEYCODES if rl.is_key_down(key)]   # the keysDown
+        rt.held_codes = [code for key, code in self.KEYCODES if rl.is_key_down(key)] + list(rt.test_keys)   # the keysDown
+                                                   # (test_keys: keys a check tool holds down, tools/xt3d_game_check.py)
         for key, code in self.KEYCODES:            # rawKeyDown (Raycasting_101: Esc / ` free the mouse)
             if rl.is_key_pressed(key):
                 rt.raw_key(code)
