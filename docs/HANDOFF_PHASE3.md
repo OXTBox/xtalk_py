@@ -13,16 +13,20 @@ of `run_files/play_xt3d.log` (report, longest frame, `his note:` lines). ISSUES 
    comes in play mode, and F2 is the View's panel key, not GameNotes'.
 4. **Mouse look**: uDead = lockCursor + set the screenMouseLoc each frame (not cursor none). That now grabs too
    (`View.warped`); the first grab starts at the warp point. Hidden test with a fake mouse: right = yaw only,
-   down = pitch only, still = no turn. Built, NOT yet seen with a real mouse.
+   down = pitch only, still = no turn; freed = no turn and the real pointer is never moved. Built, NOT yet seen
+   with a real mouse.
 5. **4 fps**: not a leak. R (rush) -> kills -> 48 `uDead.Blood` splats (51 -> 119 objects), step 24 -> 150 ms.
-   The speed job is next: profile at ~120 objects (`--keys "51:20,-51:25,114:60,-114:64"`, about frame 560).
+   "About 3x LiveCode" is an estimate from the 19 Nov table (~45 objects), not measured at 119. The speed job is next: profile at ~120 objects (`--keys "51:20,-51:25,114:60,-114:64"`, about frame 560).
    Hot spots so far (profiled at 51 objects): UpdateObjectTransforms 34%, uDead.FieldWork 18%, numstr/fmt_num, gchunk.
 6. GameNotes works: front scripts (insert/remove script, the frontScripts/backScripts; front first for engine
    messages only), `the defaultStack` = stack "Name" (measured), `value(expr, object)`, `the system date`
-   11/25/2026 (measured). His notes land in the sandbox (`run_files/elsewhere/.../GAME_NOTES.txt`) and are printed
-   in the play report, NOT in the real inbox. `Users.Driver` stays caught (LIB_USERS not loaded by the bench).
-Check without a window: `XTALK_PLAY_TEST="note:100,close:200" .venv/bin/python -I tools/xt3d_game_check.py --window`.
-Tests: interp 421, transpile 847, stack 138 (both modes), measured 30, xt3d 248; survey identical.
+   11/25/2026 (measured), and `put x after/before URL` now adds (it replaced: a second note wiped the first);
+   a read sees the sandbox copy once written. His notes land in the sandbox copy of the inbox
+   (`run_files/elsewhere/.../GAME_NOTES.txt` = the real file + his notes) and are printed in the play report,
+   NOT in the real inbox. `Users.Driver` stays caught (LIB_USERS not loaded by the bench).
+Check without a window: `XTALK_PLAY_TEST="note:60;120,close:200" .venv/bin/python -I tools/xt3d_game_check.py --window`
+(or `end:200`: the game ends itself). Nothing of this has run in a real window yet.
+Tests: interp 421, transpile 847, stack 139 (both modes), measured 30, xt3d 248; survey identical.
 
 ## Earlier START HERE (25 Nov 2026 night, system clock): the owner's first play in a real window
 **Merged + pushed to xtalk_py main on his word.** He plays with `tools/play_xt3d.sh [GAME] [WxH]` (default
