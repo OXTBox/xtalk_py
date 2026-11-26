@@ -9,7 +9,7 @@ import math, os, re, subprocess, sys
 from ..host import Host
 from ..values import XtError, to_num, to_text
 from ..parser import tokenize, ORDINALS
-from .model import CONTROL_TYPES, to_xtalk, Obj, regular_points
+from .model import CONTROL_TYPES, to_xtalk, Obj, Props, regular_points
 from . import styled
 
 TYPE = {'button': 'button', 'btn': 'button', 'field': 'field', 'fld': 'field', 'graphic': 'graphic',
@@ -24,10 +24,16 @@ SYNONYM = {'backcolor': 'backgroundcolor', 'forecolor': 'foregroundcolor', 'hili
            'bordercolor': 'bordercolor', 'hilited': 'hilite', 'vis': 'visible', 'textcolor': 'foregroundcolor'}
 
 
+_CANON = {}
+
+
 def canon(p):
-    """one name for LiveCode's synonyms (backColor = backgroundColor...)"""
-    p = p.lower()
-    return SYNONYM.get(p, p)
+    """one name for LiveCode's synonyms (backColor = backgroundColor...); remembered (a frame asks millions of times)"""
+    c = _CANON.get(p)
+    if c is None:
+        q = p.lower()
+        c = _CANON[p] = SYNONYM.get(q, q)
+    return c
 
 
 COMMANDS_QUIET = {'lock', 'unlock', 'beep', 'flushevents', 'set'}
@@ -327,7 +333,7 @@ class StackHost(Host):
         node = {'type': typ, 'name': name, 'id': new_id, 'layer': len(st.current.flat()) + 1}
         o = Obj(typ, node, st, parent)
         if t is not None:
-            o.props = dict(t.props)
+            o.props = Props(t.props)
             o.custom = dict(t.custom)
             o.text, o.points = t.text, (list(t.points) if t.points else None)
         if t is not None and t.rect != self.TEMPLATE_RECT:
@@ -693,9 +699,9 @@ class StackHost(Host):
         if p == 'custompropertysets':
             return '\n'.join(o.sets)
         cp = canon(p)
-        for k, v in o.props.items():
-            if canon(k) == cp:
-                return to_xtalk(v) if not isinstance(v, str) else v
+        for k in o.props.keys_for(cp):
+            v = o.props[k]
+            return to_xtalk(v) if not isinstance(v, str) else v
         k, v = o.stack.default(o.type, p if p != 'hilite' else 'hilited')
         if k is not None:
             return to_xtalk(v) if not isinstance(v, str) else v
@@ -792,10 +798,9 @@ class StackHost(Host):
             o.text, o.styles = styled.from_html(value)
             return
         cp = canon(p)
-        for k in o.props:
-            if canon(k) == cp:
-                o.props[k] = value
-                return
+        for k in o.props.keys_for(cp):
+            o.props[k] = value
+            return
         p = cp                                 # textColor / foreColor / backColor: stored as the real property
         if p in ('hilite', 'hilited'):
             p = 'hilited'

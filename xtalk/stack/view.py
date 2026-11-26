@@ -8,7 +8,7 @@ a plain button); fields (plain text, scroll, list hilite); scrollbars (track + t
 harvest's assets. Styled text (htmlText runs: face, size, bold/italic, underline, strikeout, colours) and word wrap.
 NOT drawn yet: players, widgets, gradients, ink effects, rotated images.
 """
-import math, os
+import math, os, time
 import pyray as rl
 from imgui_bundle import imgui
 from .host import canon
@@ -179,13 +179,15 @@ class View:
         k = canon(key)
         x = o
         while x is not None:
-            for pk, v in x.props.items():
-                if canon(pk) == k and v != '':
+            for pk in x.props.keys_for(k):
+                v = x.props[pk]
+                if v != '':
                     return v
             x = x.parent if x.type != 'card' else x.stack
             if x is not None and x.type == 'stack':
-                for pk, v in x.props.items():
-                    if canon(pk) == k and v != '':
+                for pk in x.props.keys_for(k):
+                    v = x.props[pk]
+                    if v != '':
                         return v
                 return next((v for ek, v in x.effective.items() if canon(ek) == k), None)
         return None
@@ -581,7 +583,10 @@ class View:
         rt = self.rt
         busy = False
         rl.begin_drawing()
-        self.draw_card()
+        if self.idling and rt.focused is None:    # nothing happening: the last picture of the card, not a redraw
+            self.draw_cached_card()               # (a focused field keeps drawing: its caret blinks)
+        else:
+            self.draw_card()
         busy = self.draw_panel()
         rl.end_drawing()
         self.after_frame()
@@ -725,6 +730,7 @@ class View:
 
     def menu_frames(self, items, x, y):
         """a script shows a menu: draw until a pick or the menu closes (the handler waits)"""
+        self.wake()
         self.menu = {'items': items, 'x': x, 'y': y, 'pick': None, 'done': False}
         try:
             while not self.should_close() and self.menu['pick'] is None and not self.menu['done']:
@@ -828,6 +834,7 @@ class View:
 
     def dialog_frames(self, kind, sub, icon, prompt, extra, title):
         """a script shows answer/ask: draw until a button is clicked (the handler waits) -> (it, the result)"""
+        self.wake()
         typing = kind == 'ask' or sub in ('file', 'files', 'folder', 'folders')
         text = ''
         if kind == 'ask' and extra and not sub:
@@ -865,6 +872,7 @@ class View:
 
     def wait_frames(self, ms):
         """a script waits: keep drawing (no clicks or timers, as LiveCode's wait without messages)"""
+        self.wake()
         end = rl.get_time() + ms / 1000.0
         while rl.get_time() < end and not self.should_close():
             rl.begin_drawing()
@@ -886,13 +894,77 @@ class View:
             cb()
         return c
 
+    idling = False
+    sleeping = False
+    card_cache = None
+
+    def wake(self):
+        """a wait, menu or dialog loop starts: frames must keep coming even with no input"""
+        if self.sleeping:
+            self.sleeping = False
+            rl.disable_event_waiting()
+
+    def draw_cached_card(self):
+        """the card from a picture made once when the window went idle (and again if the window's size changed)"""
+        w, h = rl.get_screen_width(), rl.get_screen_height()
+        c = self.card_cache
+        if c is None or (c.texture.width, c.texture.height) != (w, h) or self.cache_dirty:
+            if c is None or (c.texture.width, c.texture.height) != (w, h):
+                if c is not None:
+                    rl.unload_render_texture(c)
+                c = self.card_cache = rl.load_render_texture(w, h)
+            rl.end_drawing()                      # drawing into the picture happens outside the window's frame
+            rl.begin_texture_mode(c)
+            rl.clear_background(rl.BLANK)
+            self.draw_card()
+            rl.end_texture_mode()
+            rl.begin_drawing()
+            self.cache_dirty = False
+        rl.rl_set_blend_factors(1, 0, 0x8006)     # copied as it is (GL ONE, ZERO, ADD): blending it again would
+        rl.begin_blend_mode(rl.BLEND_CUSTOM)      # darken soft edges, whose alpha the picture keeps
+        rl.draw_texture_rec(c.texture, rl.Rectangle(0, 0, w, -h), rl.Vector2(0, 0), rl.WHITE)
+        rl.end_blend_mode()
+
+    IDLE_AFTER = 0.5          # seconds with nothing happening before the window slows down
+    IDLE_FPS = 10             # frames a second while idle: a click or key is seen within 0.1 s, then back to 60
+
+    def active(self):
+        """did anything happen this frame that wants smooth drawing: the mouse moved, a button or key, the
+        wheel, a script changed an object, a `send ... in` due soon, a mouse-look game"""
+        rt = self.rt
+        changed, rt.changed = getattr(rt, 'changed', False), False
+        if changed or self.captured or rt.held_codes or rt.keys_down or rt.button_down:
+            return True
+        d = rl.get_mouse_delta()
+        if d.x or d.y or rl.get_mouse_wheel_move() or rl.get_key_pressed() or rl.is_window_resized():
+            return True
+        if any(rl.is_mouse_button_down(b) for b in (0, 1, 2)):
+            return True
+        return bool(rt.timers) and rt.timers[0][0] - rt.clock < 250
+
     def run(self):
         self.rt.on_wait = self.wait_frames
         self.rt.on_menu = self.menu_frames
         self.rt.on_dialog = self.dialog_frames
         self.rt.open()
+        last_active, fps = time.perf_counter(), 60
         while not self.should_close() and not self.rt.closed:
             self.frame()
+            now = time.perf_counter()
+            if self.active():
+                last_active = now
+            want = 60 if now - last_active < self.IDLE_AFTER else self.IDLE_FPS
+            if want != fps:                       # nothing happening: fewer frames (owner 26 Nov: CPU while idle)
+                fps = want
+                rl.set_target_fps(fps)
+                self.idling = fps == self.IDLE_FPS
+                self.cache_dirty = True           # going idle: one fresh picture; back to work: drawn each frame
+            # idle with no `send ... in` waiting: sleep until the mouse, a key, the close box or the window
+            # system wakes it (nothing else can make a script run); else the frames go on
+            sleep = self.idling and not self.rt.timers and not self.cache_dirty and self.rt.focused is None   # (a caret blinks)
+            if sleep != self.sleeping:
+                self.sleeping = sleep
+                (rl.enable_event_waiting if sleep else rl.disable_event_waiting)()
         self.rt.close_stack()
         self.close()
 
