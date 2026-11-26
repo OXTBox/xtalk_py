@@ -84,7 +84,12 @@ class View:
         # soft grab (WSL): raylib's disable_cursor needs the pointer warped back each frame, which WSLg does not
         # allow; instead the movement of the real pointer is counted (no grab; XTALK_HARD_GRAB=1 for the old way)
         self.soft_grab = 'microsoft' in os.uname().release.lower() and not os.environ.get('XTALK_HARD_GRAB')
-        self.look = {'right presses': 0, 'grabs': 0, 'moved x': 0, 'moved y': 0, 'frames grabbed': 0}
+        self.look = {'right presses': 0, 'grabs': 0, 'moved x': 0, 'moved y': 0, 'frames grabbed': 0, 'recentre failed': 0}
+        try:                           # soft grab: the pointer's movement times this (owner 25 Nov: not sensitive enough)
+            self.look_speed = float(os.environ.get('XTALK_LOOK_SPEED', '2.5'))
+        except ValueError:
+            self.look_speed = 2.5
+        self.recentre = True           # soft grab: put the hidden pointer back in the middle each frame (off if WSL refuses)
         self.on_close = None           # play mode: called the moment the close box is clicked (it ends the program)
         self.esc_frees = False         # play mode: Escape frees the mouse and keys (and again takes them back)
         self.freed = False
@@ -115,11 +120,20 @@ class View:
             self.vmouse = self.warped if self.warped is not None else (m.x, m.y)   # no jump on the first frame
             if not self.soft_grab:
                 rl.disable_cursor()
+            else:
+                rl.hide_cursor()              # hidden while it looks; put back in the middle each frame (below)
+                self.cursor_hidden = True
+                if self.recentre:
+                    cx, cy = rl.get_screen_width() // 2, rl.get_screen_height() // 2
+                    rl.set_mouse_position(cx, cy)
+                    self.last_real, self.first_grab = (cx, cy), True
             self.captured = True
             self.look['grabs'] += 1
         elif not want and self.captured:
             if not self.soft_grab:
                 rl.enable_cursor()
+            else:
+                rl.show_cursor()
             self.captured = False
             self.cursor_hidden = False
         hide = hide and not self.freed
@@ -592,10 +606,21 @@ class View:
             dx, dy = (0, 0) if self.soft_grab else (d.x, d.y)
             if dx == 0 and dy == 0:               # WSL may give no movement for a grabbed mouse: use the pointer
                 dx, dy = m.x - self.last_real[0], m.y - self.last_real[1]
+            if self.soft_grab:
+                lim = 60 if getattr(self, 'first_grab', False) else 200
+                self.first_grab = False
+                if self.recentre and (abs(dx) > lim or abs(dy) > lim):   # the move back did not happen: stop asking
+                    self.recentre, dx, dy = False, 0, 0
+                    self.look['recentre failed'] += 1
+                dx, dy = dx * self.look_speed, dy * self.look_speed
             self.look['frames grabbed'] += 1
             self.look['moved x'] += abs(dx)
             self.look['moved y'] += abs(dy)
             self.last_real = (m.x, m.y)
+            if self.soft_grab and self.recentre:  # keep the real pointer inside the window
+                cx, cy = rl.get_screen_width() // 2, rl.get_screen_height() // 2
+                rl.set_mouse_position(cx, cy)
+                self.last_real = (cx, cy)
             self.vmouse = (self.vmouse[0] + dx, self.vmouse[1] + dy)
             x, y = int(self.vmouse[0]), int(self.vmouse[1])
         else:

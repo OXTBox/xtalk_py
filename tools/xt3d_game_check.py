@@ -175,7 +175,8 @@ def play(game, folder, w, h):
         print('keys pressed:', ', '.join('%s x%d' % kv for kv in keys.most_common(20)) or 'none')
         print('last stats:', stats[-1] if stats else 'none')
         print('mouse look:', ', '.join('%s %d' % kv for kv in v.look.items()),
-              '(soft grab)' if v.soft_grab else '(raylib grab)')
+              '(soft grab, speed %g, recentre %s)' % (v.look_speed, 'on' if v.recentre else 'OFF') if v.soft_grab
+              else '(raylib grab)')
         print('camera yaw, pitch at the end:', rt.G.get('gcamerayaw', ''), rt.G.get('gcamerapitch', ''))
         if info is not None:
             print('info field:', info.text[:300].replace('\n', ' | '))
