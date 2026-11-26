@@ -150,13 +150,14 @@ def play(game, folder, w, h):
     rt.harvest.main.filename = HOST
     rt.G['gxbviewrect'] = '0,0,%d,%d' % (w, h)
     rt.log_clicks = []
-    v = View(rt)
+    test = dict(x.split(':') for x in os.environ.get('XTALK_PLAY_TEST', '').split(',') if ':' in x)
+    v = View(rt, hidden=bool(test))      # XTALK_PLAY_TEST="note:100,close:300": a hidden check of this path
     rt.on_wait, rt.on_menu, rt.on_dialog = v.wait_frames, v.menu_frames, v.dialog_frames
     v.esc_frees = True
     rt.open()
     card = rt.default_stack.children[0]
     info = rt.host.resolve('field "info"', must=False)
-    stats, n, t1 = [], [0], [time.perf_counter()]
+    stats, n, t1, slow = [], [0], [time.perf_counter()], [0.0]
     notes_file = os.path.join(ROOT, 'run_files', 'elsewhere') + os.path.expanduser('~/projects/LIB_LLMIN/LIB_GAMES/GAME_NOTES.txt')
     notes_at = os.path.getsize(notes_file) if os.path.exists(notes_file) else 0   # GameNotes (` or F2) writes
                                                   # there: the scripts' writes stay in run_files/elsewhere
@@ -165,6 +166,7 @@ def play(game, folder, w, h):
         dt = time.perf_counter() - t1[0]
         print('\n==== report ====')
         print('%s: %d frames in %.0f s (%.1f a second on average); %s' % (game, n[0], dt, n[0] / dt if dt else 0, why))
+        print('longest frame %.2f s (the close box is seen at the end of a frame)' % slow[0])
         keys = Counter(c for c in rt.log_clicks if c.startswith('key '))
         print('keys pressed:', ', '.join('%s x%d' % kv for kv in keys.most_common(20)) or 'none')
         print('last stats:', stats[-1] if stats else 'none')
@@ -194,7 +196,16 @@ def play(game, folder, w, h):
     print('%s started in %.2f s (engine load included)' % (game, time.perf_counter() - t0), flush=True)
     t1[0] = time.perf_counter()
     while not rt.closed:
+        tf = time.perf_counter()
+        if test.get('note') == str(n[0]):                # the owner's note: ` , a line, Return
+            rt.raw_key(96)
+            for ch in 'a note from the play test':
+                rt.key(ch)
+            rt.special_key('return')
+        if test.get('close') == str(n[0]):               # as if the close box was clicked
+            rl.window_should_close = lambda: True
         v.frame()
+        slow[0] = max(slow[0], time.perf_counter() - tf)
         n[0] += 1
         if n[0] % 60 == 0:
             try:

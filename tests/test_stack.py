@@ -590,7 +590,7 @@ rt.run('remove script of stack "FrontT" from front')
 rt.message(rt.host.resolve('button "B"'), 'mouseUp')
 check('remove script from front', (rt.G['glog'], rt.eval('the frontScripts')), ('btn:B,stackMouseUp:B,', ''))
 
-# the defaultStack (measured 26 Nov in the standalone): stack "Name"; stack (that) names the stack
+# the defaultStack (measured 25 Nov eve in the standalone): stack "Name"; stack (that) names the stack
 rt.run('global gR\nput the defaultStack into t\nput t & "|" & (there is a stack t) & "|" & the short name of stack t & "|" & '
        'the short name of t into gR')
 check('the defaultStack is stack "Name"', rt.G['gr'], 'stack "xtM1"|true|xtM1|xtM1')

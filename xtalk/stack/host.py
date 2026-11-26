@@ -486,7 +486,7 @@ class StackHost(Host):
             return self.name_of(rt.target) if rt.target is not None else ''
         if p == 'topstack':                    # stack "Name" (measured 25 Nov)
             return 'stack "%s"' % rt.default_stack.name
-        if p == 'defaultstack':                # stack "Name" (measured 25 + 26 Nov: the short name of it is the
+        if p == 'defaultstack':                # stack "Name" (measured 25 Nov, twice: the short name of it is the
             return 'stack "%s"' % rt.default_stack.name    # name; the short name of a bare name is an error)
         if p == 'mouseloc':
             return '%d,%d' % rt.mouse

@@ -56,7 +56,7 @@ class Runtime(Interp):
     def obj_name(typ, v):
         v = to_text(v)
         if typ == 'stack' and v.startswith('stack "') and v.endswith('"'):
-            return v                   # stack (the defaultStack): stack "X" names X (measured 26 Nov)
+            return v                   # stack (the defaultStack): stack "X" names X (measured 25 Nov eve)
         return '%s %s' % (typ, v if v.lstrip('-').isdigit() else '"%s"' % v)
 
     # ---- values

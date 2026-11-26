@@ -268,10 +268,13 @@ standalone per library group.
   The caseSensitive belongs to the handler like the itemDel (a called function sees false).
   Ours: values.XtArray. (The engine's SetObjectPosition stores ["X"], GetObjectPosition reads ["x"].)
 - (25 Nov) `the topStack` is `stack "Name"`; in the standalone `the defaultStack` also gave `stack "LIB_MCP"`.
-  (26 Nov, measured again) `the short name of the defaultStack` = LIB_MCP; `the short name of "LIB_MCP"` (a bare
+  (25 Nov eve, measured again) `the short name of the defaultStack` = LIB_MCP; `the short name of "LIB_MCP"` (a bare
   name) is an ERROR; `there is a stack t` with t = `stack "LIB_MCP"` is true. Ours now gives `stack "Name"` and
   `stack t` accepts `stack "X"` (GameNotes' `this card of stack (the short name of the defaultStack)` needed it).
-- (26 Nov, the Dictionary, not measured) front scripts get engine messages before the object's path; back scripts
+- (25 Nov eve) `the system date` = 11/25/2026 (Windows' short date, the year in full) while `the date` = 11/25/26;
+  long / abbr system date and system time / long system time = the plain forms. (GameNotes stamps notes with it.)
+  Ours: the system date done; `the long system date` / `the abbr system date` do not PARSE yet (open, rare).
+- (25 Nov eve, the Dictionary, not measured) front scripts get engine messages before the object's path; back scripts
   after the libraries. Ours: `insert script of X into front/back`, `remove script`, the frontScripts/backScripts.
 - (25 Nov) the date forms (US English Windows): 11/25/26 | Wednesday, November 25, 2026 | Wed, Nov 25, 2026 |
   5:35 PM | 5:35:01 PM | internet date Wed, 25 Nov 2026 17:35:01 -0800. `convert`: dateItems =

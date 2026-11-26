@@ -836,7 +836,7 @@ class Interp:
             else:
                 v = to_text(self.ev(ref, fr))
                 if typ == 'stack' and v.startswith('stack "') and v.endswith('"'):
-                    base = v               # stack (the defaultStack): stack "X" names X (measured 26 Nov)
+                    base = v               # stack (the defaultStack): stack "X" names X (measured 25 Nov eve)
                 else:
                     base = '%s %s' % (typ, v if v.lstrip('-').isdigit() else '"%s"' % v)
             if parent is not None:
@@ -1193,6 +1193,8 @@ def date_form(f, t):
     ampm = 'AM' if t.tm_hour < 12 else 'PM'
     if f == 'short date':
         return '%d/%d/%02d' % (t.tm_mon, t.tm_mday, t.tm_year % 100)
+    if f == 'system short date':             # Windows' own short date: the year in full (measured 25 Nov eve)
+        return '%d/%d/%d' % (t.tm_mon, t.tm_mday, t.tm_year)
     if f == 'long date':
         return time.strftime('%A, %B ', t) + '%d, %d' % (t.tm_mday, t.tm_year)
     if f == 'abbr date':
@@ -1211,7 +1213,8 @@ DATE_FORMS = {'date': 'short date', 'short date': 'short date', 'long date': 'lo
               'internet date': 'internet date',
               # English = US forms; the system forms are the same on the owner's US-English Windows
               'english date': 'short date', 'short english date': 'short date', 'long english date': 'long date',
-              'abbreviated english date': 'abbr date', 'system date': 'short date', 'short system date': 'short date',
+              'abbreviated english date': 'abbr date', 'system date': 'system short date', 'short system date': 'system short date',
+              'abbr system date': 'abbr date', 'abbrev system date': 'abbr date',
               'long system date': 'long date', 'abbreviated system date': 'abbr date', 'english time': 'short time',
               'long english time': 'long time', 'system time': 'short time', 'long system time': 'long time'}
 
