@@ -33,7 +33,14 @@ pass. The **TWO ENGINES** note goes in every brief.
   | `gchunk` (items and words of text) | 7% |
   | handler calls (`invoke`), `dict.get`, `isinstance` | the rest of the top |
 
-## Not merged yet: waiting for his word (he played these and liked the result)
+## His answers (25 Nov, after midnight): MERGED, and numpy is approved
+- Both branches below are **merged into main** (xtalk_py e86ea67, LIB_GAMES 8997640). **Not pushed:** a push needs
+  his word for that push. Start new branches from main.
+- **numpy is approved** and installed in `.venv` (2.5.5, pinned in `requirements.txt`). Use it in native handlers
+  where it pays (measure per-call cost: tiny 3x3 matrices can be faster as plain tuples; whole arrays of objects
+  are where numpy wins). The core `xtalk/` and its tests stay standard-library only (`python3 -I`).
+
+## What was merged (he played these and liked the result)
 - xtalk_py branch `phase3-play-fixes`:
   - close box ends the game at once; Escape frees the mouse and keys
   - mouse look: soft grab under WSL, right-button look tuned in his play
@@ -41,8 +48,6 @@ pass. The **TWO ENGINES** note goes in every brief.
   - `put after URL` adds to the file; `mouse(3)`
 - LIB_GAMES branch `udead-blood-limit`: blood capped at 3 (`kBloodMax`; 0 = none); right-button look
   (`kLookRightMouse`) in both uDead scripts.
-- Ask "merge these two?" before building on them. If there is no answer yet, branch the new work from
-  `phase3-play-fixes`.
 
 ## The plan, in order
 
@@ -76,7 +81,7 @@ pass. The **TWO ENGINES** note goes in every brief.
 - **First targets,** by share:
   1. `UpdateObjectTransforms`, `RotateLocalVector`, `Mat3.Mul` / `Mat3.*`: plain maths. Start with pure Python
      tuples (often fastest for 3x3), or raylib's own matrix functions (`MatrixMultiply`, `Vector3Transform`) if
-     per-call cost allows. numpy is a NEW package: ask him first (CLAUDE.md).
+     per-call cost allows. numpy is approved (above): batch all objects' transforms in one array op if per-call cost is the limit.
   2. The engine's per-frame scene build (`Vibe.Frame` parts): profile after step 1.
   3. `uDead.FieldWork`: game logic. Do it after the owner's grid (below), since the grid changes it.
 - **Watch:** globals and script locals the handler reads or writes (gCamera*, s* arrays), and the

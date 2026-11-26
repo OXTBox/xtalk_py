@@ -2,3 +2,4 @@
 # Install: python3 -m venv --without-pip .venv; get pip from bootstrap.pypa.io/get-pip.py; .venv/bin/pip install -r requirements.txt
 raylib==6.2.0.0
 imgui-bundle==1.93.0
+numpy==2.5.5          # native handlers (owner OK 25 Nov); the core xtalk/ stays standard-library only
