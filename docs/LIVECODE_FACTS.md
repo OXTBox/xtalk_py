@@ -284,3 +284,7 @@ standalone per library group.
 - (25 Nov) `delete item 1 of "3,"` -> empty (the delimiter after the item goes with it, a trailing one too);
   `delete item 1 of ","` -> empty; `delete item 2 of "a,b"` -> a. Ours left "," (the testbench's xbGameFill
   queue then never emptied: uDead hung in hiding mode 1).
+- (25 Nov night) `set the randomSeed to 12345.7` -> `the randomSeed` = 12346 (rounded), and it reads back the
+  same after random() calls; the same seed gives the same random() numbers (12345: 226, 920). Ours did NOTHING
+  with the randomSeed until 25 Nov night; now it rounds, reads back and seeds Python's random (same seed = same
+  numbers every run, but not LiveCode's numbers: a run in Python and one in LiveCode never match draw for draw).
