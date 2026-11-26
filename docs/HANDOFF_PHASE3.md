@@ -1,5 +1,8 @@
 # Handoff: the next phase of the Pythonization
 
+**NEXT (owner, 25 Nov late night): native Python output. Start from `docs/HANDOFF_NATIVE.md`.** The section below
+is what runs today and how it got there.
+
 ## START HERE (25 Nov 2026, late night, system clock): his first-play list, fixed on branch `phase3-play-fixes`
 Not merged, not pushed. Next is **a "human clicks things" play with him**: `tools/play_xt3d.sh`, then read the end
 of `run_files/play_xt3d.log` (report, longest frame, `his note:` lines). ISSUES 0026 has the story.
