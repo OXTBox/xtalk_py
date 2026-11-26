@@ -90,9 +90,20 @@ def main(a):
             if isinstance(g, dict) and g and r.random() < 0.3:
                 o = g[r.choice(sorted(g))]
                 o[r.choice(['rotX', 'rotY', 'x', 'Z'])] = r.choice(['', 'abc', ' 2', '1e2', numstr(r.uniform(-9, 9))])
+            colours = ['', 'red', 'GREY', '#3F6FB0', '#3f6', '10,20,30', '1,2', 'nonsense', numstr(5.0)]
+            view = XtArray()
+            if r.random() < 0.3:
+                view['mono'] = r.choice(colours)
+            if r.random() < 0.7:
+                view['fade'] = r.choice(['', '50', numstr(r.uniform(0, 100)), 'x'])
+            orig = XtArray({'g%d' % k: r.choice(colours) for k in range(4)})
+            locals_.update({'sview': view if r.random() < 0.9 else '', 'sorigcolor': orig,
+                            'sviewbands': r.choice(['', '1', '4', numstr(r.uniform(1, 8)), 'q']),
+                            'sviewnear': rnum(r), 'sviewfar': r.choice([rnum(r), '100', '0'])})
             for rt in (ref, nat):
                 rt.S.update(locals_)
-            cases = [('Mat3.Mul', [mat(r), mat(r)], None),
+            cases = [('Vibe.Color', [r.choice(['g0', 'g1', 'g3', 'g9']), r.choice([rnum(r), '', 'x', numstr(r.uniform(-50, 300))])], None),
+                     ('Mat3.Mul', [mat(r), mat(r)], None),
                      ('Xform.Object', [obj], g),
                      ('RotateLocalVector', [rnum(r) for _ in range(6)], None),
                      ('UpdateObjectTransforms', [], transforms(r))]

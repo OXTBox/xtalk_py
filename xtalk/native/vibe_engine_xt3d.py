@@ -8,6 +8,7 @@ xTalk handler; tools/frame_referee.py checks the whole game.
 """
 import copy
 import math
+from ..interp import rnd_half_away
 from ..values import XtArray, NumStr, numstr, fmt_num, to_num, to_text, num_cmp, is_numeric_text, XtError
 from . import Fallback
 
@@ -134,6 +135,69 @@ def xform_object(rt, fr):
     return '%s,%s,%s,%s' % (m, f(a1 + float(tx)), f(a2 + float(ty)), f(a3 + float(tz)))
 
 
+# ---------------------------------------------------------------- Vibe.Color
+_RGB = {}                                  # Color.ToRGB's answer for a colour's text (it reads nothing else)
+
+
+def _to_rgb(rt, v):
+    if isinstance(v, dict):
+        raise Fallback()
+    t = str.__str__(to_text(v))
+    r = _RGB.get(t)
+    if r is None:
+        r = rt.invoke('Color.ToRGB', [t])
+        if isinstance(r, dict):
+            raise Fallback()
+        r = str.__str__(to_text(r))
+        if len(_RGB) > 5000:
+            _RGB.clear()
+        _RGB[t] = r
+    return r
+
+
+def _s(rt, k):
+    v = rt.S.get(k, '')
+    if isinstance(v, dict):
+        raise Fallback()
+    return v
+
+
+def vibe_color(rt, fr):
+    """function Vibe.Color pGraphic, pZ: "r,g,b,a" for a graphic's colour, faded by the view's depth bands.
+    Reads only (nothing changes), so any value it was not written for goes to the xTalk."""
+    g, z = fr.vars.get('pgraphic', ''), fr.vars.get('pz', '')
+    if isinstance(g, dict) or isinstance(z, dict):
+        raise Fallback()
+    view = rt.S.get('sview', '')
+    mono = view.get('mono', '') if isinstance(view, dict) else ''
+    if isinstance(mono, dict):
+        raise Fallback()
+    if to_text(mono) != '':
+        rgb = _to_rgb(rt, mono)
+    else:
+        orig = rt.S.get('sorigcolor', '')
+        rgb = _to_rgb(rt, orig.get(to_text(g), '') if isinstance(orig, dict) else '')
+    alpha = 255.0
+    zt = to_text(z)
+    if is_numeric_text(zt):
+        bands = _s(rt, 'sviewbands')
+        if not is_numeric_text(to_text(bands)):
+            raise Fallback()
+        nb = _n(bands)
+        if num_cmp(nb, 1.0) > 0:
+            near, far = _n(_s(rt, 'sviewnear')), _n(_s(rt, 'sviewfar'))
+            fade = view.get('fade', '') if isinstance(view, dict) else ''
+            if isinstance(fade, dict):
+                raise Fallback()
+            if far - near == 0:
+                raise Fallback()
+            band = 1.0 + float(math.trunc((_n(z) - near) * nb / (far - near)))
+            band = max(1.0, min(nb, band))
+            alpha = float(rnd_half_away(255.0 * (1.0 - (_n(fade) + 0.0) * (band - 1.0) / (nb - 1.0) / 100.0)))
+            alpha = max(40.0, min(255.0, alpha))
+    return rgb + ',' + fmt_num(alpha)
+
+
 # ---------------------------------------------------------------- RotateLocalVector
 def _rotate(dx, dy, dz, rx, ry, rz):
     """Z, then Y, then X, exactly as the xTalk writes it"""
@@ -245,23 +309,25 @@ def _isnum(v):
 
 # the xTalk each function was written from (tools/native_sigs.py): a changed handler keeps its xTalk
 SIGS = {'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c', 'updateobjecttransforms': '7e4930120ed1',
-        'xform.object': '3b5f1786e58f'}
+        'xform.object': '3b5f1786e58f', 'vibe.color': 'eeb18a0ddc52'}
 
 # handlers other scripts' native code may stand in for while they are unchanged (xt3d_testbench_host reads
 # gMeshCache instead of calling Vibe.Mesh, which copies the whole mesh)
 # ... and the helpers a native function here copies inside itself (DEPENDS)
 TRUSTS = {'vibe.mesh': '446f161f38e0', 'mesh.get': 'ebfde5d31561',
           'getobjectrotation': '8ddc0533d9ae', 'getobjectposition': 'd9bba52341e1', 'mat3.rotzyx': '1ae5a7a90d1a',
-          'mat3.apply': '4bae9dda294e', 'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c'}
+          'mat3.apply': '4bae9dda294e', 'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c',
+          'color.torgb': 'eb5a67653842'}
 
 # a native function runs only while every handler it copies is unchanged too (the engine calls its own
 # handlers first, so these are the ones the xTalk would run)
 DEPENDS = {'xform.object': ('getobjectrotation', 'getobjectposition', 'mat3.rotzyx', 'mat3.apply', 'mat3.mul'),
-           'updateobjecttransforms': ('rotatelocalvector',)}
+           'updateobjecttransforms': ('rotatelocalvector',), 'vibe.color': ('color.torgb',)}
 
 HANDLERS = {
     'mat3.mul': mat3_mul,
     'rotatelocalvector': rotate_local_vector,
     'updateobjecttransforms': update_object_transforms,
     'xform.object': xform_object,
+    'vibe.color': vibe_color,
 }
