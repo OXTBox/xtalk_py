@@ -54,15 +54,19 @@ def _near_polyline(x, y, pts, d):
 _SCRIPT_PYTHON = []
 
 
-def windows_dir():
-    """C:\\Windows (where cmd.exe says it is; asked once)"""
-    if not hasattr(windows_dir, 'v'):
+def windows_env():
+    """Windows' own settings (SystemRoot, USERPROFILE...), names in lower case: cmd.exe's `set`, asked once"""
+    if not hasattr(windows_env, 'v'):
+        windows_env.v = {}
         try:
-            r = subprocess.run(['cmd.exe', '/d', '/c', 'echo %SystemRoot%'], cwd='/mnt/c', capture_output=True, timeout=20)
-            windows_dir.v = r.stdout.decode('utf-8', 'replace').strip() or 'C:\\Windows'
+            r = subprocess.run(['cmd.exe', '/d', '/c', 'set'], cwd='/mnt/c', capture_output=True, timeout=20)
+            for line in r.stdout.decode('utf-8', 'replace').splitlines():
+                k, eq, v = line.rstrip('\r').partition('=')
+                if eq and k:
+                    windows_env.v[k.lower()] = v
         except (OSError, subprocess.TimeoutExpired):
-            windows_dir.v = 'C:\\Windows'
-    return windows_dir.v
+            pass
+    return windows_env.v
 
 
 def script_python():
@@ -414,9 +418,11 @@ class StackHost(Host):
         """shell() in a real window (owner, 26 Nov: "fully functional file system interaction"): the command
         runs the way LiveCode runs it on Windows, through cmd.exe /c, and its output comes back (it waits;
         `start ...` returns at once). From WSL: cmd.exe starts in C:\\ (a Linux folder would make it complain)."""
-        # a bare explorer.exe: `start` looks it up as "%SystemRoot%\\explorer.exe", which a cmd.exe started from WSL
-        # leaves unexpanded ("Windows cannot find %SystemRoot%\\explorer.exe", owner 26 Nov): the full path instead
-        command = re.sub(r'(?i)(?<![\\/\w.])explorer\.exe', lambda m: windows_dir() + '\\explorer.exe', str(command))
+        # %NAME% filled in here, as cmd.exe /c would (the command reaches cmd.exe inside a variable, and cmd
+        # fills in a variable once: %SystemRoot% in LIB_MENU's Explorer recipe stayed as it was, owner 26 Nov)
+        env = windows_env()
+        command = re.sub(r'%([^%\s]+)%', lambda m: env.get(m.group(1).lower(), m.group(0)), str(command))
+        print('shell (cmd.exe):', command, flush=True)    # the window's log says what went to Windows
         try:
             # handed over in a variable: as an argument, WSL turns each " into \" and eats a backslash of \\wsl$
             env = dict(os.environ, XT_CMD=str(command),
