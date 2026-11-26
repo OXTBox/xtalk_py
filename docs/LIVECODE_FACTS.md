@@ -241,3 +241,11 @@ standalone per library group.
   `put "XX" into line 1 of me` changes the field; in a button script `me` is the button's text (empty).
   `the short name of me`, `send ... to me`, `hide me`, `within(me, ...)` still mean the object.
 - files() / folders(): the names in the defaultFolder; folders() starts with `..` (Simple_image_viewer filters it).
+
+## Comparing numbers (measured 25 Nov 2026, standalone 9.6.3)
+- `=` `<` `>` compare numbers at their FULL value, not the numberFormat text: `(1/3) = 0.333333` is false,
+  `(1/3) > 0.333333` true; a variable holding 1/3 compares the same way.
+- With a tolerance of about 10 steps of a double, relative to the bigger number: `0.1+0.2 = 0.3` true,
+  `1+2e-15 = 1` true, `1+5e-15 = 1` false, `1e6+1e-9 = 1e6` true, `1e6+1e-8 = 1e6` false, `1e20+1e5 = 1e20` true;
+  near zero about 2.2e-16: `1e-16 = 0` true, `1e-14 = 0` false. Equal within it is not greater: `1+1e-15 > 1` false.
+  Ours: values.num_cmp (2.22e-15 relative, 2.22e-16 absolute) fits every point measured.

@@ -180,6 +180,39 @@ Still open:
 - Questions for him: TKInter-izer's missing button; start GAD now (65/77)?; more stacks to harvest; a look at
   Shufflepuck and Raycasting_101 on screen.
 
+### Phase 2 thorough, round 2 (25 Nov; branch `phase2-thorough` up to d6c33d7)
+- Simple_image_viewer (his OXT stack) runs: files()/folders()/defaultFolder, image fileName, the answer-folder
+  browser, real folders in his window (writes stay sandboxed). Arrow keys in its lists move the hilite and his
+  `send mouseDown to me in 30 milliseconds` picks the folder/file (a click on a list focuses it).
+- `.oxtstack` harvests get OXT-Beyond's dark theme (white on 32,32,32, hilite 0,120,215: asked of OXT-Beyond).
+- Mouse-look games: `cursor none` + `lockCursor true` grabs the mouse (a virtual mouseLoc; `screenMouseLoc` moves
+  it). Untested on his screen whether WSL passes grabbed movement through (a pointer fallback is in).
+- Never load his photos in checks: the harvested image fileName points at his own picture; checks use test
+  pictures in the scratchpad.
+
+### Speed: the fast translator (branch `fast-translate`, on `phase2-thorough`; NOT merged, NOT pushed)
+His word (25 Nov): "definitely translate to pure Python before running, not a slow walk over the code".
+Raycasting_101 was unusable: 85-125 ms a game step in the interpreter, and the window ran every due message
+before drawing, so a GameLoop that re-sends itself 1 ms later starved the window (one key, then frozen).
+
+| Change | Where |
+|---|---|
+| Every stack script is translated to Python when the stack opens (`XTALK_INTERP=1` = interpreted as before) | `xtalk/stack/runtime.py` ObjInterp.load |
+| Fast mode: handler variables are Python variables, numbers stay floats inside a handler, comparisons are Python truths, plain constants inlined | `xtalk/fastgen.py` (translate_script(fast=True)) |
+| `do`, value(), select, styled chunks, `sort by each`, @ parameters, matchText captures: the variables go into the frame (and come back) around them | fastgen sync_out / rt.W |
+| The window runs at most 20 ms of messages a frame (the rest next frame) | view.py `rt.tick(..., budget=0.02)` |
+| Line/item splits of long texts are kept (`char x of line y of sWorldMap`) | chunks.py, pyrt.gchunk |
+| Numbers compare at their full value with LiveCode's tolerance (MEASURED, was wrong: we compared the 6-decimal text) | values.compare / num_cmp |
+
+Results: Raycasting step 12 ms (was 85-125); hidden window 54 fps with ~23-26 game steps a second; 100 scripted
+steps give identical script locals and identical properties of all 52 objects, interpreted vs fast.
+Tests 416 / 837 (every golden case also in fast mode) / 132 (also with XTALK_INTERP=1). Survey identical to the
+interpreter, click for click. Corpus: 41,143 handlers to Python, 41,091 of them fast; the rest plain (a `global`
+line below other lines, @ argument that is an array element of a handler variable).
+
+Next for speed (when uDead needs it): host object lookups by description text (set the points of graphic id
+N) will show up next in the profile; `put ... after` of a long text copies it each time.
+
 ## How we work (unchanged; see HANDOFF_2026-11-26.md for details)
 - **Looking at a stack:**
   - He runs `~/projects/xtalk_py/tools/open_stack.sh <harvest folder>` (window at 200,32).
