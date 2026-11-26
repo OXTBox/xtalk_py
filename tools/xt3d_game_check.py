@@ -116,8 +116,11 @@ def main(a):
         print('  control %s %r rect %s visible %s blend %s' % (o.type, o.name, o.rect, o.props.get('visible', ''),
                                                            o.props.get('blendLevel', '')))
     info = rt.host.resolve('field "info"', must=False)
+    t4 = time.perf_counter()
     rt.message(card, 'xbStopGame')
+    t5 = time.perf_counter()
     v.close()
+    print('closing: xbStopGame %.2f s, View.close %.2f s' % (t5 - t4, time.perf_counter() - t5))
     if info is not None:
         print('info field:', info.text[:300].replace('\n', ' | '))
     from collections import Counter
@@ -131,7 +134,10 @@ def main(a):
 
 
 def play(game, folder, w, h):
-    """The owner's window: the game plays until he closes it; a report goes to the end of what is printed."""
+    """The owner's window: the game plays until he closes it (or the game ends); a report goes to the end of
+    what is printed. The close box is absolute: the report is written and the program ends at once, whatever
+    the scripts are doing (no xbStopGame: the program ends, nothing is left to free). Escape frees the mouse
+    and keys (the game plays on without them); Escape again gives them back."""
     if not os.environ.get('XTALK_KEEP_WAYLAND'):
         os.environ['WAYLAND_DISPLAY'] = 'no-wayland'   # GLFW falls back to X11 under WSLg: placed at 200,32
     from collections import Counter
@@ -144,40 +150,83 @@ def play(game, folder, w, h):
     rt.harvest.main.filename = HOST
     rt.G['gxbviewrect'] = '0,0,%d,%d' % (w, h)
     rt.log_clicks = []
-    v = View(rt)
+    test = dict(x.split(':') for x in os.environ.get('XTALK_PLAY_TEST', '').split(',') if ':' in x)
+    v = View(rt, hidden=bool(test))      # XTALK_PLAY_TEST="note:100;150,close:300" (or end:300): a hidden check
     rt.on_wait, rt.on_menu, rt.on_dialog = v.wait_frames, v.menu_frames, v.dialog_frames
+    v.esc_frees = True
     rt.open()
     card = rt.default_stack.children[0]
+    info = rt.host.resolve('field "info"', must=False)
+    stats, n, t1, slow = [], [0], [time.perf_counter()], [0.0]
+    notes_file = os.path.join(ROOT, 'run_files', 'elsewhere') + os.path.expanduser('~/projects/LIB_LLMIN/LIB_GAMES/GAME_NOTES.txt')
+    real_notes = os.path.expanduser('~/projects/LIB_LLMIN/LIB_GAMES/GAME_NOTES.txt')
+    notes_before = ''                             # GameNotes (`) writes there: the scripts' writes stay in
+    for f in (notes_file, real_notes):            # run_files/elsewhere (a copy of the real file, then the notes)
+        if os.path.exists(f):
+            notes_before = open(f, encoding='utf-8', errors='replace').read()
+            break
+
+    def report(why):
+        dt = time.perf_counter() - t1[0]
+        print('\n==== report ====')
+        print('%s: %d frames in %.0f s (%.1f a second on average); %s' % (game, n[0], dt, n[0] / dt if dt else 0, why))
+        print('longest frame %.2f s (the close box is seen at the end of a frame)' % slow[0])
+        keys = Counter(c for c in rt.log_clicks if c.startswith('key '))
+        print('keys pressed:', ', '.join('%s x%d' % kv for kv in keys.most_common(20)) or 'none')
+        print('last stats:', stats[-1] if stats else 'none')
+        print('mouse look:', ', '.join('%s %d' % kv for kv in v.look.items()),
+              '(soft grab, speed %g, recentre %s)' % (v.look_speed, 'on' if v.recentre else 'OFF') if v.soft_grab
+              else '(raylib grab)')
+        print('camera yaw, pitch at the end:', rt.G.get('gcamerayaw', ''), rt.G.get('gcamerapitch', ''))
+        if info is not None:
+            print('info field:', info.text[:300].replace('\n', ' | '))
+        for t, k in Counter(Interp.CATCH_LOG).most_common(12):
+            print('caught by a try (%dx): %s' % (k, t[:700]))
+        for e in rt.errors[:20]:
+            print('script error:', *e)
+        print('script errors: %d' % len(rt.errors))
+        after = open(notes_file, encoding='utf-8', errors='replace').read() if os.path.exists(notes_file) else ''
+        new = after[len(notes_before):] if after.startswith(notes_before) else after
+        for line in new.splitlines():
+            if line.strip():
+                print('his note:', line)
+        sys.stdout.flush()
+
+    def closed():                                         # the close box, from any loop (View.after_frame)
+        t = time.perf_counter()
+        report('closed with the close box')
+        print('report written in %.2f s; ending now' % (time.perf_counter() - t), flush=True)
+        os._exit(0)
+    v.on_close = closed
     t0 = time.perf_counter()
     rt.message(card, 'xbPlayGame', [game])
     print('%s started in %.2f s (engine load included)' % (game, time.perf_counter() - t0), flush=True)
-    stats, n, t1 = [], 0, time.perf_counter()
-    while not rl.window_should_close() and not rt.closed:
+    t1[0] = time.perf_counter()
+    while not rt.closed:
+        tf = time.perf_counter()
+        if str(n[0]) in test.get('note', '').split(';'):   # the owner's note: ` , a line, Return (note:100;150)
+            rt.raw_key(96)
+            for ch in 'a note from the play test at frame %d' % n[0]:
+                rt.key(ch)
+            rt.special_key('return')
+        if test.get('close') == str(n[0]):               # as if the close box was clicked
+            rl.window_should_close = lambda: True
+        if test.get('end') == str(n[0]):                 # as if the game ended itself
+            rt.message(card, 'xbGameEnded')
         v.frame()
-        n += 1
-        if n % 60 == 0:
+        slow[0] = max(slow[0], time.perf_counter() - tf)
+        n[0] += 1
+        if n[0] % 60 == 0:
             try:
                 st = rt.ctx[id(rt.harvest.main)].invoke('xbGameStats', [])
             except Exception as e:                        # noqa: BLE001
                 st = 'stats: %s' % e
             stats.append(st)
-            print('frame %5d  %s' % (n, st), flush=True)
-    dt = time.perf_counter() - t1
-    try:
-        rt.message(card, 'xbStopGame')
-    except Exception as e:                                # noqa: BLE001
-        print('xbStopGame:', e)
-    v.close()
-    print('\n==== report ====')
-    print('%s: %d frames in %.0f s (%.1f a second on average)' % (game, n, dt, n / dt if dt else 0))
-    keys = Counter(c for c in rt.log_clicks if c.startswith('key '))
-    print('keys pressed:', ', '.join('%s x%d' % kv for kv in keys.most_common(20)) or 'none')
-    print('last stats:', stats[-1] if stats else 'none')
-    for t, k in Counter(Interp.CATCH_LOG).most_common(12):
-        print('caught by a try (%dx): %s' % (k, t[:700]))
-    for e in rt.errors[:20]:
-        print('script error:', *e)
-    print('script errors: %d' % len(rt.errors))
+            print('frame %5d  %s' % (n[0], st), flush=True)
+        if info is not None and n[0] % 15 == 0 and not info.text.startswith('Playing'):
+            break                                         # the game ended itself (or stopped with an error)
+    report('the game ended: ' + (info.text.split('\n')[0] if info is not None else '?'))
+    os._exit(0)
 
 
 if __name__ == '__main__':

@@ -55,6 +55,8 @@ class Runtime(Interp):
     @staticmethod
     def obj_name(typ, v):
         v = to_text(v)
+        if typ == 'stack' and v.startswith('stack "') and v.endswith('"'):
+            return v                   # stack (the defaultStack): stack "X" names X (measured 25 Nov eve)
         return '%s %s' % (typ, v if v.lstrip('-').isdigit() else '"%s"' % v)
 
     # ---- values
@@ -91,6 +93,8 @@ class Runtime(Interp):
         if x is not None:                          # xt3d_... (an extension's handler)
             return x(*args)
         f = B.get(n)
+        if f is None and n == 'mouse' and args and hasattr(self.host, 'mouse_button'):
+            return self.host.mouse_button(args[0])     # mouse(3): the right button (Dictionary)
         if f is None and (not args or n == 'mouse'):   # mouseLoc() is the mouseLoc (measured 25 Nov)
             return self.e_prop(('prop', n), fr)
         if f is None:

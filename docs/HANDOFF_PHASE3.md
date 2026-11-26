@@ -1,6 +1,43 @@
 # Handoff: the next phase of the Pythonization
 
-## START HERE (25 Nov 2026 night, system clock): the owner's first play in a real window
+**NEXT (owner, 25 Nov late night): native Python output. Start from `docs/HANDOFF_NATIVE.md`.** The section below
+is what runs today and how it got there.
+
+## START HERE (25 Nov 2026, late night, system clock): his first-play list, fixed on branch `phase3-play-fixes`
+Not merged, not pushed. Next is **a "human clicks things" play with him**: `tools/play_xt3d.sh`, then read the end
+of `run_files/play_xt3d.log` (report, longest frame, `his note:` lines). ISSUES 0026 has the story.
+1. **Close box** -> View.should_close after every drawn frame (main loop, wait, menu, dialog). In play mode,
+   `on_close` writes the report and `os._exit`s. Cause of his minute: not proven (hidden shutdown 0.02 s); it was
+   likely the old teardown on X11, which is now skipped. The report's "longest frame" will tell.
+2. **Escape** did reach the game (his stats froze at about frame 1200: the game had ended), but the window kept
+   the picture. Now the window closes when the game ends.
+3. **Escape = free / take back the mouse and keys** (View, play mode only, corner label). While a field has the
+   keyboard (GameNotes), Escape is the script's. Decisions for him: the game's own Escape (pause menu) no longer
+   comes in play mode, and F2 is the View's panel key, not GameNotes'.
+4. **Mouse look**: uDead = lockCursor + set the screenMouseLoc each frame (not cursor none). That now grabs too
+   (`View.warped`); the first grab starts at the warp point. Hidden test with a fake mouse: right = yaw only,
+   down = pitch only, still = no turn; freed = no turn and the real pointer is never moved. Built, NOT yet seen
+   with a real mouse.
+5. **4 fps**: not a leak. R (rush) -> kills -> 48 `uDead.Blood` splats (51 -> 119 objects), step 24 -> 150 ms.
+   "About 3x LiveCode" is an estimate from the 19 Nov table (~45 objects), not measured at 119. The speed job is next: profile at ~120 objects (`--keys "51:20,-51:25,114:60,-114:64"`, about frame 560).
+   Hot spots so far (profiled at 51 objects): UpdateObjectTransforms 34%, uDead.FieldWork 18%, numstr/fmt_num, gchunk.
+5b. **Blood capped (owner, 25 Nov late):** LIB_GAMES branch `udead-blood-limit`: kBloodMax 70 -> 3 (0 = none) in
+   both uDead scripts. Same rush: 12-14 fps, ~60 objects, step 22-42 ms. Profile (cProfile, 600 frames):
+   UpdateObjectTransforms 28%, uDead.FieldWork 17%, number to text (fmt_num/numstr) 8%, gchunk 7%, handler calls.
+   His plan: then presolve a grid on the maps (the 2008 game's red target dots + A* lived on a fixed grid), as its own
+   feature. His Escape from 2008: everything stops moving (physics off) but animations go on, plus a pause column of
+   buttons (Title/"menu", controls...). Not built yet.
+6. GameNotes works: front scripts (insert/remove script, the frontScripts/backScripts; front first for engine
+   messages only), `the defaultStack` = stack "Name" (measured), `value(expr, object)`, `the system date`
+   11/25/2026 (measured), and `put x after/before URL` now adds (it replaced: a second note wiped the first);
+   a read sees the sandbox copy once written. His notes land in the sandbox copy of the inbox
+   (`run_files/elsewhere/.../GAME_NOTES.txt` = the real file + his notes) and are printed in the play report,
+   NOT in the real inbox. `Users.Driver` stays caught (LIB_USERS not loaded by the bench).
+Check without a window: `XTALK_PLAY_TEST="note:60;120,close:200" .venv/bin/python -I tools/xt3d_game_check.py --window`
+(or `end:200`: the game ends itself). Nothing of this has run in a real window yet.
+Tests: interp 421, transpile 847, stack 139 (both modes), measured 30, xt3d 248; survey identical.
+
+## Earlier START HERE (25 Nov 2026 night, system clock): the owner's first play in a real window
 **Merged + pushed to xtalk_py main on his word.** He plays with `tools/play_xt3d.sh [GAME] [WxH]` (default
 uDead_CullTest 720x540, window at 200,32); the report lands at the end of `run_files/play_xt3d.log` (read it
 instead of asking). `tools/xt3d_game_check.py --window` is the same thing from Python.

@@ -572,6 +572,45 @@ rt.close_stack()
 check('open with a background: preOpenStack, preOpenBackground, ..., openBackground, openCard; close: closeBackground',
       (_o, rt.G['glog']), ('preOpenStack,preOpenBackground,openBackground,openCard:card id 1002,', 'closeBackground,'))
 
+# insert script of X into front (the xt3d bench's GameNotes): first on every path; pass goes on to the target
+rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
+rt.open()
+_f = os.path.join(ROOT, 'run_files', 'test', 'FrontT.livecodescript')
+os.makedirs(os.path.dirname(_f), exist_ok=True)
+open(_f, 'w').write('script "FrontT"\nglobal gLog\non mouseUp\n   put "front," after gLog\n   pass mouseUp\nend mouseUp\n'
+                    'on frontOnly\n   put "fo," after gLog\nend frontOnly\n')
+rt.G['glog'] = ''
+rt.run('start using stack "%s"' % _f)
+rt.run('insert script of stack "FrontT" into front')
+rt.message(rt.host.resolve('button "B"'), 'mouseUp')                 # an engine message (rawKeyDown for GameNotes)
+check('front script first, pass goes to the target', rt.G['glog'], 'front,btn:B,stackMouseUp:B,')
+check('the frontScripts', '"FrontT' in rt.eval('the frontScripts') or 'FrontT' in rt.eval('the frontScripts'), True)
+rt.G['glog'] = ''
+rt.run('remove script of stack "FrontT" from front')
+rt.message(rt.host.resolve('button "B"'), 'mouseUp')
+check('remove script from front', (rt.G['glog'], rt.eval('the frontScripts')), ('btn:B,stackMouseUp:B,', ''))
+
+# the defaultStack (measured 25 Nov eve in the standalone): stack "Name"; stack (that) names the stack
+rt.run('global gR\nput the defaultStack into t\nput t & "|" & (there is a stack t) & "|" & the short name of stack t & "|" & '
+       'the short name of t into gR')
+check('the defaultStack is stack "Name"', rt.G['gr'], 'stack "xtM1"|true|xtM1|xtM1')
+rt.run('global gR\nset the defaultStack to "xtM1"\nput the defaultStack into gR')
+check('set the defaultStack to a name: read back as stack "Name"', rt.G['gr'], 'stack "xtM1"')
+
+_g = os.path.join(ROOT, 'run_files', 'test', 'ValT.livecodescript')
+open(_g, 'w').write('script "ValT"\nfunction valOnly\n   return "vo:" & the short name of me\nend valOnly\n')
+rt.run('start using stack "%s"' % _g)
+rt.run('global gR\nput value("valOnly()", stack "ValT") into gR')
+check('value(expr, object): in that object\'s script', rt.G['gr'], 'vo:ValT')
+
+# put after / before URL adds to the file (GameNotes' notes); a read sees the sandbox copy once written
+_u = os.path.join(ROOT, 'run_files', 'test', 'url_after.txt')
+if os.path.exists(_u):
+    os.remove(_u)
+rt.run('put "one" & cr after URL ("file:%s")\nput "two" & cr after URL ("file:%s")\nput "zero" & cr before URL ("file:%s")'
+       % (_u, _u, _u))
+check('put after / before URL', rt.eval('URL ("file:%s")' % _u), 'zero\none\ntwo\n')
+
 print('\n%d of %d stack checks pass' % (N[0] - len(BAD), N[0]))
 sys.exit(1 if BAD else 0)
 

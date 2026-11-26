@@ -667,9 +667,17 @@ class Interp:
             self.host.set_prop(self.desc(target[2], fr), target[1], to_text(value))
             return
         if k == 'url':
-            self.host.write_url(target[1], to_text(self.ev(target[2], fr)), to_text(value))
+            self.put_url(target[1], to_text(self.ev(target[2], fr)), value, mode)
             return
         raise XtError("put: can't put into that")
+
+    def put_url(self, kind, ref, value, mode):
+        """put x into / after / before URL ("file:..."): after and before add to what the file holds"""
+        v = to_text(value)
+        if mode in ('after', 'before'):
+            cur = to_text(self.host.read_url(kind, ref))
+            v = cur + v if mode == 'after' else v + cur
+        self.host.write_url(kind, ref, v)
 
     def put_obj(self, desc, value, mode='into'):
         """put into a field (or any object): its text. mode 'keep': the new whole text from a chunk put
@@ -799,7 +807,7 @@ class Interp:
             return h
         raise XtError('expression: unknown property "the %s"' % n)
 
-    MAY_BE_EMPTY = {'keysdown', 'pendingmessages', 'focusedobject', 'selection', 'selectedtext', 'selectedfield', 'selectedline', 'selectedchunk',
+    MAY_BE_EMPTY = {'keysdown', 'pendingmessages', 'frontscripts', 'backscripts', 'focusedobject', 'selection', 'selectedtext', 'selectedfield', 'selectedline', 'selectedchunk',
                     'target', 'mousecontrol', 'clicktext', 'clickline', 'clickchunk', 'clickfield', 'foundtext'}
 
     def e_idx(self, e, fr):
@@ -835,7 +843,10 @@ class Interp:
                 base = '%s id %s' % (typ, to_text(self.ev(ref[1], fr)))
             else:
                 v = to_text(self.ev(ref, fr))
-                base = '%s %s' % (typ, v if v.lstrip('-').isdigit() else '"%s"' % v)
+                if typ == 'stack' and v.startswith('stack "') and v.endswith('"'):
+                    base = v               # stack (the defaultStack): stack "X" names X (measured 25 Nov eve)
+                else:
+                    base = '%s %s' % (typ, v if v.lstrip('-').isdigit() else '"%s"' % v)
             if parent is not None:
                 base += ' of ' + (self.desc(parent, fr) if parent[0] == 'obj' else to_text(self.ev(parent[1], fr)))
             return base
@@ -1023,6 +1034,8 @@ class Interp:
         if x is not None:                                      # xt3d_... (an extension's handler)
             return x(*args)
         f = BUILTINS.get(n)
+        if f is None and n == 'mouse' and args and hasattr(self.host, 'mouse_button'):
+            return self.host.mouse_button(args[0])             # mouse(3): the right button (Dictionary)
         if f is None and (not args or n == 'mouse'):          # mouseLoc() is the mouseLoc (measured 25 Nov)
             return self.e_prop(('prop', n), fr)
         if f is None:
@@ -1103,7 +1116,10 @@ def f_param(it, fr, n):
     i = int(_n(n))
     return fr.args[i - 1] if 1 <= i <= len(fr.args) else ''
 
-def f_value(it, fr, text):
+def f_value(it, fr, text, obj=None):
+    """value(expr) here; value(expr, object): as if in that object's script (its handlers, its path)"""
+    if obj is not None and _t(obj) != '' and hasattr(it, 'value_in'):
+        return it.value_in(_t(text), _t(obj))
     return it.ev(parse_expr(_t(text)), fr)
 
 def f_random(it, fr, n):
@@ -1187,6 +1203,8 @@ def date_form(f, t):
     ampm = 'AM' if t.tm_hour < 12 else 'PM'
     if f == 'short date':
         return '%d/%d/%02d' % (t.tm_mon, t.tm_mday, t.tm_year % 100)
+    if f == 'system short date':             # Windows' own short date: the year in full (measured 25 Nov eve)
+        return '%d/%d/%d' % (t.tm_mon, t.tm_mday, t.tm_year)
     if f == 'long date':
         return time.strftime('%A, %B ', t) + '%d, %d' % (t.tm_mday, t.tm_year)
     if f == 'abbr date':
@@ -1205,7 +1223,8 @@ DATE_FORMS = {'date': 'short date', 'short date': 'short date', 'long date': 'lo
               'internet date': 'internet date',
               # English = US forms; the system forms are the same on the owner's US-English Windows
               'english date': 'short date', 'short english date': 'short date', 'long english date': 'long date',
-              'abbreviated english date': 'abbr date', 'system date': 'short date', 'short system date': 'short date',
+              'abbreviated english date': 'abbr date', 'system date': 'system short date', 'short system date': 'system short date',
+              'abbr system date': 'abbr date', 'abbrev system date': 'abbr date',
               'long system date': 'long date', 'abbreviated system date': 'abbr date', 'english time': 'short time',
               'long english time': 'long time', 'system time': 'short time', 'long system time': 'long time'}
 

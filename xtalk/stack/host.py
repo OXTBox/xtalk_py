@@ -471,6 +471,13 @@ class StackHost(Host):
         r = self.obj_prop(o, p)
         return r
 
+    def mouse_button(self, n):
+        """mouse(n): 1 left, 2 middle, 3 right -> down / up (the window sets rt.buttons_down)"""
+        n = str(n).strip()
+        if n in ('', '1'):
+            return 'down' if self.rt.button_down else 'up'
+        return 'down' if n in getattr(self.rt, 'buttons_down', ()) else 'up'
+
     def global_prop(self, p):
         rt = self.rt
         if p in self.TEMPLATES:            # the templateGraphic: names itself, resolve() finds it
@@ -486,8 +493,8 @@ class StackHost(Host):
             return self.name_of(rt.target) if rt.target is not None else ''
         if p == 'topstack':                    # stack "Name" (measured 25 Nov)
             return 'stack "%s"' % rt.default_stack.name
-        if p == 'defaultstack':                # the standalone gave stack "LIB_MCP" too (25 Nov): NOT changed yet
-            return rt.default_stack.name
+        if p == 'defaultstack':                # stack "Name" (measured 25 Nov, twice: the short name of it is the
+            return 'stack "%s"' % rt.default_stack.name    # name; the short name of a bare name is an error)
         if p == 'mouseloc':
             return '%d,%d' % rt.mouse
         if p in ('mouseh', 'mousev'):
@@ -503,6 +510,8 @@ class StackHost(Host):
         if p == 'loadedextensions':            # xt3d (the raylib bridge) when its Python twin is installed
             from ..interp import EXTERNALS
             return 'org.xtalk.xtbridge' if 'xt3d_version' in EXTERNALS else ''
+        if p in ('frontscripts', 'backscripts'):
+            return '\n'.join(self.long_id(o) for o in (rt.fronts if p == 'frontscripts' else rt.backs))
         if p == 'stacksinuse':
             return '\n'.join(st.name for st in rt.using)
         if p == 'mainstacks':
@@ -528,6 +537,13 @@ class StackHost(Host):
     def on_global_prop(self, name, v):
         """set the screenMouseLoc: the window moves the real mouse there (a game keeps it inside)"""
         rt = self.rt
+        if name == 'defaultstack':            # read back as stack "Name" whatever form it was set with (measured:
+            v = str(v)                        # the getter gives stack "X"); a name we don't know stays as given
+            nm = v[7:-1] if v.startswith('stack "') and v.endswith('"') else v
+            st = rt.harvest.stack(nm)
+            if st is not None:
+                rt.props['defaultstack'] = 'stack "%s"' % st.name
+            return
         if name == 'defaultfolder':           # set the defaultFolder: where files() / folders() look
             p = self.real_path(v)
             if os.path.isdir(p):
@@ -952,6 +968,20 @@ class StackHost(Host):
             o.rect = [x, y - h, x + w, y]
 
     # ------------------------------------------------------------ commands
+    def object_with_script(self, text):
+        """the object whose script is text (`insert script of X into front` hands us X's script, not X)"""
+        rt = self.rt
+        cands = list(rt.fronts) + list(rt.backs) + list(rt.using) + list(rt.harvest.stacks)
+        for st in list(rt.harvest.stacks):
+            cands += st.children + [c for card in st.children for c in card.flat()]
+        for o in cands:
+            try:
+                if self.get_prop(self.long_id(o), 'script') == text:
+                    return o
+            except Exception:                  # noqa: BLE001 - an object with no script
+                continue
+        return None
+
     def command(self, name, parts):
         rt = self.rt
         self.log.append((name, parts))
@@ -968,6 +998,12 @@ class StackHost(Host):
                 rt.changed = True
             return ''
         if name in COMMANDS_QUIET:
+            return ''
+        if name in ('insert', 'remove') and len(es) == 2 and es[1].strip().lower() in ('front', 'back'):
+            o = self.object_with_script(es[0])     # insert script of stack "X" into front: the script came as text
+            if o is None:
+                raise XtError('%s script: no object has that script' % name)
+            (rt.insert_script if name == 'insert' else rt.remove_script)(o, es[1].strip().lower())
             return ''
         if name in ('start', 'stop') and words[:1] == ['using'] and es:   # start using stack "x" (a name or a file)
             st = self.library(es[0])
@@ -1172,6 +1208,9 @@ class StackHost(Host):
     def read_url(self, kind, ref):
         kind = self._kind(kind, ref)
         p = self._path(ref)
+        sp = self.sandboxed(p)                 # written here before: the sandbox copy is the file now (copy on
+        if os.path.exists(sp):                 # write), so `put x after URL "file:..."` adds instead of replacing
+            p = sp
         if not os.path.exists(p):
             return ''
         if kind == 'binfile':                  # one char a byte (measured 25 Nov: a 6-byte UTF-8 file is 6 long)

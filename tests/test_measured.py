@@ -144,6 +144,11 @@ function t
    put textDecode(tE & "llo", "UTF-8") into tT
    return length(tE) && length(tT) && charToNum(char 2 of tE) && (tT = "h" & numToCodepoint(233) & "llo")
 end t''', '3 5 195 true'),
+    ('the system date: Windows short date, year in full (25 Nov eve: 11/25/2026 vs the date 11/25/26)', '''
+function t
+   set the itemDel to "/"
+   return the number of chars of item 3 of the system date && the number of chars of item 3 of the date
+end t''', '4 2'),
 ]
 
 

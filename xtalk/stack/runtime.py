@@ -45,6 +45,13 @@ class ObjInterp(Runtime):
         self.plain = rep['plain'] + rep['interpreted']
         self.install(py, '<%s>' % self.host.name_of(self.obj, 'long'))
 
+    def value_in(self, text, desc):
+        """value(expr, object) (Dictionary, not measured): the expression evaluated in that object's script"""
+        from ..parser import parse_expr
+        o = self.host.resolve(desc)
+        c = self.rt.ctx.get(id(o)) or ObjInterp(self.rt, o)
+        return c.ev(parse_expr(text), Frame([]))
+
     @property
     def HN(self):
         return self.rt.handler_names
@@ -60,7 +67,7 @@ class ObjInterp(Runtime):
     def after_pass(self, name, args):
         n = name.lower()
         t = self.rt.target                 # pass goes on along the target's path (a card's: card, its
-        later = self.rt.contexts(t) if t is not None else []      # background groups, stack)
+        later = self.rt.engine_contexts(t) if t is not None else []   # background groups, stack)
         if self not in later:
             later = self.rt.contexts(self.obj)
         for c in later[later.index(self) + 1:] if self in later else []:
@@ -130,6 +137,7 @@ class StackRuntime:
         self.ctx = {}
         self.load_errors = []
         self.using = []                # library stacks (start using): on every message path, after the stacks
+        self.fronts, self.backs = [], []   # insert script of X into front / back: first / last on every path
         self.ctx_cache = {}            # id(object) -> (object, its path's script contexts): see contexts()
         self.errors = []               # script errors while running: (message, object, error text)
         self.answers = []              # what `answer` would have shown
@@ -237,7 +245,30 @@ class StackRuntime:
             else:
                 o = o.parent
         out.extend(x for x in self.using if x not in out)                    # then the libraries (start using)
+        out.extend(x for x in self.backs if x not in out)                    # then the back scripts
         return out
+
+    def engine_contexts(self, o):
+        """where a message from the engine (rawKeyDown, mouseUp...) goes: the front scripts, then o's path
+        (Dictionary, not measured: front scripts, object path, libraries, back scripts). Handler calls from
+        scripts use contexts() alone."""
+        c = self.contexts(o)
+        if not self.fronts:
+            return c
+        f = [self.ctx[id(x)] for x in self.fronts if id(x) in self.ctx]
+        return f + [x for x in c if x not in f]
+
+    def insert_script(self, o, where):
+        lst = self.fronts if where == 'front' else self.backs
+        if o not in lst:
+            lst.insert(0, o)          # the newest first (as the frontScripts lists them)
+            self.paths_changed()
+
+    def remove_script(self, o, where):
+        lst = self.fronts if where == 'front' else self.backs
+        if o in lst:
+            lst.remove(o)
+            self.paths_changed()
 
     # ------------------------------------------------------------ script-only stacks and libraries
     def script_stack(self, path):
@@ -303,7 +334,7 @@ class StackRuntime:
         """the engine sends msg to o (mouseUp, openCard...): the first handler on the path runs"""
         self.target = o
         n = msg.lower()
-        for c in self.contexts(o):
+        for c in self.engine_contexts(o):
             if n in c.handlers:
                 try:
                     return c.invoke(msg, list(args))
