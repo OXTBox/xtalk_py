@@ -56,10 +56,11 @@ def enabled():
     return os.environ.get('XTALK_NATIVE', '1') != '0'
 
 
-def apply(rt, stack_name, script=None):
+def apply(rt, stack_name, script=None, verified=None):
     """put the native functions in place of rt's handlers of that name (rt.handlers: name -> handler tuple,
     (kind, name, params, body, byref[, translated function])); answers the names replaced. script: the
-    script's text (fast-mode handlers keep no statements to check the signature against)"""
+    script's text (fast-mode handlers keep no statements to check the signature against). verified: an
+    exported game's list, made at export time (verified_names) for this very text (no parsing at start)"""
     global TABLE
     if not enabled() or not stack_name:
         return []
@@ -71,6 +72,14 @@ def apply(rt, stack_name, script=None):
     done = []
     sigs = SIGS.get(stack_name.lower(), {})
     parsed = None
+    if verified is not None:                  # an exported game: checked at export time against this very text
+        for name, fn in natives.items():
+            h = rt.handlers.get(name)
+            if h is not None and name in verified:
+                rt.handlers[name] = h[:5] + (_wrap(fn, h, stack_name),)
+                done.append(name)
+        rt.native_trusted = set(verified) & set(TRUSTS.get(stack_name.lower(), {}))
+        return done
     rt.native_trusted = set()
     for name, want in TRUSTS.get(stack_name.lower(), {}).items():
         h = rt.handlers.get(name)
@@ -134,3 +143,8 @@ def _wrap(fn, h, stack_name):
     native.native = fn
     native.xtalk = xt
     return native
+
+
+def verified_names(rt):
+    """what apply() found good for rt (its natives and the handlers it trusts): an export records it"""
+    return sorted(set(getattr(rt, 'natives', []) or []) | set(getattr(rt, 'native_trusted', ()) or ()))
