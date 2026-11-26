@@ -8,7 +8,7 @@ Everything it reads is checked before the first call, so a frame it was not writ
 number belongs) goes to the xTalk handler whole (Fallback), never half drawn.
 """
 import math
-from ..values import NumStr, numstr, to_text, to_num, num_cmp, is_numeric_text, text_num, XtError
+from ..values import NumStr, numstr, to_text, to_num, num_cmp, is_numeric_text, text_num, compare, XtError
 from .. import chunks as ch
 from . import Fallback
 
@@ -180,6 +180,55 @@ def xb_draw_game(rt, fr):
     return ''
 
 
+def _cached_model(rt, fr, sig_local, model_local, need):
+    """xbGameModel / xbGameFill when the model for this mesh is made already: the xTalk asks Vibe.Mesh (a copy of
+    the whole mesh) only to compare six numbers with the ones it saved. Here they are read where Mesh.Get keeps
+    them (gMeshCache), as long as Vibe.Mesh and Mesh.Get are the engine's unchanged handlers. Anything else
+    (a mesh not built yet, a changed mesh, no model yet): the xTalk handler."""
+    c, _ = rt.lookup('vibe.mesh')
+    trusted = getattr(c, 'native_trusted', ())
+    if c is None or 'vibe.mesh' not in trusted or 'mesh.get' not in trusted or c.lookup('mesh.get')[0] is not c:
+        raise Fallback()
+    p = fr.vars.get('pmesh', '')
+    if isinstance(p, dict):
+        raise Fallback()
+    cache = rt.G.get('gmeshcache', '')
+    m = cache.get(to_text(p), '') if isinstance(cache, dict) else ''
+    if not isinstance(m, dict):
+        raise Fallback()
+    g = m.get
+    if isinstance(g('count', ''), dict) or to_text(g('count', '')) == '':
+        raise Fallback()                   # not built yet: Mesh.Get builds it (Mesh.Build)
+    v = g(need, '')
+    if not isinstance(v, dict) and to_text(v) == '':
+        return '0'                         # the handler's "is empty then return 0" (no edges / no faces)
+    first = []
+    for k in ('vx', 'vy', 'vz'):
+        a = g(k, '')
+        v = a.get('1', '') if isinstance(a, dict) else ''
+        if isinstance(v, dict):
+            raise Fallback()
+        first.append(to_text(v))
+    sig = ','.join([to_text(g('count', '')), to_text(g('edgeCount', '')), to_text(g('radius', ''))] + first) \
+        if not isinstance(g('radius', ''), dict) and not isinstance(g('edgeCount', ''), dict) else None
+    saved = rt.S.get(sig_local, '')
+    was = saved.get(to_text(p), '') if isinstance(saved, dict) else ''
+    if sig is None or isinstance(was, dict) or compare(was, sig) != 0:
+        raise Fallback()
+    models = rt.S.get(model_local, '')
+    return models.get(to_text(p), '') if isinstance(models, dict) else ''
+
+
+def xb_game_model(rt, fr):
+    """function xbGameModel pMesh: the made model when the mesh has not changed (else the xTalk makes it)"""
+    return _cached_model(rt, fr, 'sgamesig', 'sgamemodels', 'edgeCount')
+
+
+def xb_game_fill(rt, fr):
+    """function xbGameFill pMesh: the made fill when the mesh has not changed (else the xTalk makes it)"""
+    return _cached_model(rt, fr, 'sgamefillsig', 'sgamefills', 'faces')
+
+
 def _is_pos_number(v):
     """`v is a number and v > 0` (and the xTalk's `is not a number or <= 0` the other way round)"""
     if isinstance(v, dict):
@@ -194,8 +243,10 @@ def _is_true(v):
     return not isinstance(v, dict) and to_text(v).lower() == 'true'
 
 
-SIGS = {'xbdrawgame': 'f3bf03ef86ea'}   # the xTalk it was written from (tools/native_sigs.py)
+SIGS = {'xbdrawgame': 'f3bf03ef86ea', 'xbgamemodel': '0fe4407cf0fd', 'xbgamefill': '428e303a965b'}   # the xTalk it was written from (tools/native_sigs.py)
 
 HANDLERS = {
     'xbdrawgame': xb_draw_game,
+    'xbgamemodel': xb_game_model,
+    'xbgamefill': xb_game_fill,
 }

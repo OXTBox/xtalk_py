@@ -29,6 +29,7 @@ def _table():
     for m in (vibe_engine_xt3d, xt3d_testbench_host):
         t.setdefault(m.STACK.lower(), {}).update(m.HANDLERS)
         SIGS.setdefault(m.STACK.lower(), {}).update(m.SIGS)
+        TRUSTS.setdefault(m.STACK.lower(), {}).update(getattr(m, 'TRUSTS', {}))
     return t
 
 
@@ -42,6 +43,9 @@ def signature(h):
 TABLE = None
 SIGS = {}                                   # stack -> {handler: signature of the xTalk it was written from}
 SKIPPED = set()
+TRUSTS = {}                                 # stack -> {handler: signature}: xTalk handlers that native code of
+                                            # another script may stand in for (read their data directly) while
+                                            # they are unchanged; rt.native_trusted names the ones that are
 USED = {}                                   # (stack, handler) -> calls: what ran native (bench reports it)
 FELL = {}                                   # (stack, handler) -> calls that went to the xTalk handler (Fallback)
 
@@ -65,6 +69,18 @@ def apply(rt, stack_name, script=None):
     done = []
     sigs = SIGS.get(stack_name.lower(), {})
     parsed = None
+    rt.native_trusted = set()
+    for name, want in TRUSTS.get(stack_name.lower(), {}).items():
+        h = rt.handlers.get(name)
+        if h is None:
+            continue
+        if h[3] is None:
+            if parsed is None:
+                from ..parser import parse_script
+                parsed = parse_script(script) if script else {}
+            h = parsed.get(name, h)
+        if signature(h) == want:
+            rt.native_trusted.add(name)
     for name, fn in natives.items():
         h = rt.handlers.get(name)
         if h is None:

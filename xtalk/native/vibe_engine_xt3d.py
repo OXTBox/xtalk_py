@@ -247,6 +247,10 @@ def _isnum(v):
 SIGS = {'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c', 'updateobjecttransforms': '7e4930120ed1',
         'xform.object': '3b5f1786e58f'}
 
+# handlers other scripts' native code may stand in for while they are unchanged (xt3d_testbench_host reads
+# gMeshCache instead of calling Vibe.Mesh, which copies the whole mesh)
+TRUSTS = {'vibe.mesh': '446f161f38e0', 'mesh.get': 'ebfde5d31561'}
+
 HANDLERS = {
     'mat3.mul': mat3_mul,
     'rotatelocalvector': rotate_local_vector,
