@@ -8,7 +8,7 @@ xTalk handler; tools/frame_referee.py checks the whole game.
 """
 import copy
 import math
-from ..values import XtArray, NumStr, numstr, fmt_num, to_num, num_cmp, XtError
+from ..values import XtArray, NumStr, numstr, fmt_num, to_num, to_text, num_cmp, is_numeric_text, XtError
 from . import Fallback
 
 STACK = 'VibeEngineXt3d'
@@ -42,7 +42,11 @@ def mat3_mul(rt, fr):
     va, vb = fr.vars.get('pa', ''), fr.vars.get('pb', '')
     if isinstance(va, dict) or isinstance(vb, dict):
         raise Fallback()
-    key = (str.__str__(va), str.__str__(vb))   # the text: a NumStr's own text is what item n of it reads
+    return _mul(str.__str__(va), str.__str__(vb))   # the text: a NumStr's own text is what item n of it reads
+
+
+def _mul(ta, tb):
+    key = (ta, tb)
     r = _MUL.get(key)
     if r is not None:
         return r
@@ -57,6 +61,77 @@ def mat3_mul(rt, fr):
         _MUL.clear()
     _MUL[key] = r
     return r
+
+
+# ---------------------------------------------------------------- Xform.Object
+_ROT = {}                                  # the three angles' text -> Mat3.RotZYX's answer
+
+
+def _rot_zyx(a, b, c):
+    """Mat3.RotZYX(a, b, c) of three numbers' texts"""
+    key = (a, b, c)
+    r = _ROT.get(key)
+    if r is not None:
+        return r
+    rx, ry, rz = _n(a), _n(b), _n(c)
+    cx, sx, cy, sy, cz, sz = _cos(rx), _sin(rx), _cos(ry), _sin(ry), _cos(rz), _sin(rz)
+    f = fmt_num
+    t_rz = '%s,%s,0,%s,%s,0,0,0,1' % (f(cz), f(-sz), f(sz), f(cz))
+    t_ry = '%s,0,%s,0,1,0,%s,0,%s' % (f(cy), f(sy), f(-sy), f(cy))
+    t_rx = '1,0,0,0,%s,%s,0,%s,%s' % (f(cx), f(-sx), f(sx), f(cx))
+    r = _mul(t_rx, _mul(t_ry, t_rz))
+    if len(_ROT) > 50000:
+        _ROT.clear()
+    _ROT[key] = r
+    return r
+
+
+def _angle(o, k):
+    """GetObjectRotation's rule: empty or not a number = 0; the value's text"""
+    v = o.get(k, '') if isinstance(o, dict) else ''
+    if isinstance(v, dict):
+        return '0'
+    t = str.__str__(to_text(v))            # the text only (item n of the answer reads text, not a full value)
+    return t if is_numeric_text(t) else '0'
+
+
+def _pos(o, k):
+    """GetObjectPosition(pObj, k) as Mat3.Apply's arithmetic reads it"""
+    v = o.get(k, '') if isinstance(o, dict) else ''
+    if isinstance(v, dict):
+        raise Fallback()
+    return _n(v)
+
+
+def _words3(t):
+    w = t.split()
+    w += [''] * (3 - len(w))
+    return _n(w[0]), _n(w[1]), _n(w[2])
+
+
+def xform_object(rt, fr):
+    """function Xform.Object pObj: the object's rotation (scene and camera folded in) and its camera-space
+    position, as 12 comma items. GetObjectRotation, Mat3.RotZYX, Mat3.Mul, Mat3.Apply and GetObjectPosition
+    are done here in one go (no handler calls)."""
+    key = fr.vars.get('pobj', '')
+    if isinstance(key, dict):
+        raise Fallback()
+    S = rt.S
+    allo = rt.G.get('gobjecttransforms', '')
+    o = allo.get(to_text(key), '') if isinstance(allo, dict) else ''
+    rot = _rot_zyx(_angle(o, 'rotX'), _angle(o, 'rotY'), _angle(o, 'rotZ'))
+    scm, cm, ft = S.get('sscenecamm', ''), S.get('scamm', ''), S.get('sframet', '')
+    if isinstance(scm, dict) or isinstance(cm, dict) or isinstance(ft, dict):
+        raise Fallback()
+    m = _mul(str.__str__(to_text(scm)), rot)
+    px, py, pz = _pos(o, 'x'), _pos(o, 'y'), _pos(o, 'z')
+    c = _items9(str.__str__(to_text(cm)))
+    f = fmt_num
+    tx = f(c[0] * px + c[1] * py + c[2] * pz)      # Mat3.Apply answers words of numberFormat'd text
+    ty = f(c[3] * px + c[4] * py + c[5] * pz)
+    tz = f(c[6] * px + c[7] * py + c[8] * pz)
+    a1, a2, a3 = _words3(to_text(ft))
+    return '%s,%s,%s,%s' % (m, f(a1 + float(tx)), f(a2 + float(ty)), f(a3 + float(tz)))
 
 
 # ---------------------------------------------------------------- RotateLocalVector
@@ -169,10 +244,12 @@ def _isnum(v):
 
 
 # the xTalk each function was written from (tools/native_sigs.py): a changed handler keeps its xTalk
-SIGS = {'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c', 'updateobjecttransforms': '7e4930120ed1'}
+SIGS = {'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c', 'updateobjecttransforms': '7e4930120ed1',
+        'xform.object': '3b5f1786e58f'}
 
 HANDLERS = {
     'mat3.mul': mat3_mul,
     'rotatelocalvector': rotate_local_vector,
     'updateobjecttransforms': update_object_transforms,
+    'xform.object': xform_object,
 }

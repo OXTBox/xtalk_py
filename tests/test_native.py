@@ -83,7 +83,17 @@ def main(a):
         ref, nat = load(mode, src, False), load(mode, src, True)
         r = random.Random(7)
         for i in range(n):
+            g = transforms(r)
+            locals_ = {'sscenecamm': mat(r), 'scamm': mat(r),
+                       'sframet': ' '.join(str(rnum(r)) for _ in range(r.choice([3, 3, 3, 2])))}
+            obj = r.choice(sorted(g) + ['nobody']) if isinstance(g, dict) and g else 'nobody'
+            if isinstance(g, dict) and g and r.random() < 0.3:
+                o = g[r.choice(sorted(g))]
+                o[r.choice(['rotX', 'rotY', 'x', 'Z'])] = r.choice(['', 'abc', ' 2', '1e2', numstr(r.uniform(-9, 9))])
+            for rt in (ref, nat):
+                rt.S.update(locals_)
             cases = [('Mat3.Mul', [mat(r), mat(r)], None),
+                     ('Xform.Object', [obj], g),
                      ('RotateLocalVector', [rnum(r) for _ in range(6)], None),
                      ('UpdateObjectTransforms', [], transforms(r))]
             for name, args, g in cases:
