@@ -2,7 +2,7 @@
 import os, copy
 import math, random, time, base64, re
 from . import chunks as ch
-from .values import XtError, XtArray, CASE, to_num, fmt_num, numstr, plain, to_text, to_bool, is_numeric_text, compare, NUMBER_FORMAT
+from .values import XtError, XtArray, CASE, array_cmp, to_num, fmt_num, numstr, plain, to_text, to_bool, is_numeric_text, compare, NUMBER_FORMAT
 from .parser import parse_script, parse_expr, parse_statements, OBJTYPES
 from .host import Host, wildcard
 
@@ -42,6 +42,105 @@ def rnd_half_away(x, places=0):
     r = math.floor(y + 0.5)
     return math.copysign(r / f, x) if r else 0
 
+
+
+ARGS = []      # the command line a stack was started with, as $1, $2... ($0 the program); $# how many (LiveCode)
+
+
+def env_value(name):
+    """$NAME: an environment variable; $1..: a command-line argument; $#: how many arguments"""
+    if name == '#':
+        return str(len(ARGS))
+    if name.isdigit():
+        i = int(name)
+        return ARGS[i - 1] if 1 <= i <= len(ARGS) else ('xtalk_py' if i == 0 else '')
+    return os.environ.get(name, '')
+
+
+def u32(v):
+    """a value as the bit operators take it (measured 26 Nov): rounded half away from zero, below 0 = 0, then the
+    low 32 bits (4294967297 -> 1)"""
+    n = rnd_half_away(to_num(to_text(v)))
+    return 0 if n < 0 else int(n) % 4294967296
+
+
+def split_form(parts):
+    """split / combine <var> by|with|using <d1> [and <d2>] | by row | by column | [by <d>] as set
+    -> (target node, mode 'delim'|'row'|'column'|'set', d1 node or None, d2 node or None)"""
+    if not parts or parts[0][0] != 'e':
+        raise XtError('split: no variable')
+    target, rest = parts[0][1], parts[1:]
+    mode, d1, d2 = 'delim', None, None
+    if rest and rest[0][0] == 'w' and rest[0][1] in ('by', 'with', 'using') and len(rest) > 1 and rest[1][0] == 'e':
+        e = rest[1][1]
+        if e[0] == 'var' and e[1].lower() in ('row', 'column'):
+            mode = e[1].lower()
+        elif e[0] == 'bin' and e[1] == 'and':
+            d1, d2 = e[2], e[3]
+        else:
+            d1 = e
+        rest = rest[2:]
+    if rest and rest[0] == ('w', 'as') and len(rest) > 1 and rest[1][0] == 'e' and rest[1][1][0] == 'var' \
+            and rest[1][1][1].lower() == 'set':
+        mode = 'set'
+        rest = rest[2:]
+    if rest or (mode == 'delim' and d1 is None):
+        raise XtError('split: form not known')
+    return target, mode, d1, d2
+
+
+def _pieces(text, d):
+    """text cut at d; one delimiter at the very end makes no empty last piece (measured 26 Nov)"""
+    if d == '':
+        return list(text)
+    p = text.split(d)
+    if len(p) > 1 and p[-1] == '':
+        p.pop()
+    return p
+
+
+def split_value(v, mode, d1=None, d2=None):
+    """the value `split` leaves (LIVECODE_FACTS 26 Nov): empty text stays empty (not an array); keys 1..n;
+    by d1 and d2: key before the first d2, the rest the value, a key seen again takes the later value"""
+    text = to_text(v)
+    if text == '':
+        return ''
+    a = XtArray()
+    if mode == 'set':
+        for x in _pieces(text, '\n' if d1 is None else d1):
+            a[x] = 'true'
+        return a
+    if mode == 'row':
+        d1 = '\n'
+    if mode == 'column':
+        rows = [r.split('\t') for r in _pieces(text, '\n')]
+        for k in range(max(len(r) for r in rows)):
+            a[str(k + 1)] = '\n'.join(r[k] if k < len(r) else '' for r in rows)
+        return a
+    for i, x in enumerate(_pieces(text, d1)):
+        if d2 is None:
+            a[str(i + 1)] = x
+        else:
+            k, _, val = x.partition(d2)
+            a[k] = val
+    return a
+
+
+def combine_value(v, mode, d1=None, d2=None):
+    """the text `combine` leaves: keys in text order, any case (1, 10, 2); not an array: empty; an element
+    that is an array gives empty (measured 26 Nov)"""
+    if not isinstance(v, XtArray):
+        return ''
+    if mode in ('row', 'column'):
+        d1 = '\n'
+    keys = sorted(v.keys(), key=lambda k: (str(k).lower(), str(k)))
+
+    def el(k):
+        x = v[k]
+        return '' if isinstance(x, XtArray) else to_text(x)
+    if d2 is None:
+        return d1.join(el(k) for k in keys)
+    return d1.join(str(k) + d2 + el(k) for k in keys)
 
 class Interp:
     def __init__(self, script=''):
@@ -509,7 +608,8 @@ class Interp:
         m = getattr(self, 'c_' + name, None)
         if m:
             return m(parts, fr)
-        vals = [(p[0], to_text(self.arg(p[1], fr)) if p[0] == 'e' else p[1]) for p in parts]
+        raw = name.lower() == 'dispatch'      # dispatch ... with an array: the array goes as it is
+        vals = [(p[0], (self.arg(p[1], fr) if raw else to_text(self.arg(p[1], fr))) if p[0] == 'e' else p[1]) for p in parts]
         self.result = to_text(self.host.command(name, vals) or '')
 
     def check_byref(self, name, kinds):
@@ -521,6 +621,16 @@ class Interp:
     def c_do(self, parts, fr):
         code = to_text(self.ev(parts[0][1], fr))
         self.exec_block(parse_statements(code), fr)
+
+    def c_split(self, parts, fr):
+        target, mode, d1, d2 = split_form(parts)
+        self.assign(target, split_value(self.ev(target, fr), mode, None if d1 is None else to_text(self.ev(d1, fr)),
+                                        None if d2 is None else to_text(self.ev(d2, fr))), 'into', fr)
+
+    def c_combine(self, parts, fr):
+        target, mode, d1, d2 = split_form(parts)
+        self.assign(target, combine_value(self.ev(target, fr), mode, None if d1 is None else to_text(self.ev(d1, fr)),
+                                          None if d2 is None else to_text(self.ev(d2, fr))), 'into', fr)
 
     def c_filter(self, parts, fr):
         # filter [lines|items of] <container> with|without <pattern> [into <container>]
@@ -807,6 +917,8 @@ class Interp:
             return numstr(int(now * (60 if n == 'ticks' else 1000)))
         if n == 'paramcount':
             return numstr(len(fr.args))
+        if n == 'platform':                      # a real window: "Win32", as his LiveCode (shell() runs through cmd.exe,
+            return getattr(self.host, 'platform', 'Linux')   # owner 26 Nov); tests and surveys: "Linux", no shell
         d = date_time(n)
         if d is not None:
             return d
@@ -816,7 +928,8 @@ class Interp:
         raise XtError('expression: unknown property "the %s"' % n)
 
     MAY_BE_EMPTY = {'keysdown', 'pendingmessages', 'frontscripts', 'backscripts', 'focusedobject', 'selection', 'selectedtext', 'selectedfield', 'selectedline', 'selectedchunk',
-                    'target', 'mousecontrol', 'clicktext', 'clickline', 'clickchunk', 'clickfield', 'foundtext'}
+                    'target', 'mousecontrol', 'clicktext', 'clickline', 'clickchunk', 'clickfield', 'foundtext',
+                    'stacksinuse', 'loadedextensions', 'clipboard'}
 
     def e_idx(self, e, fr):
         if self.getvar_arr(fr, e[1]) is None:
@@ -960,6 +1073,8 @@ class Interp:
     def unop(self, op, v):
         if op == 'not':
             return 'false' if to_bool(v) else 'true'
+        if op == 'bitnot':
+            return numstr(~u32(v) & 0xFFFFFFFF)
         n = to_num(to_text(v))
         return numstr(-n if op == '-' else n)
 
@@ -977,7 +1092,7 @@ class Interp:
             ls, rs = to_text(l), to_text(r)
             return ls + (' ' if op == '&&' else '') + rs
         if op in ('=', '<>', '<', '>', '<=', '>='):
-            c = compare(to_text(l), to_text(r))
+            c = array_cmp(l, r) if isinstance(l, dict) or isinstance(r, dict) else compare(to_text(l), to_text(r))
             return 'true' if {'=': c == 0, '<>': c != 0, '<': c < 0, '>': c > 0, '<=': c <= 0, '>=': c >= 0}[op] else 'false'
         if op == 'contains':
             return 'true' if to_text(r).lower() in to_text(l).lower() else 'false'
@@ -999,6 +1114,9 @@ class Interp:
             except (ValueError, IndexError):
                 raise XtError('expression: bad operand')
             return 'true' if x1 <= x < x2 and y1 <= y < y2 else 'false'
+        if op in ('bitand', 'bitor', 'bitxor'):
+            a, b = u32(l), u32(r)
+            return numstr(a & b if op == 'bitand' else a | b if op == 'bitor' else a ^ b)
         a, b = to_num(to_text(l)), to_num(to_text(r))
         if op == '+':
             return numstr(a + b)
@@ -1327,7 +1445,7 @@ def f_textencode(it, fr, x, enc='native'):
 BUILTINS = {
     'baseconvert': f_baseconvert,
     'textdecode': f_textdecode, 'textencode': f_textencode,
-    '$env': lambda it, fr, n: os.environ.get(_t(n), ''),
+    '$env': lambda it, fr, n: env_value(_t(n)),
     'globalloc': f_globalloc,
     'files': lambda it, fr, *a: it.host.list_dir('files', _t(a[0]) if a else None) if hasattr(it.host, 'list_dir') else '',
     'folders': lambda it, fr, *a: it.host.list_dir('folders', _t(a[0]) if a else None) if hasattr(it.host, 'list_dir') else '',

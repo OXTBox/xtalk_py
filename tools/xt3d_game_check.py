@@ -146,7 +146,7 @@ def play(game, folder, w, h):
     from xtalk.stack import StackRuntime
     from xtalk.stack.view import View
     from xtalk.stack.view import rl
-    rt = StackRuntime(folder, real_folders=True)
+    rt = StackRuntime(folder, real_app=True)   # his play window: a real app (owner 26 Nov)
     rt.harvest.main.filename = HOST
     rt.G['gxbviewrect'] = '0,0,%d,%d' % (w, h)
     rt.log_clicks = []

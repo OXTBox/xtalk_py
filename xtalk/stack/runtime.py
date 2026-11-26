@@ -10,6 +10,10 @@
 Every scripted object has its own script context (its handlers and script locals); globals are
 shared. A message goes to its target, then along the message path: the control, its groups, the
 card, the card's stack, the mainstack. `pass` hands it on; `send`/`dispatch` start a new one.
+
+Behaviors (`set the behavior of X to <a button or stack>`, measured 26 Nov): each object on the path is
+followed by its behavior, that behavior's behavior and so on. A behavior's script runs in a context of its
+own FOR EACH OBJECT using it (own script locals; `me` = that object): ObjInterp(rt, obj, script_of=behavior).
 """
 import heapq, os, re, time
 from ..pyrt import Runtime
@@ -29,6 +33,24 @@ OPEN_MESSAGES = ('preOpenStack', 'preOpenCard', 'openStack', 'openCard')   # in 
 PRECOMPILED = {}
 
 
+def linux_path(p):
+    """a Windows path a harvest recorded (//wsl$/Ubuntu/home/..., C:/...) as this machine's path; '' when unknown"""
+    p = str(p or '').replace('\\', '/')
+    m = re.match(r'(?i)^//(?:wsl\$|wsl\.localhost)/[^/]+(/.*)$', p)
+    if m:
+        return m.group(1)
+    m = re.match(r'^([A-Za-z]):(/.*)$', p)
+    if m:
+        return '/mnt/' + m.group(1).lower() + m.group(2)
+    return p if p.startswith('/') else ''
+
+
+def script_body(text):
+    """a script-only stack's text without its first line (`script "Name"`)"""
+    m = re.match(r'\s*script\s+"[^"\n]*"[^\n]*(\n|$)', text)
+    return text[m.end():] if m else text
+
+
 def _sha(text):
     import hashlib
     return hashlib.sha1(text.encode('utf-8', 'surrogatepass')).hexdigest()
@@ -37,9 +59,10 @@ def _sha(text):
 class ObjInterp(Runtime):
     """the script context of one object"""
 
-    def __init__(self, rt, obj):
+    def __init__(self, rt, obj, script_of=None):
         super().__init__()
         self.rt, self.obj = rt, obj
+        self.script_of = script_of         # a behavior's context: the button / stack whose script this is
         self.G = rt.G
         self.host = rt.host
         self.props = rt.props
@@ -49,6 +72,8 @@ class ObjInterp(Runtime):
         """the script, translated to Python (xtalk/fastgen.py) and run as Python; XTALK_INTERP=1 or
         StackRuntime(fast=False): interpreted line by line instead"""
         pre = PRECOMPILED.get(_sha(script)) if PRECOMPILED and self.rt.fast else None
+        if self.script_of is not None and self.rt.fast and pre is None:
+            return self._load_behavior(script)
         if not self.rt.fast:
             r = super().load(script)
         elif pre is not None:                  # an exported game: this script's translation was made beforehand
@@ -63,11 +88,27 @@ class ObjInterp(Runtime):
             self.plain = rep['plain'] + rep['interpreted']
             self.install(py, '<%s>' % self.host.name_of(self.obj, 'long'))
             r = None
-        if self.obj.type == 'stack':           # handlers written in Python for this stack (xtalk/native)
+        if self.obj.type == 'stack' and self.script_of is None:   # handlers written in Python for this stack (xtalk/native)
             from .. import native
             self.natives = native.apply(self, self.obj.name, script,
                                         verified=pre.get('natives_verified') if pre is not None else None)
         return r
+
+    def _load_behavior(self, script):
+        """a behavior's script, translated once and run once more for each object using it"""
+        label = self.host.name_of(self.script_of, 'long')
+        key = (script, label)
+        t = self.rt.trans_cache.get(key)
+        if t is None:
+            py, rep = translate_script(script, label, fast=True, byref_fns=self.rt.byref_fns)
+            t = self.rt.trans_cache[key] = (py, rep, self.compile_module(py, '<%s>' % label))
+        py, rep, code = t
+        self.load_errors = rep['parse_errors']
+        self.plain = rep['plain'] + rep['interpreted']
+        if code is not None:
+            import linecache
+            linecache.cache['<%s>' % label] = (len(py), None, py.splitlines(True), '<%s>' % label)
+        self.install(py, '<%s>' % label, code=code)
 
     def value_in(self, text, desc):
         """value(expr, object) (Dictionary, not measured): the expression evaluated in that object's script"""
@@ -82,6 +123,11 @@ class ObjInterp(Runtime):
 
     def lookup(self, name):
         n = name.lower()
+        if self._here is not None and self._here == n:   # deliver(): this context's own handler, not the first on
+            self._here = None                            # me's path (a behavior's, while me has one too)
+            h = self.handlers.get(n)
+            if h is not None:
+                return self, h
         for c in self.rt.contexts(self.obj):
             h = c.handlers.get(n)
             if h is not None:
@@ -96,9 +142,21 @@ class ObjInterp(Runtime):
             later = self.rt.contexts(self.obj)
         for c in later[later.index(self) + 1:] if self in later else []:
             if n in c.handlers:
-                return c.invoke(name, args)
+                return c.deliver(name, args)
         self.rt.passed_off = True          # passed past the last handler: the engine does its default
         return ''
+
+    _here = None
+
+    def deliver(self, name, args):
+        """a message arriving at this context (from the engine, dispatch, or pass): its own handler runs. A
+        handler call by name (invoke) starts at me's own script instead (measured 26 Nov), and so would find
+        the object's handler before its behavior's"""
+        self._here = name.lower()
+        try:
+            return self.invoke(name, args)
+        finally:
+            self._here = None
 
     def invoke(self, name, args):
         self.rt.running.append(self.obj)
@@ -135,7 +193,7 @@ class ObjInterp(Runtime):
 
 
 class StackRuntime:
-    def __init__(self, folder, files_dir=None, real_folders=False, fast=None):
+    def __init__(self, folder, files_dir=None, real_folders=False, fast=None, real_app=False):
         try:                           # xt3d_... calls, when the raylib package is there (the .venv)
             from .. import xt3d
             xt3d.install()
@@ -152,13 +210,23 @@ class StackRuntime:
         self.host.folders = {'documents': os.path.join(files, 'Documents'), 'temporary': os.path.join(files, 'tmp'),
                              'desktop': os.path.join(files, 'Desktop'), 'home': files, 'resources': self.harvest.folder}
         self.host.sandbox_root = files     # every write goes in here, whatever the folders are
-        self.real_folders = real_folders
-        if real_folders:                   # a real window (an app): specialFolderPath and reading use the user's own
-            home = self.host.user_home()   # folders; writes still stay in the sandbox
+        self.real_folders = real_folders or real_app
+        self.real_app = real_app           # the owner's own window (open_stack, play): writes his real files, shell()
+                                           # runs through cmd.exe, the platform is Win32 (owner 26 Nov: real apps)
+        if self.real_folders:              # a real window: specialFolderPath and reading use the user's own folders;
+            home = self.host.user_home()   # writes too when real_app (checking tools: writes stay sandboxed)
             self.host.folders.update({'home': home, 'documents': os.path.join(home, 'Documents'),
                                       'desktop': os.path.join(home, 'Desktop'), 'pictures': os.path.join(home, 'Pictures')})
+        if real_app:
+            self.host.platform = 'Win32'   # his stacks then take their Windows paths (shell(): cmd.exe, owner 26 Nov)
+            src = linux_path(self.harvest.manifest.get('sourceFile', ''))
+            if src and os.path.isfile(src) and self.harvest.main is not None and not getattr(self.harvest.main, 'filename', ''):
+                # the stack's own file (its data files sit next to it: Project Map), named as his Windows
+                # LiveCode names it (//wsl$/Ubuntu/...): paths built from it work in Explorer and cmd.exe too
+                self.harvest.main.filename = str(self.harvest.manifest['sourceFile']).replace('\\', '/')
         self.host.default_folder = self.harvest.folder
         self.ctx = {}
+        self.trans_cache = {}          # (behavior script, its label) -> (python, report, compiled): see ObjInterp._load_behavior
         self.load_errors = []
         self.using = []                # library stacks (start using): on every message path, after the stacks
         self.fronts, self.backs = [], []   # insert script of X into front / back: first / last on every path
@@ -217,18 +285,28 @@ class StackRuntime:
         everything = [o for st in self.harvest.stacks for o in [st] + st.children + [c for card in st.children for c in card.flat()]]
         self.byref_fns = set()         # functions with @ parameters anywhere: a call to one is translated the plain way
         for o in everything:
-            for m in re.finditer(r'^[ \t]*(?:private[ \t]+)?function[ \t]+([^\s(]+)([^\n]*)', o.script, re.M | re.I):
-                if '@' in m.group(2).split('--')[0].split('#')[0]:
-                    self.byref_fns.add(m.group(1).lower())
+            self.note_byref(o.script)
         for st in self.harvest.stacks:
             for o in [st] + st.children + [c for card in st.children for c in card.flat()]:
                 if o.script.strip() and id(o) not in self.ctx:
                     c = ObjInterp(self, o)
-                    c.load(o.script.split('\n', 1)[1] if o.script.startswith('script ') else o.script)
+                    c.load(script_body(o.script) if o.script.startswith('script ') else o.script)
                     for e in c.load_errors:
                         self.load_errors.append((self.host.name_of(o, 'long'), e))
                     self.ctx[id(o)] = c
+        for o in everything:           # a harvested `behavior` (LIB_XTJSON writes `the behavior of X`)
+            ref = o.node.get('behavior') if isinstance(o.node, dict) else None
+            if ref:
+                try:
+                    self.set_behavior(o, str(ref))
+                except XtError as e:
+                    self.load_errors.append((self.host.name_of(o, 'long'), 'behavior %s: %s' % (ref, e)))
         self.names_changed()
+
+    def note_byref(self, script):
+        for m in re.finditer(r'^[ \t]*(?:private[ \t]+)?function[ \t]+([^\s(]+)([^\n]*)', script, re.M | re.I):
+            if '@' in m.group(2).split('--')[0].split('#')[0]:
+                self.byref_fns.add(m.group(1).lower())
 
     def names_changed(self):
         self.ctx_cache.clear()
@@ -237,8 +315,10 @@ class StackRuntime:
             self.handler_names.update(c.handlers)
 
     def set_script(self, o, text):
-        """set the script of o: a fresh script context (its script locals start empty)"""
+        """set the script of o: a fresh script context (its script locals start empty); o as a behavior:
+        every object using it starts with empty script locals too (measured 26 Nov)"""
         o.script = text
+        o.script_gen = getattr(o, 'script_gen', 0) + 1
         self.ctx.pop(id(o), None)
         if text.strip():
             c = ObjInterp(self, o)
@@ -256,6 +336,68 @@ class StackRuntime:
         them sends the background messages"""
         return [g for g in card.children if g.type == 'group'
                 and any(k.lower() == 'backgroundbehavior' and str(v).lower() == 'true' for k, v in g.props.items())]
+
+    # ------------------------------------------------------------ behaviors
+    def set_behavior(self, o, ref):
+        """set the behavior of o to ref (text: a button's or a stack's long id, any form that names one; empty
+        removes it). Measured 26 Nov: a field, a missing object or a loop is an error; the same behavior again
+        keeps the script locals, any other change starts them empty"""
+        ref = ref.strip() if isinstance(ref, str) else ''
+        b = self.host.resolve(ref, must=False) if ref else None
+        if ref and b is None:
+            m = re.match(r'\s*stack\s+"(.*)"\s*$', ref, re.S)
+            if m:
+                b = self.host.library(ref)       # a script-only stack file not loaded yet
+            else:
+                raise XtError('set: no such object %s' % ref)
+        if b is not None and b.type not in ('button', 'stack'):
+            raise XtError("set: can't set property (a behavior is a button or a stack)")
+        x = b
+        while x is not None:
+            if x is o:
+                raise XtError('parentScript: loop in hierarchy')
+            x = getattr(x, 'behavior', None)
+        if b is getattr(o, 'behavior', None):
+            return
+        o.behavior = b
+        o.bctx = {}
+        self.paths_changed()
+        self.changed = True
+
+    @staticmethod
+    def behavior_text(o):
+        """the behavior of o, as LiveCode gives it: `button id N of stack "S"` (no card or group), `stack "S"`"""
+        b = getattr(o, 'behavior', None)
+        if b is None:
+            return ''
+        if b.type == 'stack':
+            return 'stack "%s"' % b.name
+        return '%s id %d of stack "%s"' % (b.type, b.id, b.stack.name)
+
+    def behavior_contexts(self, o):
+        """the script contexts of o's behavior, its behavior's behavior...: one of each per object using it"""
+        out, b, seen = [], getattr(o, 'behavior', None), set()
+        while b is not None and id(b) not in seen:
+            seen.add(id(b))
+            c = self.behavior_ctx(o, b)
+            if c is not None:
+                out.append(c)
+            b = getattr(b, 'behavior', None)
+        return out
+
+    def behavior_ctx(self, o, b):
+        text = script_body(b.script) if b.type == 'stack' else b.script
+        if not text.strip():
+            return None
+        d = o.__dict__.setdefault('bctx', {})
+        gen = getattr(b, 'script_gen', 0)
+        e = d.get(id(b))
+        if e is not None and e[0] is b and e[1] == gen:
+            return e[2]
+        c = ObjInterp(self, o, script_of=b)
+        c.load(text)
+        d[id(b)] = (b, gen, c)
+        return c
 
     def path(self, o):
         out = []
@@ -312,8 +454,9 @@ class StackRuntime:
         st.filename = path
         st.script = text
         self.harvest.stacks.append(st)
+        self.note_byref(text)
         c = ObjInterp(self, st)
-        c.load(text.split('\n', 1)[1] if m else text)
+        c.load(script_body(text) if m else text)
         for e in c.load_errors:
             self.load_errors.append((self.host.name_of(st, 'long'), e))
         self.ctx[id(st)] = c
@@ -345,7 +488,13 @@ class StackRuntime:
         """the script contexts on o's message path (kept until a script, a library or an object changes)"""
         c = self.ctx_cache.get(id(o))
         if c is None or c[0] is not o:
-            c = self.ctx_cache[id(o)] = (o, [self.ctx[id(x)] for x in self.path(o) if id(x) in self.ctx])
+            lst = []
+            for x in self.path(o):
+                if id(x) in self.ctx:
+                    lst.append(self.ctx[id(x)])
+                if getattr(x, 'behavior', None) is not None:
+                    lst.extend(self.behavior_contexts(x))
+            c = self.ctx_cache[id(o)] = (o, lst)
         return c[1]
 
     def paths_changed(self):
@@ -361,7 +510,7 @@ class StackRuntime:
         for c in self.engine_contexts(o):
             if n in c.handlers:
                 try:
-                    return c.invoke(msg, list(args))
+                    return c.deliver(msg, list(args))
                 except SCRIPT_ERRORS as e:
                     self.errors.append((msg, self.host.name_of(o, 'long'), '%s: %s' % (type(e).__name__, e)))
                     return ''
@@ -369,8 +518,10 @@ class StackRuntime:
 
     def dispatch(self, o, msg, args):
         saved = self.target
-        self.message(o, msg, args)
-        self.target = saved
+        try:
+            return self.message(o, msg, args)
+        finally:
+            self.target = saved
 
     def send_text(self, o, text):
         """`send "hello 7" to o`: the text runs as a statement, starting at o"""
@@ -809,16 +960,18 @@ class StackRuntime:
     # ------------------------------------------------------------ menus
     @staticmethod
     def menu_items(text):
-        """a menu button's text -> [(label, pick, enabled)], ('-', None, False) for a line;
-        a tab-indented line belongs to the item above it (picked as "Parent|Child")"""
-        out, parent = [], None
+        """a menu button's text -> [(label, pick, enabled, depth)], ('-', None, False, depth) for a line;
+        a line indented by n tabs is a submenu item n levels down, under the last item one level up
+        (picked as "Parent|Child|Grandchild")"""
+        out, path = [], []
         for raw in str(text).split('\n'):
             if raw.strip() == '':
                 continue
-            sub = raw.startswith('\t')
+            depth = len(raw) - len(raw.lstrip('\t'))
+            depth = min(depth, len(path))          # no deeper than one below the item above
             line = raw.strip('\t')
             if line == '-':
-                out.append(('-', None, False, sub))
+                out.append(('-', None, False, depth))
                 continue
             enabled = not line.startswith('(')
             line = line.lstrip('(')
@@ -826,9 +979,8 @@ class StackRuntime:
                 line = line[2:]
             line = re.sub(r'(?<!/)/[^/]$', '', line)          # Save/S: the shortcut is not shown
             label = line.replace('//', '/').replace('&&', '\0').replace('&', '').replace('\0', '&')
-            if not sub:
-                parent = label
-            out.append((label, (parent + '|' + label) if sub and parent else label, enabled, sub))
+            path = path[:depth] + [label]
+            out.append((label, '|'.join(path), enabled, depth))
         return out
 
     def show_menu(self, o, x, y):
@@ -953,6 +1105,16 @@ class StackRuntime:
         Not done: a rawKeyDown not passed should stop the keyDown (LiveCode); we only send it"""
         f = self.focused
         self.handled(f or self.default_stack.current, 'rawKeyDown', [str(code)])
+
+    def wheel(self, o, amount):
+        """the mouse wheel: LiveCode sends rawKeyDown 65309 (up) / 65308 (down) a notch, to the control under
+        the mouse (else the card); True when a script took it (Project Map zooms), else a field scrolls"""
+        code = '65309' if amount > 0 else '65308'
+        took = False
+        for _ in range(max(1, min(int(abs(amount) + 0.5), 5))):
+            if self.handled(o or self.default_stack.current, 'rawKeyDown', [code]):
+                took = True
+        return took
 
     def key(self, ch):
         """a typed character: keyDown to the focused field (else the card); nobody takes it: it is typed"""

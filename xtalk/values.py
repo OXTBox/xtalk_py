@@ -157,7 +157,7 @@ def to_text(v):
     if isinstance(v, (int, float)):
         return numstr(v)
     if isinstance(v, dict):
-        raise XtError("expression: can't treat an array as text")
+        return ''          # an array used as text is empty: a & "x" = "x", its length 0 (measured 26 Nov)
     return str(v)
 
 def to_bool(v):
@@ -191,6 +191,17 @@ def num_cmp(x, y):
     if d == 0 or abs(d) <= max(2.220446049250313e-15 * max(abs(x), abs(y)), 2.220446049250313e-16):
         return 0
     return 1 if d > 0 else -1
+
+
+def array_cmp(a, b):
+    """a comparison with an array on a side (measured 26 Nov): an array with elements equals no text (a is empty
+    is false, a is "x" false, a <> empty true); an array without elements is empty; two arrays: the same elements"""
+    if isinstance(a, dict) and isinstance(b, dict):
+        return 0 if dict(a) == dict(b) else 1
+    arr, other = (a, b) if isinstance(a, dict) else (b, a)
+    if len(arr) == 0:
+        return compare('', to_text(other)) if arr is a else compare(to_text(other), '')
+    return 1
 
 
 def compare(a, b):

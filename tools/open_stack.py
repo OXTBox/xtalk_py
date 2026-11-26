@@ -18,7 +18,7 @@ def main(a):
         os.environ['WAYLAND_DISPLAY'] = 'no-wayland'   # GLFW falls back to X11 under WSLg: the window can be placed at 200,32
     from xtalk.stack import StackRuntime
     from xtalk.stack.view import View
-    rt = StackRuntime(a[0], real_folders='--snap' not in a)   # his window: his real folders (writes sandboxed)
+    rt = StackRuntime(a[0], real_app='--snap' not in a)   # his window: a real app (his files, shell: owner 26 Nov)
     if '--snap' in a:
         out = a[a.index('--snap') + 1]
         v = View(rt, hidden=True)

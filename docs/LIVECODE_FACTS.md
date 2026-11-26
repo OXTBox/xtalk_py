@@ -288,3 +288,60 @@ standalone per library group.
   same after random() calls; the same seed gives the same random() numbers (12345: 226, 920). Ours did NOTHING
   with the randomSeed until 25 Nov night; now it rounds, reads back and seeds Python's random (same seed = same
   numbers every run, but not LiveCode's numbers: a run in Python and one in LiveCode never match draw for draw).
+
+## split / combine and `is among the keys` (measured 26 Nov 2026, LiveCode 9.6.3 standalone)
+- `split t by comma`: keys 1..n; ONE delimiter at the very end makes no empty last element ("a,b,," -> 3 elements,
+  the 3rd empty); "a,,b" -> 3. Empty text stays empty and is not an array. One piece ("x") -> an array of 1.
+- `split t by comma and "="`: key = the text before the first "=", value = the rest ("m=a=b" -> m: "a=b"); no "="
+  -> the key with an empty value; a key seen again takes the later value. ("A=1,a=2" gives 2 elements in LiveCode,
+  keys A and a, t["a"] = 1: not copied, our arrays fold case.)
+- `with` and `using` = `by`. `by row` = by return; `by column` = columns of tab-separated rows (t[2] = "y" & cr & "w").
+  `by comma as set`: each piece a key, the value true.
+- `combine a with comma`: elements in the KEYS' TEXT ORDER, any case: keys 1,2,10 -> 1,10,2; Alpha, beta, zeta.
+  `combine a by cr and "="`: key=value lines. Not an array -> empty. An element that is an array -> empty.
+- `x is among the keys of a` is true for a key (the keys are lines). `is among` with no chunk type (`is among "a,b"`,
+  `is among (the keys of a)`) does not compile in LiveCode.
+- An array used as text is EMPTY, never an error: `a & "x"` = "x", `the length of a` = 0. But in a comparison an array
+  with elements equals no text: `a is empty` false, `a = empty` false, `a is "x"` false, `a <> empty` true; an array
+  whose elements were all deleted is empty (measured 26 Nov; before, the runtime stopped with "can't treat an array
+  as text": 5 games hit it, NineBall at `if sDot is empty`).
+- bitAnd / bitXor / bitOr / bitNot (measured 26 Nov): bitAnd binds tighter than bitXor, bitXor than bitOr; all looser
+  than = (`6 bitAnd 2 = 2` is an error: 2 = 2 first) and tighter than `and`. Operands: rounded half away from zero
+  (2.5 -> 3, 5.7 -> 6), below 0 -> 0, then the low 32 bits (4294967297 -> 1); empty -> 0. bitNot: 32 bits
+  (bitNot 0 = 4294967295). Before: not in the parser (lib_cellmap's 5 handlers, Amazing_Couple's maze).
+- `send X to card 1` when nothing handles X is an ERROR in LiveCode too (573 can't find handler; measured 26 Nov):
+  the Vibecode3D Launcher's `send setStackScript to card 1` in preOpenStack fails the same way there.
+- `the stacksInUse` is empty (not an error) with no libraries in use. `$#` = how many command-line arguments, `$1`... each
+  one (empty when missing), `$NAME` an environment variable.
+
+
+## Behaviors (measured 2026-11-26, LiveCode 9.6.3 standalone, `lcmcp --standalone run --server`)
+Test stack "BhvTest" made and deleted in the run; scripts set with `set the script`, calls by `dispatch` / `send`.
+
+| What | LiveCode 9.6.3 |
+|---|---|
+| `dispatch "foo" to btn T` (T, its behavior B, card all have foo, each passes) | T, then B (me = T, the target = T), then card, then stack |
+| T has no foo, B has it | B runs (me = T2 for button T2 using the same B) |
+| behavior of a behavior (T -> B -> BB) | T, B, BB, card, stack; me = T in all three |
+| group G with behavior GB, button Inner in G | Inner (none), G, GB (me = G, target = Inner), card, stack |
+| a handler call from B's script (`helper`; T and B both have helper) | T's helper runs: a call starts at me's own script, then me's behavior, then the path |
+| B calls `onlyT` (T and card have it) | T's; B calls `cardH` (only the card) -> card's |
+| script locals in B | one copy per object: T 1,2,3; T2 1; B itself (dispatched to B) its own 1 |
+| `set the behavior` of T to the same B again | locals kept (2 -> 3) |
+| `set the script of B` again | every user's locals start empty (-> 1) |
+| T switched to B2, back to B, or to empty and back | locals start empty each time (1) |
+| `value("bump()", btn T)` | runs B's bump with T's locals |
+| `the behavior of btn T` (B on card 1002) | `button id 1003 of stack "BhvTest"` (no card, no group even for a grouped button) |
+| behavior a script-only stack loaded by path | `set the behavior of U to the long id of stack tPath`; the behavior of U = `stack "BhvSO"` (its name); `the long id of stack tPath` = `stack "<the path>"` |
+| two buttons on one script-only stack | own locals each (U 1,2; U2 1); path U, SO, card, stack |
+| no behavior | `the behavior` = empty; set to empty removes it (path goes straight to the card) |
+| set to `btn "B"` (the button's contents, empty) | behavior empty, no error |
+| set to the text `button "B"` | resolved: `button id 1003 of stack "BhvTest"` |
+| set to a missing object / a field / itself (loop) | error (`parentScript: loop in hierarchy` for the loop) |
+| card behavior | settable, reads back the same `button id N of stack "S"` form |
+| `dispatch` result in `it` | handled / unhandled (no handler anywhere, behaviors included) / passed (the last one passed) |
+| send a function name as a command | error (can't find handler) |
+
+Harvests: LIB_XTJSON's harvester writes `node["behavior"]` = `the behavior of X` (the form above). None of the
+harvests in ~/projects/XTJSON has one (26 Nov): their "behavior" keys are listBehavior / backgroundBehavior /
+radioBehavior / sharedBehavior / tabGroupBehavior flags, not script behaviors.

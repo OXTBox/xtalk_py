@@ -680,7 +680,7 @@ class View:
         wheel = rl.get_mouse_wheel_move()
         if wheel and not busy:
             o = rt.control_at(x, y)
-            if o is not None and o.type == 'field':
+            if not rt.wheel(o, wheel) and o is not None and o.type == 'field':
                 rt.scroll_field(o, -wheel * rt.field_metrics(o)[1] * 3)
         rt.tick(min(rl.get_frame_time() * 1000, 100), budget=0.02)   # at most 20 ms of messages a frame
 
@@ -691,34 +691,37 @@ class View:
         if not imgui.is_mouse_down(0):
             m['armed'] = True
         imgui.set_next_window_pos(imgui.ImVec2(m['x'], m['y']), imgui.Cond_.always)
-        imgui.set_next_window_focus()
+        if not m.get('focused'):                 # focus once: focusing every frame closes any open submenu
+            imgui.set_next_window_focus()
+            m['focused'] = True
         flags = (imgui.WindowFlags_.no_title_bar | imgui.WindowFlags_.always_auto_resize | imgui.WindowFlags_.no_move
                  | imgui.WindowFlags_.no_saved_settings | imgui.WindowFlags_.no_collapse)
         imgui.begin('##xtmenu', None, flags)
-        items, i = m['items'], 0
-        while i < len(items):
-            label, pick, enabled, sub = items[i]
-            kids = []
-            while i + 1 + len(kids) < len(items) and items[i + 1 + len(kids)][3]:
-                kids.append(items[i + 1 + len(kids)])
-            if label == '-':
-                imgui.separator()
-            elif kids:
-                if imgui.begin_menu(label, enabled):
-                    for kl, kp, ke, _ in kids:
-                        if kl == '-':
-                            imgui.separator()
-                        elif imgui.menu_item(kl, '', False, ke)[0]:
-                            m['pick'] = kp
-                    imgui.end_menu()
-            elif imgui.menu_item(label, '', False, enabled)[0]:
-                m['pick'] = pick
-            i += 1 + len(kids)
+        self.menu_level(m['items'], 0)
         imgui.end()
         if m.get('armed') and imgui.is_mouse_clicked(0) and not imgui.get_io().want_capture_mouse:
             m['done'] = True                     # a click outside the menu: closed, no pick
         if rl.is_key_pressed(rl.KEY_ESCAPE):
             m['done'] = True
+
+    def menu_level(self, items, depth):
+        """draw the items of one menu level; an item with deeper items after it opens them as a submenu"""
+        m, i = self.menu, 0
+        while i < len(items):
+            label, pick, enabled, d = items[i]
+            j = i + 1
+            while j < len(items) and items[j][3] > depth:
+                j += 1
+            kids = items[i + 1:j]
+            if label == '-':
+                imgui.separator()
+            elif kids:
+                if imgui.begin_menu(label + '##%d' % i, enabled):
+                    self.menu_level(kids, depth + 1)
+                    imgui.end_menu()
+            elif imgui.menu_item(label + '##%d' % i, '', False, enabled)[0]:
+                m['pick'] = pick
+            i = j
 
     def menu_frames(self, items, x, y):
         """a script shows a menu: draw until a pick or the menu closes (the handler waits)"""
@@ -855,7 +858,7 @@ class View:
         if done == 'Cancel':
             return '', 'cancel'
         if sub in ('file', 'files', 'folder', 'folders'):
-            if self.rt.real_folders:                  # a real app: the real path (reading only; writes stay sandboxed)
+            if self.rt.real_folders:                  # a real folder: the real path (real_app also writes there)
                 return (text.rstrip('/') if sub.startswith('folder') else text) or '/', ''
             return self.rt.host.sandboxed(text), ''
         return text, ''

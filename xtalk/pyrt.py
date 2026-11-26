@@ -9,6 +9,7 @@ from . import chunks as ch                                    # noqa: F401  (use
 from .values import XtError, XtArray, to_text, to_num, to_bool, numstr, plain   # noqa: F401
 from .interp import (Interp, Frame, BUILTINS as B, EXTERNALS, CONST as K, Thrown, Break, Pass,   # noqa: F401
                      ExitRepeat, NextRepeat, _re_search)
+from .interp import split_value as rt_split_value, combine_value as rt_combine_value   # noqa: F401
 from .host import wildcard
 from .parser import parse_statements
 
@@ -16,21 +17,32 @@ ASSIGNABLE_BYREF_FN = ('var', 'idx')           # what a function call writes bac
 ASSIGNABLE_BYREF_CMD = ('var', 'idx', 'chunk')  # what a command call writes back to (as interp.x_cmd)
 
 
+RAW_ARG_COMMANDS = ('dispatch',)   # its `with` values go as they are (an array stays an array)
+
+
 class Runtime(Interp):
     """an Interp that also runs translated modules"""
     W = {}          # fast code: what @ parameters / matchText captures give back, until the caller takes it
 
-    def install(self, module_text, name='<xtalk>'):
-        """run a module the translator wrote and add its handlers"""
+    def install(self, module_text, name='<xtalk>', code=None):
+        """run a module the translator wrote and add its handlers (code: that module already compiled)"""
         env = {'__name__': 'xtalk_generated'}
-        with warnings.catch_warnings():              # `return` inside `finally` is what the xTalk said
-            warnings.simplefilter('ignore', SyntaxWarning)
-            code = compile(module_text, name, 'exec')
-        import linecache                             # tracebacks show the generated line
-        linecache.cache[name] = (len(module_text), None, module_text.splitlines(True), name)
+        if code is None:
+            code = self.compile_module(module_text, name)
+        else:
+            module_text = None
+        if module_text is not None:
+            import linecache                         # tracebacks show the generated line
+            linecache.cache[name] = (len(module_text), None, module_text.splitlines(True), name)
         exec(code, env)
         env['install'](self)
         return env
+
+    @staticmethod
+    def compile_module(module_text, name):
+        with warnings.catch_warnings():              # `return` inside `finally` is what the xTalk said
+            warnings.simplefilter('ignore', SyntaxWarning)
+            return compile(module_text, name, 'exec')
 
     # ---- variables
     def cur_raw(self, fr, name):
@@ -130,7 +142,8 @@ class Runtime(Interp):
             self.result = to_text(x(*vals))
             return None
         it = iter(vals)
-        parts = [('e', to_text(next(it))) if w is None else ('w', w) for w in words]
+        raw = name.lower() in RAW_ARG_COMMANDS
+        parts = [('e', next(it) if raw else to_text(next(it))) if w is None else ('w', w) for w in words]
         self.result = to_text(self.host.command(name, parts) or '')
         return None
 
@@ -163,7 +176,8 @@ class Runtime(Interp):
             self.result = to_text(x(*vals))
             return None
         it = iter(vals)
-        parts = [('e', to_text(next(it))) if w is None else ('w', w) for w in words]
+        raw = name.lower() in RAW_ARG_COMMANDS
+        parts = [('e', next(it) if raw else to_text(next(it))) if w is None else ('w', w) for w in words]
         self.result = to_text(self.host.command(name, parts) or '')
 
 
@@ -174,7 +188,7 @@ class Runtime(Interp):
 import copy
 import math
 import math as _m
-from .values import NumStr, text_num, num_cmp, fmt_num, compare as _compare
+from .values import NumStr, text_num, num_cmp, fmt_num, compare as _compare, array_cmp
 from .interp import rnd_half_away   # noqa: F401
 
 
@@ -313,6 +327,8 @@ def xcmp(a, b):
     """-1/0/1 of two values (as values.compare, for values that may be floats)"""
     if type(a) is float and type(b) is float:
         return num_cmp(a, b)
+    if isinstance(a, dict) or isinstance(b, dict):
+        return array_cmp(a, b)
     x = _num_or_none(a)
     if x is not None:
         y = _num_or_none(b)
@@ -339,6 +355,8 @@ def tb(b):
 
 
 def isempty(v):
+    if isinstance(v, dict):
+        return len(v) == 0         # an array with elements is not empty (measured 26 Nov)
     return T(v) == ''
 
 

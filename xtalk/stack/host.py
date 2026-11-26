@@ -7,7 +7,7 @@ docs/LIVECODE_FACTS.md ("Objects and messages").
 """
 import math, os, re, subprocess, sys
 from ..host import Host
-from ..values import XtError, to_num
+from ..values import XtError, to_num, to_text
 from ..parser import tokenize, ORDINALS
 from .model import CONTROL_TYPES, to_xtalk, Obj, regular_points
 from . import styled
@@ -52,6 +52,21 @@ def _near_polyline(x, y, pts, d):
 
 
 _SCRIPT_PYTHON = []
+
+
+def windows_env():
+    """Windows' own settings (SystemRoot, USERPROFILE...), names in lower case: cmd.exe's `set`, asked once"""
+    if not hasattr(windows_env, 'v'):
+        windows_env.v = {}
+        try:
+            r = subprocess.run(['cmd.exe', '/d', '/c', 'set'], cwd='/mnt/c', capture_output=True, timeout=20)
+            for line in r.stdout.decode('utf-8', 'replace').splitlines():
+                k, eq, v = line.rstrip('\r').partition('=')
+                if eq and k:
+                    windows_env.v[k.lower()] = v
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return windows_env.v
 
 
 def script_python():
@@ -247,6 +262,10 @@ class StackHost(Host):
             for s in self.rt.harvest.stacks:
                 if s.name.lower() in (val.lower(), v.lower()) or os.path.basename(s.node.get('file', '')).lower() == v.lower():
                     return s
+            if '/' in val.replace('\\', '/'):        # stack "<path of a file>": LiveCode opens the file into memory
+                path = self.real_path(val)
+                if path and os.path.isfile(path) and path.lower().endswith(('.livecodescript', '.livecode')):
+                    return self.rt.script_stack(path)
             return None
         return self._pick(self.rt.harvest.stacks, how, val)
 
@@ -372,13 +391,15 @@ class StackHost(Host):
         return super().dialog(kind, sub, icon, prompt, extra, title)
 
     def shell(self, command):
-        """shell(): in LiveCode the owner's stacks use it to start a Python script. Here only that is done
-        (owner, 25 Nov): a .py file inside the stack's files folder starts with Python, as its own program,
-        and the stack goes on (LiveCode's shell waits). Any other command is refused.
+        """shell(): a .py file inside the stack's files folder starts with Python, as its own program, and the
+        stack goes on (LiveCode's shell waits; TKInter-izer's scripts, 25 Nov). Any other command: in a real
+        window it runs through Windows cmd.exe (owner 26 Nov, windows_shell); in tests and surveys it is refused.
         Which Python: XTALK_SCRIPT_PYTHON if set (one with Tkinter, say), else the one running this."""
         path = command.strip().strip('"').replace('\\', '/')
         full = self.sandboxed(path)
         if not path.lower().endswith('.py') or full != os.path.abspath(path) or not os.path.isfile(full):
+            if getattr(self.rt, 'real_app', False) and self.rt.start_programs:
+                return self.windows_shell(command)
             raise XtError('shell: only a .py file in the stack\'s files folder is started (owner, 25 Nov): %s' % command)
         if not self.rt.start_programs:
             self.rt.not_started.append(full)
@@ -392,6 +413,26 @@ class StackHost(Host):
                              stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         self.rt.started.append(p)
         return ''
+
+    def windows_shell(self, command):
+        """shell() in a real window (owner, 26 Nov: "fully functional file system interaction"): the command
+        runs the way LiveCode runs it on Windows, through cmd.exe /c, and its output comes back (it waits;
+        `start ...` returns at once). From WSL: cmd.exe starts in C:\\ (a Linux folder would make it complain)."""
+        # %NAME% filled in here, as cmd.exe /c would (the command reaches cmd.exe inside a variable, and cmd
+        # fills in a variable once: %SystemRoot% in LIB_MENU's Explorer recipe stayed as it was, owner 26 Nov)
+        env = windows_env()
+        command = re.sub(r'%([^%\s]+)%', lambda m: env.get(m.group(1).lower(), m.group(0)), str(command))
+        print('shell (cmd.exe):', command, flush=True)    # the window's log says what went to Windows
+        try:
+            # handed over in a variable: as an argument, WSL turns each " into \" and eats a backslash of \\wsl$
+            env = dict(os.environ, XT_CMD=str(command),
+                       WSLENV=(os.environ.get('WSLENV', '') + ':XT_CMD').strip(':'))
+            r = subprocess.run(['cmd.exe', '/d', '/c', '%XT_CMD%'], cwd='/mnt/c', stdin=subprocess.DEVNULL,
+                               capture_output=True, timeout=120, env=env)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return str(e)
+        out = (r.stdout + r.stderr).decode('utf-8', 'replace').replace('\r\n', '\n')
+        return out
 
     def within(self, desc, point):
         """within(object, point) (Dictionary): a graphic's inside counts only when it is filled;
@@ -573,6 +614,8 @@ class StackHost(Host):
         return [int(x) for x in str(v).split(',') if x.strip().isdigit()]
 
     def obj_prop(self, o, p):
+        if p in ('behavior', 'parentscript'):
+            return self.rt.behavior_text(o)
         r = o.rect
         if p in ('hilitedline', 'hilitedlines'):
             return ','.join(str(n) for n in self.hilited_lines(o))
@@ -703,6 +746,9 @@ class StackHost(Host):
         if p == 'script':
             self.rt.set_script(o, str(value))
             return
+        if p in ('behavior', 'parentscript'):
+            self.rt.set_behavior(o, value if isinstance(value, str) else to_text(value))
+            return
         if p in ('backgroundbehavior', 'sharedbehavior'):
             self.rt.paths_changed()
             o.props['backgroundBehavior' if p == 'backgroundbehavior' else 'sharedBehavior'] = str(value).lower()
@@ -750,6 +796,7 @@ class StackHost(Host):
             if canon(k) == cp:
                 o.props[k] = value
                 return
+        p = cp                                 # textColor / foreColor / backColor: stored as the real property
         if p in ('hilite', 'hilited'):
             p = 'hilited'
         if p == 'vis':
@@ -1013,7 +1060,7 @@ class StackHost(Host):
                 rt.stop_using(st)
             return ''
         if name == 'create' and words[:1] == ['folder'] and es:
-            os.makedirs(self.sandboxed(self._path(es[0])), exist_ok=True)     # create folder: inside the sandbox
+            os.makedirs(self.write_path(self._path(es[0])), exist_ok=True)    # create folder (sandbox in tests)
             return ''
         if name == 'focus':                    # focus on field "F" / focus on nothing
             if not es or es[0].strip().lower() in ('nothing', ''):
@@ -1086,12 +1133,16 @@ class StackHost(Host):
 
     def send(self, name, parts):
         rt = self.rt
-        msg = parts[0][1] if parts and parts[0][0] == 'e' else ''
-        i, target, delay, args = 1, None, None, []
+        i = 0
+        if (name == 'dispatch' and len(parts) > 1 and parts[0][0] == 'e' and parts[1][0] == 'e'
+                and to_text(parts[0][1]).lower() == 'function'):
+            i = 1                              # dispatch function "f" to X with ...: its value is the result
+        msg = to_text(parts[i][1]) if len(parts) > i and parts[i][0] == 'e' else ''
+        i, target, delay, args = i + 1, None, None, []
         while i < len(parts):
             k, v = parts[i]
             if (k, v) == ('w', 'to') and i + 1 < len(parts):
-                target = self.resolve(parts[i + 1][1])
+                target = self.resolve(to_text(parts[i + 1][1]))
                 i += 2
             elif (k, v) == ('w', 'in') and i + 1 < len(parts):
                 n = to_num(parts[i + 1][1])
@@ -1107,8 +1158,8 @@ class StackHost(Host):
         if target is None:
             target = rt.running_obj() or rt.default_stack.current
         if name == 'dispatch':
-            rt.dispatch(target, msg, args)
-            return ''
+            r = rt.dispatch(target, msg, args)
+            return r if isinstance(r, str) else ''
         if delay is not None:
             return str(rt.after(delay, target, msg))
         rt.send_text(target, msg)
@@ -1167,6 +1218,9 @@ class StackHost(Host):
     def real_path(p):
         """a path as a script gives it -> one this Python can open: C:/x or C:\\x -> /mnt/c/x under WSL"""
         p = str(p).replace('\\', '/')
+        m = re.match(r'(?i)^//(?:wsl\$|wsl\.localhost)/[^/]+(/.*)$', p)   # //wsl$/Ubuntu/home/... (his Windows
+        if m:                                                            # LiveCode's name for a WSL file)
+            return m.group(1)
         m = re.match(r'^([A-Za-z]):/(.*)$', p)
         if m and os.path.isdir('/mnt/%s' % m.group(1).lower()):
             return '/mnt/%s/%s' % (m.group(1).lower(), m.group(2))
@@ -1183,6 +1237,12 @@ class StackHost(Host):
             return '\n'.join(n for n in names if os.path.isfile(os.path.join(d, n)))
         return '\n'.join(['..'] + [n for n in names if os.path.isdir(os.path.join(d, n))])
 
+    def write_path(self, p):
+        """where a write to p goes: p itself in the owner's own window (rt.real_app), else the sandbox copy"""
+        if getattr(self.rt, 'real_app', False):
+            return os.path.abspath(self.real_path(p))
+        return self.sandboxed(p)
+
     def sandboxed(self, p):
         home = os.path.abspath(getattr(self, 'sandbox_root', None) or self.folders.get('home', 'run_files'))
         full = os.path.abspath(p) if not re.match(r'^[A-Za-z]:/|^[a-z]+:', p) else None
@@ -1198,7 +1258,7 @@ class StackHost(Host):
     def _path(self, ref):
         low = ref.lower()
         path = ref[5:] if low.startswith('file:') else ref[8:] if low.startswith('binfile:') else ref
-        return path.replace('\\', '/')
+        return self.real_path(path)
 
     @staticmethod
     def _kind(kind, ref):
@@ -1208,7 +1268,7 @@ class StackHost(Host):
     def read_url(self, kind, ref):
         kind = self._kind(kind, ref)
         p = self._path(ref)
-        sp = self.sandboxed(p)                 # written here before: the sandbox copy is the file now (copy on
+        sp = self.write_path(p)                # written here before: the sandbox copy is the file now (copy on
         if os.path.exists(sp):                 # write), so `put x after URL "file:..."` adds instead of replacing
             p = sp
         if not os.path.exists(p):
@@ -1219,9 +1279,10 @@ class StackHost(Host):
         return open(p, encoding='utf-8', errors='replace').read()
 
     def write_url(self, kind, ref, text):
-        """writes stay in the sandbox (run_files): any other path is redirected under run_files/elsewhere/"""
+        """a real window writes the real file (owner 26 Nov: "as if they are real apps"); tests and surveys
+        write in the sandbox (run_files): any other path is redirected under run_files/elsewhere/"""
         kind = self._kind(kind, ref)
-        p = self.sandboxed(self._path(ref))
+        p = self.write_path(self._path(ref))
         d = os.path.dirname(p)
         if d:
             os.makedirs(d, exist_ok=True)

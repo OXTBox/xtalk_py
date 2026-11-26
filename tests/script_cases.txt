@@ -433,3 +433,86 @@ put 2/3 into y
 put y & "|" into tB
 set the numberFormat to "0.######"
 put tA & "|" & tB & y into tOut
+----
+put "a,b,," into t
+split t by comma
+put the number of elements of t & "|" & t[1] & "|" & (3 is among the keys of t) into tOut
+----
+put "a,,b" into t
+split t by comma
+put the number of elements of t & "|" & t[2] & "|" & t[3] into tOut
+----
+put empty into t
+split t by comma
+put (t is an array) & "|" & (t is empty) into tOut
+----
+put "x" into t
+split t by comma
+put (t is an array) & "|" & t[1] into tOut
+----
+put "k=1,k=2,j,=5,m=a=b" into t
+split t by comma and "="
+put the number of elements of t & "|" & t["k"] & "|" & ("j" is among the keys of t) & "|" & t[""] & "|" & t["m"] into tOut
+----
+put "1;2" into t
+split t using ";"
+put t[2] into tOut
+----
+put "1,2" into t
+split t with comma
+put t[2] into tOut
+----
+put "a,b,a" into t
+split t by comma as set
+put the number of elements of t & "|" & t["a"] into tOut
+----
+put "x" & tab & "y" & return & "z" & tab & "w" into t
+split t by row
+put the number of elements of t & "|" & t[2] into tOut
+----
+put "x" & tab & "y" & return & "z" & tab & "w" into t
+split t by column
+put the number of elements of t & "|" & t[2] into tOut
+----
+put "c" into a[10]
+put "b" into a[2]
+put "a" into a[1]
+combine a with comma
+put a into tOut
+----
+put "1" into a["zeta"]
+put "2" into a["Alpha"]
+put "3" into a["beta"]
+combine a by cr and "="
+put a into tOut
+----
+put "a" into t
+combine t with comma
+put t & "|" & (t is an array) into tOut
+----
+put "x" into a[1]
+put "y" into a[2]["deep"]
+combine a with comma
+put a into tOut
+----
+put "a b c" into t
+split t by space
+put t[3] & "|" & the number of elements of t into tOut
+----
+put 1 into t["a"]
+put 1 into t["b"]
+put ("b" is among the keys of t) & "|" & ("c" is among the keys of t) & "|" & ("b" is not among the keys of t) into tOut
+----
+put 1 into a[1]
+put (a is empty) & "|" & (a is not empty) & "|" & (a = empty) & "|" & (a is "x") & "|" & (a <> empty) & "|" & (a & "x") & "|" & the length of a into tOut
+----
+put 1 into a[1]
+delete variable a[1]
+put (a is empty) & "|" & (a = empty) into tOut
+----
+put 1 into a[1]
+if a is empty then
+put "E" into tOut
+else
+put "N" into tOut
+end if
