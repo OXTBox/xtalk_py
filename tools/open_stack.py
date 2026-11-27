@@ -2,6 +2,7 @@
 """open_stack.py - open a harvested stack in the Python runtime (Phase 2). Needs the .venv packages.
 
     .venv/bin/python -I tools/open_stack.py HARVEST_FOLDER                  a window at 200,32; click away
+        (scaled: XTALK_SCALE=1.5, else Ctrl + / Ctrl - in the window, remembered in run_files/window_scale.json)
     .venv/bin/python -I tools/open_stack.py HARVEST_FOLDER --snap OUT.png [--click 'button "OK"' ...]
                                                                            hidden: click, then save the card
 
@@ -21,7 +22,11 @@ def main(a):
     rt = StackRuntime(a[0], real_app='--snap' not in a)   # his window: a real app (his files, shell: owner 26 Nov)
     if '--snap' in a:
         out = a[a.index('--snap') + 1]
-        v = View(rt, hidden=True)
+        try:
+            snap_scale = float(os.environ.get('XTALK_SCALE', '1'))
+        except ValueError:
+            snap_scale = 1.0
+        v = View(rt, hidden=True, scale=snap_scale)
         rt.open()
         i = 0
         while '--click' in a[i:]:
@@ -36,7 +41,12 @@ def main(a):
     import time
     t0 = time.time()
     rt.log_clicks = []                     # what was clicked, for the report at the end
-    View(rt).run()
+    from xtalk.stack.view import window_scale, remember_scale
+    name = rt.default_stack.name
+    v = View(rt, scale=window_scale(name))   # our scaleFactor: Windows' own (125% -> 1.25) or the remembered one
+    v.on_scale = lambda s: remember_scale(name, s)
+    print('scale %.2f (Ctrl + bigger, Ctrl - smaller, Ctrl 0 = Windows\' scaling; remembered per stack)' % v.scale, flush=True)
+    v.run()
     keys = sum(1 for c in rt.log_clicks if c.startswith('key '))
     print('--- report: window open %.0f s, %d clicks, %d keys' % (time.time() - t0, len(rt.log_clicks) - keys, keys))
     for c in rt.log_clicks[-60:]:

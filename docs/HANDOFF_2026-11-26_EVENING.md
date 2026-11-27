@@ -3,6 +3,21 @@
 Everything below is MERGED to main and PUSHED (xtalk_py, LIB_MENU, LIB_GAMES), on the owner's word.
 Nothing is waiting on a branch.
 
+## LATEST (26 Nov ~17:30): x1-00 window scale on branch `window-scale` (off `priority-tube`). OWNER CHECKED: Ctrl +/- works, menus open where he clicks, size kept on reopen (Tube remembered at 1.2). Not merged yet.
+
+- Why the windows were small: Windows is at 125% (AppliedDPI 120); WSLg draws our window one pixel a unit
+  (measured: monitor 1920x1080, window DPI 1.0). LiveCode draws at 125%. Default scale = Windows' own (1.25).
+- `View(rt, scale=...)`: one matrix scales the card; scissors (rounded outward), mouse in, warp out, menu place,
+  ImGui sizes + font (rebuilt from scale 1 each time) follow. Scripts see units only. Scale 1 = pixel-identical.
+- Text sharp: letters made at 2x (sharp to 1.5); over 1.5 a bigger set is drawn, placed by the measuring set's
+  advances (layout never changes with scale).
+- Keys: Ctrl + / Ctrl - (0.05 steps, 0.5..3), Ctrl 0 = Windows' scaling. Remembered per stack in
+  `run_files/window_scale.json` (a '*' entry = default for every stack). `XTALK_SCALE=1.5` overrides.
+- Only `tools/open_stack.py` windows scale (Tube, Project Map, ...). Checking tools, snapshots and the xt3d play
+  window stay at 1 (xt3d's own scissors/screen sizes are in generated/).
+- Not built: a menu entry for the scale; the window following a script's stack resize (x1-08).
+- At 1.25 the Tube is 950x1075 pixels on a 1080 screen: bottom off screen; Ctrl - to ~1.1 fits (fitting = x1-08).
+
 ## LATER SAME EVENING: Priority Tube, steps 1-2 on branch `priority-tube` (not merged, waits for his look)
 
 - Checked hidden (real_folders): opens with no errors; select, arrows, Shift-arrows, drag, wheel, right-click

@@ -27,6 +27,64 @@ ALIASES = {'': 'segoe ui', 'lucida grande': 'segoe ui', 'helvetica': 'arial', 'g
 CODEPOINTS = list(range(32, 127)) + list(range(160, 384)) + list(range(0x2010, 0x2040)) + [0x20AC, 0x2122, 0x2190,
               0x2191, 0x2192, 0x2193, 0x2022, 0x2026]
 NAMES = {k: v for k, v in COLOR_NAMES.items()}
+SCALE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                          'run_files', 'window_scale.json')
+SCALE_MIN, SCALE_MAX, SCALE_STEP = 0.5, 3.0, 0.05
+
+
+def windows_scale():
+    """Windows' display scaling (Settings > Display > Scale: 125% -> 1.25). LiveCode on Windows draws at it;
+    WSLg draws our window at one pixel a unit (measured 26 Nov: monitor 1920x1080, window DPI 1.0), so
+    without our own scale a Python window is smaller than the same stack in LiveCode"""
+    if not hasattr(windows_scale, 'v'):
+        windows_scale.v = 1.0
+        try:
+            import subprocess
+            out = subprocess.run(['reg.exe', 'query', r'HKCU\Control Panel\Desktop\WindowMetrics', '/v', 'AppliedDPI'],
+                                 capture_output=True, text=True, timeout=10, cwd='/mnt/c').stdout
+            dpi = int(out.split('REG_DWORD')[1].split()[0], 16)
+            if 72 <= dpi <= 480:
+                windows_scale.v = dpi / 96
+        except Exception:
+            pass
+    return windows_scale.v
+
+
+def remembered_scales():
+    try:
+        import json
+        with open(SCALE_FILE) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def window_scale(stack_name):
+    """the scale a real window opens at: XTALK_SCALE, else the one remembered for this stack (Ctrl + / -),
+    else the one remembered for every stack ('*'), else Windows' own scaling"""
+    try:
+        return max(SCALE_MIN, min(SCALE_MAX, float(os.environ['XTALK_SCALE'])))
+    except (KeyError, ValueError):
+        pass
+    saved = remembered_scales()
+    for k in (str(stack_name).lower(), '*'):
+        try:
+            return max(SCALE_MIN, min(SCALE_MAX, float(saved[k])))
+        except (KeyError, ValueError, TypeError):
+            pass
+    return windows_scale()
+
+
+def remember_scale(stack_name, s):
+    import json
+    saved = remembered_scales()
+    saved[str(stack_name).lower()] = s
+    try:
+        os.makedirs(os.path.dirname(SCALE_FILE), exist_ok=True)
+        with open(SCALE_FILE, 'w') as f:
+            json.dump(saved, f, indent=1, sort_keys=True)
+    except OSError:
+        pass
 
 
 def colour(v, default=None):
@@ -49,16 +107,21 @@ def colour(v, default=None):
 
 
 class View:
-    def __init__(self, rt, hidden=False, pos=(200, 32)):
+    def __init__(self, rt, hidden=False, pos=(200, 32), scale=1.0):
+        """scale: our own scaleFactor (owner 26 Nov, x1-00: \"so I can read it\"). Everything is drawn that much
+        bigger with sharp text; the scripts never see it (rects, the mouseLoc, the screenRect stay in units)"""
         self.rt = rt
         st = rt.default_stack
         w, h = st.size if st.size else (st.width, st.height)
+        self.base_size = (int(w), int(h))
+        self.scale = max(SCALE_MIN, min(SCALE_MAX, float(scale)))
+        self.on_scale = None           # called with the new scale after Ctrl + / - / 0 (open_stack remembers it)
         rl.set_trace_log_level(rl.LOG_WARNING)
         if hidden:
             rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
-        rl.init_window(int(w), int(h), st.props.get('title') or st.name)
-        if not hidden:
-            rl.set_window_position(*pos)
+        rl.init_window(*self.scaled_size(), st.props.get('title') or st.name)
+        if not hidden:                 # 200,32 in units, as LiveCode places it on a scaled Windows screen
+            rl.set_window_position(int(pos[0] * self.scale), int(pos[1] * self.scale))
         rl.set_exit_key(0)
         rl.set_target_fps(60)
         try:                           # xt3d scripts draw with this window; their CloseWindow must not close it
@@ -101,6 +164,61 @@ class View:
         imgui.create_context()
         imgui.get_io().set_ini_filename('')
         imgui.backends.opengl3_init('#version 330')
+        self.imgui_scale = 1.0
+        self.scale_imgui()
+
+    # ------------------------------------------------------------ scale
+    def scaled_size(self):
+        return int(round(self.base_size[0] * self.scale)), int(round(self.base_size[1] * self.scale))
+
+    def scale_imgui(self):
+        """menus, dialogs and the runtime panel grow with the window (ImGui draws its font at the size, sharp)"""
+        style = imgui.get_style()
+        if not hasattr(self, 'imgui_base'):    # its sizes at scale 1: scaling step on step rounds them away
+            self.imgui_base = {}
+            for k in dir(style):
+                if k.startswith('_') or k in ('font_scale_main', 'font_scale_dpi', 'mouse_cursor_scale', 'alpha'):
+                    continue
+                v = getattr(style, k, None)
+                if isinstance(v, float):
+                    self.imgui_base[k] = v
+                elif isinstance(v, imgui.ImVec2):
+                    self.imgui_base[k] = imgui.ImVec2(v.x, v.y)
+        for k, v in self.imgui_base.items():
+            setattr(style, k, imgui.ImVec2(v.x, v.y) if isinstance(v, imgui.ImVec2) else v)
+        style.scale_all_sizes(self.scale)
+        style.font_scale_main = self.scale
+        self.imgui_scale = self.scale
+
+    def set_scale(self, s):
+        """Ctrl + / Ctrl - / Ctrl 0: the window and everything in it bigger or smaller"""
+        s = round(max(SCALE_MIN, min(SCALE_MAX, s)), 2)
+        if s == self.scale:
+            return
+        self.scale = s
+        for k in [k for k in self.fonts if len(k) == 3]:   # bigger letter sets made for the old scale
+            rl.unload_font(self.fonts.pop(k))
+        rl.set_window_size(*self.scaled_size())
+        self.scale_imgui()
+        self.cache_dirty = True
+        self.wake()
+        if self.on_scale is not None:
+            self.on_scale(s)
+
+    def mouse_units(self):
+        """the real pointer in the window -> the card's units"""
+        m = rl.get_mouse_position()
+        return m.x / self.scale, m.y / self.scale
+
+    def scissor(self, x, y, w, h):
+        """clip to a card rect (scissors work in real pixels: the scale's matrix does not reach them)"""
+        s = self.scale
+        if s == 1:
+            rl.begin_scissor_mode(int(x), int(y), max(0, int(w)), max(0, int(h)))
+            return
+        x0, y0 = math.floor(x * s), math.floor(y * s)     # edges rounded outward: truncating the top and the
+        x1, y1 = math.ceil((x + w) * s), math.ceil((y + h) * s)   # height cut the last row's descenders
+        rl.begin_scissor_mode(x0, y0, max(0, x1 - x0), max(0, y1 - y0))
 
     # ------------------------------------------------------------ helpers
     def capture(self):
@@ -119,7 +237,7 @@ class View:
         if want and not self.captured:
             m = rl.get_mouse_position()
             self.last_real = (m.x, m.y)
-            self.vmouse = self.warped if self.warped is not None else (m.x, m.y)   # no jump on the first frame
+            self.vmouse = self.warped if self.warped is not None else self.mouse_units()   # no jump on the first frame
             if not self.soft_grab:
                 rl.disable_cursor()
             else:
@@ -152,16 +270,19 @@ class View:
             self.vmouse = (x - wx, y - wy)
             self.rt.mouse = (int(x - wx), int(y - wy))   # the mouseLoc changes at once (as in LiveCode)
             return
-        rl.set_mouse_position(int(x - wx), int(y - wy))
+        rl.set_mouse_position(int((x - wx) * self.scale), int((y - wy) * self.scale))
 
-    def font(self, o, size, st=None):
-        """the font for o's text, or for a styled run st (its face and bold/italic over the field's)"""
+    def font(self, o, size, st=None, drawn=1.0):
+        """the font for o's text, or for a styled run st (its face and bold/italic over the field's). Its letters
+        are made at twice the size, enough to stay sharp up to a scale of 1.5; drawn bigger than that, a bigger
+        set is made for drawing (measuring keeps the first, so the text wraps the same at every scale)"""
         face = (st[1] if st and st[1] else None) or self.prop(o, 'textfont') or self.inherit(o, 'textFont') or ''
         flags = st[0] if st and st[0] else styled.flags_of(self.prop(o, 'textstyle') or self.inherit(o, 'textStyle') or '')
         face = str(face).lower().strip()
         fam = FAMILIES.get(ALIASES.get(face, face), FAMILIES['segoe ui'])
         f = fam[('bold' in flags) + 2 * ('italic' in flags)] + '.ttf'
-        key = (f, size)
+        made = size * 2 if drawn <= 1.5 else int(math.ceil(size * 2 * drawn / 1.5))
+        key = (f, size) if made == size * 2 else (f, size, made)
         if key not in self.fonts:
             path = next((os.path.join(d, f) for d in FONT_DIRS if os.path.exists(os.path.join(d, f))), None)
             if path is None and f != 'segoeui.ttf':
@@ -169,7 +290,9 @@ class View:
                              if os.path.exists(os.path.join(d, x))), None)
             if path:
                 cps = rl.ffi.new('int[]', CODEPOINTS)          # curly quotes, accents, the euro...
-                self.fonts[key] = rl.load_font_ex(path, size * 2, rl.ffi.cast('int *', cps), len(CODEPOINTS))
+                rl.set_trace_log_level(rl.LOG_ERROR)   # a face lacks a few of the asked letters (Segoe: 11 of 375):
+                self.fonts[key] = rl.load_font_ex(path, made, rl.ffi.cast('int *', cps), len(CODEPOINTS))
+                rl.set_trace_log_level(rl.LOG_WARNING)  # raylib warns once per missing letter; they draw as a box
             else:
                 self.fonts[key] = rl.get_font_default()
             rl.set_texture_filter(self.fonts[key].texture, rl.TEXTURE_FILTER_BILINEAR)
@@ -201,8 +324,22 @@ class View:
 
     def text(self, o, s, x, y, col, size=None, st=None):
         size = (st[2] if st and st[2] else None) or size or self.size(o)
-        f = self.font(o, size, st)
-        rl.draw_text_ex(f, s, rl.Vector2(x, y), size * 4 / 3, 0, col)
+        f = self.font(o, size, st, self.scale)
+        fm = self.font(o, size, st)
+        px = size * 4 / 3
+        if f is fm:
+            rl.draw_text_ex(f, s, rl.Vector2(x, y), px, 0, col)
+            return
+        # scale over 1.5: the bigger letters, each placed where the measuring set puts it (its advances are
+        # whole numbers at a smaller size: placed by the big set, a bold word ran into the next space)
+        k = px / fm.baseSize
+        for ch in s:
+            cp = ord(ch)
+            if ch not in ' \t':
+                rl.draw_text_codepoint(f, cp, rl.Vector2(x, y), px, col)
+            i = rl.get_glyph_index(fm, cp)
+            g = fm.glyphs[i]
+            x += (g.advanceX or (fm.recs[i].width + g.offsetX)) * k
 
     def measure(self, o, s, size=None, st=None):
         size = (st[2] if st and st[2] else None) or size or self.size(o)
@@ -231,10 +368,18 @@ class View:
         card = st.current
         bg = colour(self.inherit(card, 'backgroundColor'), rl.Color(240, 240, 240, 255))
         rl.clear_background(bg)
+        scaled = self.scale != 1
+        if scaled:                         # one matrix: every object drawn in units, shown at the scale
+            rl.rl_draw_render_batch_active()
+            rl.rl_push_matrix()
+            rl.rl_scalef(self.scale, self.scale, 1)
         for o in card.flat():
             if o.type == 'group' or not self.rt._shown(o):
                 continue
             getattr(self, 'draw_' + o.type, self.draw_other)(o)
+        if scaled:
+            rl.rl_draw_render_batch_active()
+            rl.rl_pop_matrix()
         if self.esc_frees:
             self.draw_escape_label()
 
@@ -372,7 +517,7 @@ class View:
         size, lh, m, scroll, sbw = rt.field_metrics(o)    # one rule for drawing and for clicks
         rows = rt.field_rows(o)
         hl = set(rt.host.hilited_lines(o))
-        rl.begin_scissor_mode(int(rc.x + 1), int(rc.y + 1), int(rc.width - 2 - sbw), int(rc.height - 2))
+        self.scissor(rc.x + 1, rc.y + 1, rc.width - 2 - sbw, rc.height - 2)
         fg = colour(self.inherit(o, 'foregroundColor'), rl.BLACK)
         if rt.focused is o and rt.editable(o):     # a focused list field shows its hilite, no caret
             self.draw_selection(o, rc, rows, lh, m, scroll)
@@ -569,7 +714,7 @@ class View:
         if self.dialog is not None:
             self.feed_keys(io)
         if self.panel and (rt.errors or rt.load_errors):
-            imgui.set_next_window_size(imgui.ImVec2(360, 120), imgui.Cond_.first_use_ever)
+            imgui.set_next_window_size(imgui.ImVec2(360 * self.scale, 120 * self.scale), imgui.Cond_.first_use_ever)
             imgui.begin('Runtime  (F2 hides)')
             for msg, obj, err in rt.errors[-8:]:
                 imgui.text_colored(imgui.ImVec4(1, 0.4, 0.4, 1), '%s in %s: %s' % (msg, obj, err))
@@ -646,8 +791,8 @@ class View:
             self.vmouse = (self.vmouse[0] + dx, self.vmouse[1] + dy)
             x, y = int(self.vmouse[0]), int(self.vmouse[1])
         else:
-            m = rl.get_mouse_position()
-            x, y = int(m.x), int(m.y)
+            mx, my = self.mouse_units()
+            x, y = int(mx), int(my)
         rt.buttons_down = {b for b, k in (('2', 2), ('3', 1)) if rl.is_mouse_button_down(k)}   # mouse(3) = right
         if rl.is_mouse_button_pressed(1):
             self.look['right presses'] += 1
@@ -683,6 +828,13 @@ class View:
         self.capture()
         if rl.is_key_pressed(rl.KEY_F2):
             self.panel = not self.panel
+        if 'controlkey' in held:                  # Ctrl + / Ctrl - / Ctrl 0: our scaleFactor (x1-00)
+            if rl.is_key_pressed(rl.KEY_EQUAL) or rl.is_key_pressed(rl.KEY_KP_ADD):
+                self.set_scale(self.scale + SCALE_STEP)
+            elif rl.is_key_pressed(rl.KEY_MINUS) or rl.is_key_pressed(rl.KEY_KP_SUBTRACT):
+                self.set_scale(self.scale - SCALE_STEP)
+            elif rl.is_key_pressed(rl.KEY_ZERO) or rl.is_key_pressed(rl.KEY_KP_0):
+                self.set_scale(windows_scale())
         ch = rl.get_char_pressed()
         while ch:
             if 'controlkey' not in held:          # Control + a letter is a command key (below), not typing
@@ -708,7 +860,7 @@ class View:
         m = self.menu
         if not imgui.is_mouse_down(0):
             m['armed'] = True
-        imgui.set_next_window_pos(imgui.ImVec2(m['x'], m['y']), imgui.Cond_.always)
+        imgui.set_next_window_pos(imgui.ImVec2(m['x'] * self.scale, m['y'] * self.scale), imgui.Cond_.always)
         if not m.get('focused'):                 # focus once: focusing every frame closes any open submenu
             imgui.set_next_window_focus()
             m['focused'] = True
@@ -800,7 +952,7 @@ class View:
         if d['icon']:
             col = {'error': (1, 0.4, 0.4, 1), 'warning': (1, 0.8, 0.3, 1)}.get(d['icon'], (0.5, 0.8, 1, 1))
             imgui.text_colored(imgui.ImVec4(*col), d['icon'].upper())
-        imgui.push_text_wrap_pos(420)
+        imgui.push_text_wrap_pos(420 * self.scale)
         imgui.text_unformatted(d['prompt'])
         imgui.pop_text_wrap_pos()
         if d['typing']:
@@ -808,7 +960,7 @@ class View:
                 imgui.set_keyboard_focus_here()
                 d['focused'] = True
             fl = imgui.InputTextFlags_.password if d['sub'] == 'password' else 0
-            imgui.set_next_item_width(380)
+            imgui.set_next_item_width(380 * self.scale)
             _, d['text'] = imgui.input_text('##xtinput', d['text'], fl)
             if d['sub'] in ('file', 'files', 'folder', 'folders'):
                 self.draw_browser(d)
@@ -834,7 +986,7 @@ class View:
             names = []
         dirs = [n for n in names if not n.startswith('.') and os.path.isdir(os.path.join(here, n))]
         files = [] if d['sub'].startswith('folder') else [n for n in names if os.path.isfile(os.path.join(here, n))]
-        imgui.begin_child('##xtbrowse', imgui.ImVec2(380, 260), imgui.ChildFlags_.borders)
+        imgui.begin_child('##xtbrowse', imgui.ImVec2(380 * self.scale, 260 * self.scale), imgui.ChildFlags_.borders)
         if imgui.selectable('..##up', False)[0]:
             d['text'] = (os.path.dirname(here) or '/') + '/'
         for n in dirs:
