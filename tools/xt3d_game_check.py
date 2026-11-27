@@ -111,6 +111,7 @@ def main(a):
         prof.disable()
         import pstats
         pstats.Stats(prof).sort_stats('tottime').print_stats(25)
+        if os.environ.get("XTALK_PROF_OUT"): prof.dump_stats(os.environ["XTALK_PROF_OUT"])
     v.snapshot(out)
     if '--eval' in a:                          # expressions asked of the game card (its path: stack, libraries)
         from xtalk.parser import parse_expr

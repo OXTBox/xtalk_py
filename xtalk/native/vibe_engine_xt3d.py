@@ -9,7 +9,7 @@ xTalk handler; tools/frame_referee.py checks the whole game.
 import copy
 import math
 from ..interp import rnd_half_away
-from ..values import XtArray, NumStr, numstr, fmt_num, to_num, to_text, num_cmp, is_numeric_text, XtError
+from ..values import CASE, XtArray, NumStr, numstr, fmt_num, to_num, to_text, num_cmp, is_numeric_text, XtError
 from . import Fallback
 
 STACK = 'VibeEngineXt3d'
@@ -232,68 +232,137 @@ def _rotated_words(dx, dy, dz, rx, ry, rz):
 # ---------------------------------------------------------------- UpdateObjectTransforms
 def update_object_transforms(rt, fr):
     """on UpdateObjectTransforms: every object in gObjectTransforms advances one step (rotation speed,
-    local thrust, braking, top speed, world and local velocity). Same keys made, in the same order."""
+    local thrust, braking, top speed, world and local velocity). Same keys made, in the same order.
+    Keys are found the way an xTalk array finds them (any case: "x" finds "X"), through one lower-case
+    table an object, instead of the array's own case index rebuilt for every object every step."""
+    if CASE[0]:                            # caseSensitive true: the xTalk handler
+        raise Fallback()
     G = rt.G
     src = G.get('gobjecttransforms', '')
     if not isinstance(src, dict):          # no objects: the xTalk puts the same value back
         G['gobjecttransforms'] = src
         return ''
     for o in src.values():                 # anything unusual: the xTalk handler (nothing changed yet)
-        if not isinstance(o, dict):
+        if type(o) is not XtArray:
             raise Fallback()
-        for k in ('rotSpeedX', 'rotSpeedY', 'rotSpeedZ', 'rotX', 'rotY', 'rotZ', 'localAx', 'localAy', 'localAz',
-                  'vx', 'vy', 'vz', 'localBrake', 'maxWorldSpeed', 'localVx', 'localVy', 'localVz', 'x', 'y', 'z'):
-            v = o.get(k, '')
+        low = _lower(o)[1]
+        for k, kl in _CHECK:
+            v = dict.get(o, k, _MISS)
+            if v is _MISS:
+                v = low.get(kl, '')
             if type(v) is not NumStr and (isinstance(v, dict) or not _isnum(v)):
                 raise Fallback()
     objs = copy.deepcopy(src)              # put gObjectTransforms into tObjA
+    dget = dict.get
     for o in objs.values():
-        g = o.get
-        rx = _n(g('rotX', '')) + _n(g('rotSpeedX', ''))      # add rotSpeedX to rotX
-        o['rotX'] = numstr(rx)
-        ry = _n(g('rotY', '')) + _n(g('rotSpeedY', ''))
-        o['rotY'] = numstr(ry)
-        rz = _n(g('rotZ', '')) + _n(g('rotSpeedZ', ''))
-        o['rotZ'] = numstr(rz)
+        real = _lower(o)[0]
+
+        def g(k, d=''):                    # o[k] now (a value put this step is seen)
+            v = dget(o, k, _MISS)
+            if v is _MISS:
+                r = real.get(k.lower())
+                return d if r is None else dget(o, r, d)
+            return v
+
+        def put(k, v):
+            if not dict.__contains__(o, k):
+                r = real.get(k.lower())
+                if r is None:
+                    real[k.lower()] = k
+                else:
+                    k = r
+            dict.__setitem__(o, k, v)
+
+        rx = _n(g('rotX')) + _n(g('rotSpeedX'))      # add rotSpeedX to rotX
+        rx_s = numstr(rx)
+        put('rotX', rx_s)
+        ry = _n(g('rotY')) + _n(g('rotSpeedY'))
+        ry_s = numstr(ry)
+        put('rotY', ry_s)
+        rz = _n(g('rotZ')) + _n(g('rotSpeedZ'))
+        rz_s = numstr(rz)
+        put('rotZ', rz_s)
         # the angles as the xTalk passes them: the stored values (full value kept)
-        rx, ry, rz = o['rotX'].raw, o['rotY'].raw, o['rotZ'].raw
-        ax, ay, az = _rotated_words(_n(g('localAx', '')), _n(g('localAy', '')), _n(g('localAz', '')), rx, ry, rz)
-        vx = _n(g('vx', '')) + ax
-        o['vx'] = numstr(vx)
-        vy = _n(g('vy', '')) + ay
-        o['vy'] = numstr(vy)
-        vz = _n(g('vz', '')) + az
-        o['vz'] = numstr(vz)
-        vx, vy, vz = o['vx'].raw, o['vy'].raw, o['vz'].raw
+        rx, ry, rz = rx_s.raw, ry_s.raw, rz_s.raw
+        ax, ay, az = _rotated_words(_n(g('localAx')), _n(g('localAy')), _n(g('localAz')), rx, ry, rz)
+        vx_s = numstr(_n(g('vx')) + ax)
+        vy_s = numstr(_n(g('vy')) + ay)
+        vz_s = numstr(_n(g('vz')) + az)
+        put('vx', vx_s)
+        put('vy', vy_s)
+        put('vz', vz_s)
+        vx, vy, vz = vx_s.raw, vy_s.raw, vz_s.raw
         speed = _sqrt(vx * vx + vy * vy + vz * vz)
-        brake = _n(g('localBrake', ''))
+        brake = _n(g('localBrake'))
         if num_cmp(brake, 0) > 0 and num_cmp(speed, 0) > 0:
             if num_cmp(speed, brake) <= 0:
-                o['vx'] = numstr(0.0)
-                o['vy'] = numstr(0.0)
-                o['vz'] = numstr(0.0)
+                put('vx', numstr(0.0))
+                put('vy', numstr(0.0))
+                put('vz', numstr(0.0))
             else:
                 f = (speed - brake) / speed
-                o['vx'] = numstr(vx * f)
-                o['vy'] = numstr(vy * f)
-                o['vz'] = numstr(vz * f)
-        top = _n(g('maxWorldSpeed', ''))
+                put('vx', numstr(vx * f))
+                put('vy', numstr(vy * f))
+                put('vz', numstr(vz * f))
+        top = _n(g('maxWorldSpeed'))
         if num_cmp(top, 0) > 0:
-            vx, vy, vz = o['vx'].raw, o['vy'].raw, o['vz'].raw
+            vx, vy, vz = g('vx').raw, g('vy').raw, g('vz').raw
             speed = _sqrt(vx * vx + vy * vy + vz * vz)
             if num_cmp(speed, top) > 0:
                 f = top / speed
-                o['vx'] = numstr(vx * f)
-                o['vy'] = numstr(vy * f)
-                o['vz'] = numstr(vz * f)
-        lx, ly, lz = _rotated_words(_n(g('localVx', '')), _n(g('localVy', '')), _n(g('localVz', '')), rx, ry, rz)
-        dx = o['vx'].raw + lx
-        dy = o['vy'].raw + ly
-        dz = o['vz'].raw + lz
-        o['x'] = numstr(_n(g('x', '')) + dx)
-        o['y'] = numstr(_n(g('y', '')) + dy)
-        o['z'] = numstr(_n(g('z', '')) + dz)
+                put('vx', numstr(vx * f))
+                put('vy', numstr(vy * f))
+                put('vz', numstr(vz * f))
+        lx, ly, lz = _rotated_words(_n(g('localVx')), _n(g('localVy')), _n(g('localVz')), rx, ry, rz)
+        dx = g('vx').raw + lx
+        dy = g('vy').raw + ly
+        dz = g('vz').raw + lz
+        put('x', numstr(_n(g('x')) + dx))
+        put('y', numstr(_n(g('y')) + dy))
+        put('z', numstr(_n(g('z')) + dz))
+        if type(o) is XtArray:
+            o.lk = None                    # the array's own case index is made again when next needed
     G['gobjecttransforms'] = objs          # put tObjA into gObjectTransforms
+    return ''
+
+
+_CHECK = tuple((k, k.lower()) for k in (
+    'rotSpeedX', 'rotSpeedY', 'rotSpeedZ', 'rotX', 'rotY', 'rotZ', 'localAx', 'localAy', 'localAz',
+    'vx', 'vy', 'vz', 'localBrake', 'maxWorldSpeed', 'localVx', 'localVy', 'localVz', 'x', 'y', 'z'))
+_MISS = object()
+
+
+def _lower(o):
+    """(lower-case key -> key as stored, lower-case key -> value): the first spelling wins, as XtArray._real"""
+    real, low = {}, {}
+    for k, v in dict.items(o):
+        if type(k) is str:
+            kl = k.lower()
+            if kl not in real:
+                real[kl] = k
+                low[kl] = v
+    return real, low
+
+
+# ---------------------------------------------------------------- SetObjectPosition
+def set_object_position(rt, fr):
+    """on SetObjectPosition pObj,px,py,pz: an empty coordinate becomes 0 (the xTalk does it with
+    `do "put" && I && "is empty into tBool"`, parsed and run by the slow way six times a call), then
+    gObjectTransforms[pObj]["X"/"Y"/"Z"] = the three values, as the translated handler puts them"""
+    from ..pyrt import isempty, aput, CP, O
+    V = fr.vars
+    pobj = V.get('pobj', '')
+    if isempty(pobj):
+        return ''
+    vals = []
+    for k in ('px', 'py', 'pz'):
+        v = V.get(k, '')
+        if isinstance(v, dict):            # an array given as a coordinate: the xTalk's own answer
+            raise Fallback()
+        vals.append('0' if isempty(v) else v)
+    G = rt.G
+    for key, v in zip(('X', 'Y', 'Z'), vals):
+        G['gobjecttransforms'] = aput(G.get('gobjecttransforms', ""), rt.key_vals([O(pobj), key]), CP(v), 'into')
     return ''
 
 
@@ -309,7 +378,8 @@ def _isnum(v):
 
 # the xTalk each function was written from (tools/native_sigs.py): a changed handler keeps its xTalk
 SIGS = {'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c', 'updateobjecttransforms': '7e4930120ed1',
-        'xform.object': '3b5f1786e58f', 'vibe.color': 'eeb18a0ddc52'}
+        'xform.object': '3b5f1786e58f', 'vibe.color': 'eeb18a0ddc52',
+        'setobjectposition': 'dafabac7315e'}
 
 # handlers other scripts' native code may stand in for while they are unchanged (xt3d_testbench_host reads
 # gMeshCache instead of calling Vibe.Mesh, which copies the whole mesh)
@@ -330,4 +400,5 @@ HANDLERS = {
     'updateobjecttransforms': update_object_transforms,
     'xform.object': xform_object,
     'vibe.color': vibe_color,
+    'setobjectposition': set_object_position,
 }

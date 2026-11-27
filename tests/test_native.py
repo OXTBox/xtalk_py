@@ -107,7 +107,10 @@ def main(a):
                      ('Mat3.Mul', [mat(r), mat(r)], None),
                      ('Xform.Object', [obj], g),
                      ('RotateLocalVector', [rnum(r) for _ in range(6)], None),
-                     ('UpdateObjectTransforms', [], transforms(r))]
+                     ('UpdateObjectTransforms', [], transforms(r)),
+                     ('SetObjectPosition', [r.choice([obj, obj, 'newOne', '', 'BOX'])] +
+                      [r.choice([rnum(r), '', 'abc', numstr(r.uniform(-50, 50)), '0', ' 3'])
+                       for _ in range(r.choice([3, 3, 3, 2, 1]))], r.choice([g, g, transforms(r), '']))]
             for name, args, g in cases:
                 outs = []
                 for rt in (ref, nat):
