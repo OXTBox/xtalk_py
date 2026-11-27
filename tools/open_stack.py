@@ -53,8 +53,11 @@ def second_copy(harvest, engine, args):
     cmd = [os.path.join(ROOT, '.venv', 'bin', 'python'), '-I', os.path.join(ROOT, 'tools', 'open_stack.py'), harvest]
     if engine:
         cmd += ['--engine', engine]
-    subprocess.Popen(cmd + ['--'] + list(args), cwd=ROOT, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                     stderr=subprocess.DEVNULL, start_new_session=True)
+    log = open(os.path.join(ROOT, 'run_files', 'second_copy.log'), 'a')   # what the second copy printed (its report)
+    log.write('\n==== second copy %s: %s\n' % (__import__('time').strftime('%H:%M:%S'), ' '.join(args)))
+    log.flush()
+    subprocess.Popen(cmd + ['--'] + list(args), cwd=ROOT, stdin=subprocess.DEVNULL, stdout=log,
+                     stderr=subprocess.STDOUT, start_new_session=True)
 
 
 def main(a):
