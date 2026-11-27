@@ -84,6 +84,7 @@ class View:
         # soft grab (WSL): raylib's disable_cursor needs the pointer warped back each frame, which WSLg does not
         # allow; instead the movement of the real pointer is counted (no grab; XTALK_HARD_GRAB=1 for the old way)
         self.soft_grab = 'microsoft' in os.uname().release.lower() and not os.environ.get('XTALK_HARD_GRAB')
+        self.other_down = {}           # right / middle button: the object it went down on
         self.look = {'right presses': 0, 'grabs': 0, 'moved x': 0, 'moved y': 0, 'frames grabbed': 0, 'recentre failed': 0}
         try:                           # soft grab: the pointer's movement times this (owner 25 Nov: not sensitive enough)
             self.look_speed = float(os.environ.get('XTALK_LOOK_SPEED', '2'))
@@ -276,7 +277,13 @@ class View:
         rc = self.rect(o)
         if style in ('rectangle', 'roundrect'):
             if style == 'roundrect':
-                rnd = min(1.0, 20.0 / max(1, min(rc.width, rc.height)))
+                # roundRadius is the corner's diameter, held to half the width / height; default 15 (measured 26 Nov:
+                # LiveCode's corners are ellipses min(r/2, w/2) x min(r/2, h/2); raylib's are circles of the smaller)
+                try:
+                    rr = float(self.prop(o, 'roundRadius') or 15)
+                except ValueError:
+                    rr = 15.0
+                rnd = min(1.0, max(0.0, rr) / max(1, min(rc.width, rc.height)))
                 if filled:
                     rl.draw_rectangle_rounded(rc, rnd, 8, fill)
                 rl.draw_rectangle_rounded_lines_ex(rc, rnd, 8, lw, line)
@@ -384,11 +391,12 @@ class View:
                     w = self.measure(o, piece, size, st)
                     if st[4] and not lit:
                         rl.draw_rectangle(int(x), int(y), int(w + 0.5), int(lh), colour(st[4]))
-                    col = rl.WHITE if lit else (colour(st[3]) if st[3] else fg)
+                    link = 'link' in st[0]     # a link: its own colour, else the linkColor; underlined (measured)
+                    col = rl.WHITE if lit else (colour(st[3]) if st[3] else colour(styled.LINK_COLOUR) if link else fg)
                     rsize = st[2] or size
                     ty = y + (st[5] or 0) + (lh - 2 - rsize * 4 / 3) / 2 + 1
                     self.text(o, piece, x, ty, col, size, st)
-                    if 'underline' in st[0]:
+                    if 'underline' in st[0] or link:
                         rl.draw_line(int(x), int(ty + rsize * 4 / 3), int(x + w), int(ty + rsize * 4 / 3), col)
                     if 'strikeout' in st[0]:
                         rl.draw_line(int(x), int(ty + rsize * 2 / 3 + 1), int(x + w), int(ty + rsize * 2 / 3 + 1), col)
@@ -650,6 +658,11 @@ class View:
             if rl.is_mouse_button_released(0):
                 rt.mouse_up(x, y, down_on=self.down_on)
                 self.down_on = None
+            for k, b in ((1, 3), (2, 2)):          # right = mouseDown 3, middle = 2 (Priority Tube's bubble menu)
+                if rl.is_mouse_button_pressed(k):
+                    self.other_down[b] = rt.mouse_down(x, y, b)
+                if rl.is_mouse_button_released(k):
+                    rt.mouse_up(x, y, b, down_on=self.other_down.pop(b, None))
         held = set()
         for key, name in ((rl.KEY_LEFT_SHIFT, 'shiftkey'), (rl.KEY_RIGHT_SHIFT, 'shiftkey'), (rl.KEY_LEFT_ALT, 'optionkey'),
                           (rl.KEY_LEFT_CONTROL, 'controlkey'), (rl.KEY_RIGHT_CONTROL, 'controlkey')):

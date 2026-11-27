@@ -511,6 +511,42 @@ for _fixed in ('true', 'false'):
         rt.run('set the fixedLineHeight of field "LH" to %s\nset the textSize of field "LH" to %d' % (_fixed, _size))
         _lh.append(rt.field_metrics(rt.obj('field "LH"'))[1])
 check('line heights, fixed then free, sizes 10 12 14 18 24 (measured)', _lh, [13, 16, 18, 24, 32, 15, 18, 18, 26, 36])
+# formattedHeight (measured 26 Nov, Segoe UI): rows x line height - 8 + top margin + bottom margin
+_fh = []
+rt.run('set the width of field "LH" to 300\nset the fixedLineHeight of field "LH" to true')
+for _size, _m, _text in ((11, '0', 'one'), (11, '0', 'one\ntwo'), (13, '4', 'one\ntwo'), (12, '12', 'a\nb\nc\nd'),
+                         (12, '4,6,8,10', 'one\ntwo')):
+    _f = rt.obj('field "LH"')
+    rt.run('set the textSize of field "LH" to %d\nset the margins of field "LH" to "%s"' % (_size, _m))
+    _f.text = _text
+    _fh.append(rt.eval('the formattedHeight of field "LH"'))
+check('formattedHeight of a field: sizes, lines, margins (measured)', _fh, ['6', '20', '34', '80', '40'])
+
+# links (measured 26 Nov): htmlText <a href> / <a> / <a name>; textStyle link; linkClicked in place of mouseUp
+rt.run('set the htmlText of field "LH" to "<p><font color=" & quote & "#FF8C8C" & quote & "><a href=" & quote & "remove" & quote & ">Remove it</a></font><font color=" & quote & "#8888A0" & quote & ">  (Delete)</font></p>"')
+check('link: htmlText reads back with <a> outside <font>', rt.eval('the htmlText of field "LH"'),
+      '<p><a href="remove"><font color="#FF8C8C">Remove it</font></a><font color="#8888A0">  (Delete)</font></p>')
+check('link: textStyle / linkText / colour of char 1, style of char 12', '|'.join(rt.eval(_e) for _e in (
+      'the textStyle of char 1 of field "LH"', 'the linkText of char 1 of field "LH"', 'the textColor of char 1 of field "LH"',
+      'the textStyle of char 12 of field "LH"')),
+      'link|remove|255,140,140|')
+rt.run('set the text of field "LH" to "abc def"\nset the textStyle of char 1 to 3 of field "LH" to "link"\nset the linkText of char 5 to 7 of field "LH" to "zz"')
+check('link: textStyle link -> <a>, linkText alone -> <a name>', rt.eval('the htmlText of field "LH"'), '<p><a>abc</a> <a name="zz">def</a></p>')
+rt.run('set the htmlText of field "LH" to "<p><a href=" & quote & "x" & quote & ">WWWW</a> <a>MMMM</a> plain</p>"\n'
+       'set the margins of field "LH" to 8\nset the textSize of field "LH" to 12\nset the rect of field "LH" to 0,0,300,40\nset the lockText of field "LH" to true')
+rt.run('set the script of field "LH" to "on mouseDown" & cr & "global glog" & cr & "put ""d "" after glog" & cr & "end mouseDown" & cr & '
+       '"on mouseUp" & cr & "global glog" & cr & "put ""u "" after glog" & cr & "end mouseUp" & cr & '
+       '"on linkClicked p" & cr & "global glog" & cr & "put ""L:"" & p & "" "" after glog" & cr & "end linkClicked"'.replace('""', '" & quote & "'))
+_f = rt.obj('field "LH"')
+_y = _f.rect[1] + 12
+def _x_of(ch):                          # the middle of character ch (0-based)
+    return int(_f.rect[0] + 4 + 2 + rt.text_width(_f, 0, ch) + rt.text_width(_f, ch, ch + 1) / 2)
+rt.G['glog'] = ''
+for _c in (1, 7, 13, 30):
+    rt.last_down = None
+    rt.click('%d,%d' % (_x_of(_c) if _c < 30 else 290, _y))
+check('linkClicked: linkText, else the link words; plain text and past the end: mouseUp (measured)', rt.G['glog'],
+      'd L:x d L:MMMM d u d u ')
 
 # keysDown, rawKeyDown, globalLoc (a hidden window: window_pos 0,0, no mouse warp)
 rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))

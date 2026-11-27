@@ -225,6 +225,26 @@ standalone per library group.
   (size 24 in a size-12 field) stays 16. fixedLineHeight false: each line its font's own height: 10->15, 12->18,
   14->18, 18->26, 24->36; a size-24 line in a size-12 field makes that line 36 (we do not do this yet: one height a
   field).
+- **formattedHeight of a field** (measured 26 Nov, Segoe UI, sizes 11-14, 1-4 lines, margins 0 / 4 / 12 / "4,6,8,10"):
+  rows x line height - 8 + top margin + bottom margin (margins: one number for all four, or left,top,right,bottom).
+  Free line heights also measured: 11->15, 13->18. A size-11 line in a size-13 fixed field stays 17 high.
+  formattedWidth: the widest row + left + right margins (approximate; can exceed the field's width).
+- **roundRadius** (measured 26 Nov, pixels of an exported snapshot, antialiased false): it is the corner's DIAMETER;
+  each corner is an ellipse of min(r/2, width/2) x min(r/2, height/2). Default 15. Priority Tube sets it to the
+  bubble's height for a pill.
+- **Links** (measured 26 Nov): htmlText `<a href="x">` = textStyle link + linkText x; `<a>` = link, no linkText;
+  linkText alone (no link style) reads back as `<a name="x">`; the a tag is written outside font:
+  `<a href="remove"><font color="#FF8C8C">Remove it</font></a>`. A link draws in its own text colour if it has one,
+  else the effective linkColor (0,0,239 in a new stack), underlined (underlineLinks true). A click on a link in a
+  LOCKED field: mouseDown, then linkClicked (the linkText, else the link's own words) IN PLACE of mouseUp; plain
+  text: mouseDown, mouseUp; an unlocked field: neither (it takes the focus).
+- **Text widths** (measured 26 Nov, Segoe UI, dontWrap, "The quick brown fox jumps over the lazy dog", sizes
+  10-24): formattedWidth = the font's exact (unrounded) advances at textSize x 4/3 pixels: bold within 1 px
+  (213 at 10, 276 at 13, 509 at 24); plain a steady 1.033 x wider (205, 266, 491). Python's window is narrower
+  (raylib truncates each advance to whole pixels at the loaded size: plain 13 = 246 instead of 266), so its text
+  wraps later than LiveCode's (a Priority Tube bubble: 3 rows where LiveCode makes 4). Not fixed yet.
+  LiveCode's own rows for that bubble: "Matrix Lock: camera control, / shifting and turning blocks, jump, /
+  climb (bottom of the list, your / word)" at width 220, margins 4, size 13 bold; border on or off the same.
 - A handler parameter named like a script-level global is the parameter (the global is not read or changed:
   `ARG-`, global still `G`). `local g` in a handler below `global g` does not compile.
 - From memory (not measured): `rawKeyDown` gets the key code before keyDown (Esc 65307, backtick 96); `set the cursor

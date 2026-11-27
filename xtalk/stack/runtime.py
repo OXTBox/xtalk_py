@@ -696,11 +696,14 @@ class StackRuntime:
     def mouse_down(self, x, y, button=1):
         self.mouse = (x, y)
         self._enter_leave()            # the mouse came here before it pressed
-        self.button_down = True
         o = self.control_at(x, y) or self.default_stack.current
-        self.pressed = o
         if hasattr(self, 'log_clicks'):
-            self.log_clicks.append('%s at %d,%d' % (self.host.name_of(o, 'short'), x, y))
+            self.log_clicks.append('%s at %d,%d%s' % (self.host.name_of(o, 'short'), x, y, '' if button == 1 else ' (button %s)' % button))
+        if button != 1:                # right / middle: only the message (no selecting, dragging or menu opening)
+            self.message(o, 'mouseDown', [str(button)])
+            return o
+        self.button_down = True
+        self.pressed = o
         last = self.last_down
         self.double = bool(last and last[0] is o and self.clock - last[1] <= 400 and abs(last[2] - x) <= 4 and abs(last[3] - y) <= 4)
         self.last_down = None if self.double else (o, self.clock, x, y)
@@ -740,6 +743,17 @@ class StackRuntime:
         return o
 
     def mouse_up(self, x, y, button=1, down_on=None):
+        if button != 1:                # right / middle: mouseUp (or mouseRelease off the object), nothing else
+            self.mouse_move(x, y)
+            if self.swallow_up:
+                self.swallow_up = False
+                return down_on
+            o = self.control_at(x, y) or self.default_stack.current
+            if down_on is not None and o is not down_on:
+                self.message(down_on, 'mouseRelease', [str(button)])
+            else:
+                self.message(o, 'mouseUp', [str(button)])
+            return o
         self.mouse_move(x, y)
         self.button_down = False
         self.pressed = None
@@ -769,8 +783,41 @@ class StackRuntime:
             return o
         if o.type == 'button':
             self._auto_hilite(o)
+        if o.type == 'field' and button == 1 and not self.double:
+            link = self.link_at(o, x, y)
+            if link is not None:       # a link in a locked field: linkClicked in place of mouseUp (measured 26 Nov)
+                self.message(o, 'linkClicked', [link])
+                return o
         self.message(o, 'mouseDoubleUp' if self.double else 'mouseUp', [str(button)])
         return o
+
+    def link_at(self, o, x, y):
+        """a click on linked text of a locked field: its linkText, else the link's own words; None: no link"""
+        if self.host.obj_prop(o, 'locktext') != 'true' or not o.styles:
+            return None
+        rows = self.field_rows(o)
+        r = self.row_at(o, y)
+        if not 0 <= r < len(rows):
+            return None
+        _, a, b = rows[r]
+        rel = x - (o.rect[0] + self.field_metrics(o)[2] / 2 + 2)
+        if rel < 0 or rel >= self.text_width(o, a, b):
+            return None                # beside the text: no link
+        p = a                          # the character under the point (not the caret's gap)
+        while p + 1 < b and self.text_width(o, a, p + 1) <= rel:
+            p += 1
+        n = len(o.text)
+        if p >= n or o.text[p] == '\n' or p >= len(o.styles):
+            return None
+        st = o.styles[p] or styled.PLAIN
+        if 'link' not in st[0]:
+            return None
+        a, b = p, p + 1                # the link: the characters around it with the same style
+        while a > 0 and o.styles[a - 1] == st:
+            a -= 1
+        while b < n and b < len(o.styles) and o.styles[b] == st:
+            b += 1
+        return st[6] or o.text[a:b]
 
     def _enter_leave(self):
         """mouseLeave to the control the mouse left, mouseEnter to the one it is in now
@@ -825,7 +872,16 @@ class StackRuntime:
             sbw = 16
         return size, self.line_height(o, size), m, scroll, sbw
 
-    FREE_LINE = {10: 15, 12: 18, 14: 18, 18: 26, 24: 36}   # Segoe UI, fixedLineHeight false (measured 25 Nov)
+    def field_margins(self, o):
+        """left, top, right, bottom: margins is one number for all four, or four items (default 8)"""
+        v = [x.strip() for x in str(self.host.obj_prop(o, 'margins') or '8').split(',')]
+        try:
+            n = [int(float(x)) for x in v]
+        except ValueError:
+            return 8, 8, 8, 8
+        return tuple(n) if len(n) == 4 else (n[0],) * 4
+
+    FREE_LINE = {10: 15, 11: 15, 12: 18, 13: 18, 14: 18, 18: 26, 24: 36}   # Segoe UI, fixedLineHeight false (measured 25 + 26 Nov)
 
     def line_height(self, o, size):
         """fixedLineHeight true (a new field): every line is the textHeight, floor(size * 4/3) unless set;

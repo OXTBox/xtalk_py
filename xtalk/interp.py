@@ -663,7 +663,7 @@ class Interp:
         self.result = result
 
     CHUNK_PROPS = {'textstyle', 'textfont', 'textsize', 'textcolor', 'foregroundcolor', 'forecolor', 'backgroundcolor',
-                   'backcolor', 'textshift', 'htmltext'}
+                   'backcolor', 'textshift', 'htmltext', 'linktext'}
 
     @classmethod
     def chunk_style_prop(cls, name):

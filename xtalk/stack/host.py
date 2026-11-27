@@ -619,6 +619,18 @@ class StackHost(Host):
             return [int(x) for x in v]
         return [int(x) for x in str(v).split(',') if x.strip().isdigit()]
 
+    def field_formatted(self, o, p):
+        """the formattedHeight / formattedWidth of a field. Measured 26 Nov (Segoe UI): height = rows x line
+        height - 8 + top margin + bottom margin (sizes 11-14, 1-4 lines, margins 0/4/12/"4,6,8,10"); width = the
+        widest row + left + right margins"""
+        rt = self.rt
+        ml, mt, mr, mb = rt.field_margins(o)
+        rows = rt.field_rows(o)
+        if p == 'formattedheight':
+            size = rt.field_metrics(o)[0]
+            return str(max(0, len(rows) * rt.line_height(o, size) - 8 + mt + mb))
+        return str(int(round(max((rt.text_width(o, a, b) for _, a, b in rows), default=0))) + ml + mr)
+
     def obj_prop(self, o, p):
         if p in ('behavior', 'parentscript'):
             return self.rt.behavior_text(o)
@@ -681,6 +693,8 @@ class StackHost(Host):
             return o.text
         if p == 'htmltext':
             return styled.to_html(o.text, o.styles)
+        if p in ('formattedheight', 'formattedwidth') and o.type == 'field':
+            return self.field_formatted(o, p)
         if p == 'owner':
             return self.name_of(o.parent) if o.parent is not None else ''
         if p == 'script':
