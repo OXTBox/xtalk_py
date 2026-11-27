@@ -320,6 +320,7 @@ class StackRuntime:
         every object using it starts with empty script locals too (measured 26 Nov)"""
         o.script = text
         o.script_gen = getattr(o, 'script_gen', 0) + 1
+        self.note_byref(text)
         self.ctx.pop(id(o), None)
         if text.strip():
             c = ObjInterp(self, o)

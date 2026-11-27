@@ -365,3 +365,20 @@ Test stack "BhvTest" made and deleted in the run; scripts set with `set the scri
 Harvests: LIB_XTJSON's harvester writes `node["behavior"]` = `the behavior of X` (the form above). None of the
 harvests in ~/projects/XTJSON has one (26 Nov): their "behavior" keys are listBehavior / backgroundBehavior /
 radioBehavior / sharedBehavior / tabGroupBehavior flags, not script behaviors.
+
+## create stack (measured 27 Nov, 9.6.3 standalone; for the Library's Play, x1-02 step 2)
+
+`lock messages` / `create invisible stack "ProbeXY"` / `unlock messages`, then:
+
+| asked | answer |
+|---|---|
+| `it` | `stack "ProbeXY"` |
+| the defaultStack | unchanged (the stack that ran the create) |
+| in the openStacks / the mainStacks | true / true (open at once, a main stack of its own) |
+| the mainStack of it | ProbeXY |
+| visible, cards, rect | false, 1, `32,32,288,288` |
+| card 1's short name, the filename | `card id 1002` (no name), empty |
+| set its script to text that does not compile | the result = `114,2,5` (error line), the script text is kept |
+| set its script to good text | the result = empty |
+| `show stack` then `go stack` | no open messages (it was already open); the defaultStack becomes it after go |
+| `close stack` | closeCard, closeStack (to the card); the stack is still there (destroyStack false) |

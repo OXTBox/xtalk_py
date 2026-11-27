@@ -297,7 +297,8 @@ class Parser:
 
     CREATE_TYPES = {'graphic': 'graphic', 'grc': 'graphic', 'button': 'button', 'btn': 'button', 'field': 'field',
                     'fld': 'field', 'image': 'image', 'img': 'image', 'scrollbar': 'scrollbar', 'scroll': 'scrollbar',
-                    'group': 'group', 'grp': 'group', 'player': 'player', 'card': 'card', 'cd': 'card'}
+                    'group': 'group', 'grp': 'group', 'player': 'player', 'card': 'card', 'cd': 'card',
+                    'stack': 'stack'}
 
     def st_create(self):
         """create [invisible] <type> [name] [in group ...] -> ('create', type, invisible, name, group)"""
