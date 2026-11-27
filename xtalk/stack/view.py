@@ -987,8 +987,21 @@ class View:
         self.follow_stack_size()
         st = self.rt.default_stack
         rl.set_window_title(str(st.props.get('title') or st.name))
+        x, y = int(self.pos[0] * self.scale), int(self.pos[1] * self.scale)
+        rl.set_window_position(x, y)
         rl.clear_window_state(rl.FLAG_WINDOW_HIDDEN)
-        rl.set_window_position(int(self.pos[0] * self.scale), int(self.pos[1] * self.scale))
+        # the window system places a window as it is shown (owner 27 Nov: it landed near 800,300): put it at
+        # its place again once it is on screen, until it is there (a few tries, ~0.2 s at most)
+        for _ in range(20):
+            rl.poll_input_events()
+            rl.set_window_position(x, y)
+            q = rl.get_window_position()
+            if abs(int(q.x) - x) <= 1 and abs(int(q.y) - y) <= 40:
+                break
+            time.sleep(0.01)
+        if os.environ.get('XTALK_DEBUG_PLACE'):
+            q = rl.get_window_position()
+            print('placed at', int(q.x), int(q.y), 'wanted', x, y, flush=True)
 
     def menu_frames(self, items, x, y):
         """a script shows a menu: draw until a pick or the menu closes (the handler waits)"""
