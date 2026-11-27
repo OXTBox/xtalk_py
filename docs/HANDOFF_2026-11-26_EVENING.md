@@ -1,5 +1,11 @@
 # Handoff, 26 Nov evening: START HERE
 
+## FRESH TERMINAL (27 Nov): helpers in parallel -> read docs/PLAN_HELPERS_2026-11-27.md FIRST
+
+Owner agreed: helper A play-window (g1-01/02/03), B game-libs (g1-04/06), C speed-2 (Squad Buggy spells),
+lead = x1-02 step 2; D raylib batch 2 only on his word. Each in its own git worktree ../xtalk_py_wt/<branch>,
+commits only there; lead merges one at a time on his "merge". Max 3 helpers while he plays.
+
 Everything below is MERGED to main and PUSHED (xtalk_py, LIB_MENU, LIB_GAMES), on the owner's word.
 Nothing is waiting on a branch.
 
