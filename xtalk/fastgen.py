@@ -188,8 +188,11 @@ class FastGen(Gen):
             else:
                 self.unsets.setdefault(n, n)
                 self.emit(ind, '%s = U_%s' % (pyname(n), pyname(n)[2:]))
-        for n, c in sorted(self.cls.items()):
-            if c == 'G':
+        gs = tuple(n for n, c in sorted(self.cls.items()) if c == 'G')
+        if len(gs) > 2:                          # many: one check that they are all there (pyrt.gdecl)
+            self.emit(ind, 'gdecl(G, %s)' % _r(gs))
+        else:
+            for n in gs:
                 self.emit(ind, 'G.setdefault(%s, "")' % _r(n))
 
     # ------------------------------------------------------------ expressions

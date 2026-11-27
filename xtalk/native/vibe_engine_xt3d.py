@@ -8,8 +8,10 @@ xTalk handler; tools/frame_referee.py checks the whole game.
 """
 import copy
 import math
+import re
+from .. import chunks as ch
 from ..interp import rnd_half_away
-from ..values import CASE, XtArray, NumStr, numstr, fmt_num, to_num, to_text, num_cmp, is_numeric_text, XtError
+from ..values import CASE, XtArray, NumStr, numstr, fmt_num, to_num, to_text, num_cmp, is_numeric_text, XtError, text_num
 from . import Fallback
 
 STACK = 'VibeEngineXt3d'
@@ -366,6 +368,256 @@ def set_object_position(rt, fr):
     return ''
 
 
+def set_object_velocity(rt, fr):
+    """on SetObjectVelocity pObj,px,py,pz,pLocal: as SetObjectPosition (the same six `do` lines), into
+    gObjectTransforms[pObj]["vX"/"vY"/"vZ"]. With pLocal (its branch writes to the unset tObj): the xTalk"""
+    from ..pyrt import isempty, aput, CP, O
+    V = fr.vars
+    pobj = V.get('pobj', '')
+    if isempty(pobj):
+        return ''
+    vals = []
+    for k in ('px', 'py', 'pz'):
+        v = V.get(k, '')
+        if isinstance(v, dict):
+            raise Fallback()
+        vals.append('0' if isempty(v) else v)
+    if not isempty(V.get('plocal', '')):
+        raise Fallback()
+    G = rt.G
+    for key, v in zip(('vX', 'vY', 'vZ'), vals):
+        G['gobjecttransforms'] = aput(G.get('gobjecttransforms', ""), rt.key_vals([O(pobj), key]), CP(v), 'into')
+    return ''
+
+
+# ---------------------------------------------------------------- Scene.Has / Scene.Remove
+_WORD = re.compile('[^%s]+' % re.escape(ch.WS))     # a word as the runtime reads one (chunks.WS separates words)
+
+
+def _word2(line):
+    """word 2 of line"""
+    m = _WORD.search(line)
+    if m is None:
+        return ''
+    m = _WORD.search(line, m.end())
+    return '' if m is None else m.group()
+
+
+def _scene_key(rt, fr):
+    """pKey's text in lower case, for a key `is` compares as text (ignoring case); anything else (an array,
+    a number, caseSensitive true) goes to the xTalk handler"""
+    if CASE[0]:
+        raise Fallback()
+    k = fr.vars.get('pkey', '')
+    if isinstance(k, dict):
+        raise Fallback()
+    t = str.__str__(to_text(k))
+    if text_num(t) is not None:            # a number is compared as a number: the xTalk
+        raise Fallback()
+    return k, t.lower()
+
+
+def _scene_text(rt):
+    G = rt.G
+    v = G.setdefault('gsceneobjects', '')
+    if isinstance(v, dict):
+        raise Fallback()
+    return str.__str__(to_text(v))
+
+
+def _lines(rt, t):
+    """the lines of t, as chunks.spans makes them (one trailing delimiter starts no new line)"""
+    d = rt.props.get('linedelimiter', '\n')
+    if not d:
+        return [t[a:b] for a, b in ch.spans(t, 'line', **rt.delims())]
+    if t == '':
+        return []
+    p = t.split(d)
+    if len(p) > 1 and p[-1] == '':
+        p.pop()
+    return p
+
+
+def _ascii(kl, t):
+    """in ASCII text lower case is one char for one char, so a word equal to the key (ignoring case) is the
+    key's lower case inside the text's (or line's) lower case"""
+    return t.isascii() and kl.isascii()
+
+
+def scene_has(rt, fr):
+    """function Scene.Has pKey: is there a line in gSceneObjects whose word 2 is pKey"""
+    _, kl = _scene_key(rt, fr)
+    t = _scene_text(rt)
+    asc = _ascii(kl, t)
+    if asc and kl not in t.lower():
+        return 'false'
+    for ln in _lines(rt, t):
+        if (not asc or kl in ln.lower()) and _word2(ln).lower() == kl:
+            return 'true'
+    return 'false'
+
+
+def scene_remove(rt, fr):
+    """on Scene.Remove pKey: every line of gSceneObjects whose word 2 is pKey goes (the rest kept, a cr after
+    each, the last char deleted); then a graphic named pKey loses its points"""
+    k, kl = _scene_key(rt, fr)
+    t = _scene_text(rt)
+    lines = _lines(rt, t)
+    if _ascii(kl, t):
+        if kl in t.lower():
+            lines = [ln for ln in lines if kl not in ln.lower() or _word2(ln).lower() != kl]
+    else:
+        lines = [ln for ln in lines if _word2(ln).lower() != kl]
+    rt.G['gsceneobjects'] = '\n'.join(lines)   # each kept line & cr, then the last char deleted
+    from ..pyrt import Runtime
+    name = Runtime.obj_name('graphic', k)  # `graphic pKey` named as both run modes name it
+    if rt.host.exists(name) != False:      # noqa: E712  (as the translated handler asks it)
+        rt.host.set_prop(name, 'points', '', None)
+    return ''
+
+
+# ---------------------------------------------------------------- RenderMeshInto
+def _num(v):
+    """a value as the translated arithmetic reads it (pyrt.N); not a number: the xTalk handler"""
+    from ..pyrt import N
+    try:
+        return N(v)
+    except XtError:
+        raise Fallback() from None
+
+
+def render_mesh_into(rt, fr):
+    """command RenderMeshInto pGeo,pKey,pGraphic,@pBuf,pNoBands,pNoCull: an object's edges, projected and
+    clipped, as "cr x1,y1 cr x2,y2 cr cr" after pBuf[pGraphic]. The common way only: no hiding (gCullMode 0,
+    or pNoCull), no level reveal, no depth bands; anything else is the xTalk handler. Every number is worked
+    out as the translated handler does it (the same float operations in the same order, comparisons with
+    LiveCode's tolerance); the near-plane and viewport clippers are the xTalk functions themselves. Nothing
+    is changed until the end, so any surprise on the way goes to the xTalk handler."""
+    from ..pyrt import xcmp, aget, aget1, aput, isempty, KY, O, N, _num_or_none, fround
+    V, S, G = fr.vars, rt.S, rt.G
+    if rt.lookup('round')[1] is not None:
+        raise Fallback()                   # a script's own round(): the xTalk handler calls it
+    call = getattr(rt, 'fn', None)
+    if call is None:                       # the interpreter: a function call is invoke
+
+        def call(fr_, name, args, _):
+            return rt.invoke(name, args)
+    pgeo, pkey, pgraphic = V.get('pgeo', ''), V.get('pkey', ''), V.get('pgraphic', '')
+    # tMesh: Mesh.Get(pGeo) (read in place, not copied, while Mesh.Get is the handler it was written from)
+    mc = G.get('gmeshcache', '')
+    if 'mesh.get' in getattr(rt, 'native_trusted', ()) and \
+            not isempty(aget(mc, rt.key_vals([O(pgeo), 'count']))):
+        mesh = aget1(mc, KY(pgeo))
+    else:
+        mesh = call(fr, 'Mesh.Get', [O(pgeo)], [])
+    count = aget1(mesh, KY('count'))
+    if _num_or_none(count) is None:
+        raise Fallback()
+    if xcmp(count, '1') < 0:
+        return ''
+    if xcmp(G.get('gcullmode', ''), '1') >= 0 and xcmp(V.get('pnocull', ''), 'true') != 0:
+        raise Fallback()                   # hiding on: the xTalk handler
+    if xcmp(S.get('srevon', ''), 'true') == 0:
+        raise Fallback()                   # the level reveal: the xTalk handler
+    bands = '1' if xcmp(V.get('pnobands', ''), 'true') == 0 else S.get('sviewbands', '')
+    if xcmp(bands, '1') > 0:
+        raise Fallback()                   # depth bands: the xTalk handler
+    xf = call(fr, 'Xform.Object', [O(pkey)], [])
+    if isinstance(xf, dict):
+        raise Fallback()
+    items = str.__str__(to_text(xf)).split(',') if to_text(xf) != '' else []
+    if len(items) > 1 and items[-1] == '':
+        items.pop()
+    items += [''] * (12 - len(items))
+    m1, m2, m3, m4, m5, m6, m7, m8, m9, t1, t2, t3 = (_num(x) for x in items[:12])
+    vx, vy, vz = aget1(mesh, KY('vx')), aget1(mesh, KY('vy')), aget1(mesh, KY('vz'))
+    near = G.get('gnearplane', '')
+    nearn = _num_or_none(near)
+    if nearn is None:
+        raise Fallback()
+    vl, vr = _num_or_none(G.get('gviewleft', '')), _num_or_none(G.get('gviewright', ''))
+    vt, vb = _num_or_none(G.get('gviewtop', '')), _num_or_none(G.get('gviewbottom', ''))
+    if vl is None or vr is None or vt is None or vb is None:
+        raise Fallback()
+    try:
+        # PASS 1: every vertex to camera space, and to screen if in front of the near plane
+        cx, cy, cz, sx, sy, inside = {}, {}, {}, {}, {}, {}
+        n = N(count)
+        i = 1.0
+        k = off_x = off_y = None
+        while i < n + 1.0:
+            key = KY(i)
+            x, y, z = N(aget1(vx, key)), N(aget1(vy, key)), N(aget1(vz, key))
+            X = m1 * x + m2 * y + m3 * z + t1
+            Y = m4 * x + m5 * y + m6 * z + t2
+            Z = m7 * x + m8 * y + m9 * z + t3
+            cx[key], cy[key], cz[key] = X, Y, Z
+            if num_cmp(Z, nearn) >= 0:
+                inside[key] = True
+                if k is None:
+                    k, off_x, off_y = N(S.get('sprojk', '')), N(S.get('sprojoffx', '')), N(S.get('sprojoffy', ''))
+                if Z == 0:
+                    raise Fallback()       # divide by zero: the xTalk's own error
+                sx[key] = X * k / Z + off_x
+                sy[key] = Y * k / Z + off_y
+            else:
+                inside[key] = False
+            i += 1.0
+        # PASS 2: edges
+        ea, eb = aget1(mesh, KY('ea')), aget1(mesh, KY('eb'))
+        segs = []
+        ne = N(aget1(mesh, KY('edgeCount')))
+        e = 1.0
+        nm = numstr
+        while e < ne + 1.0:
+            ke = KY(e)
+            e += 1.0
+            a, b = KY(aget1(ea, ke)), KY(aget1(eb, ke))
+            ia, ib = inside.get(a), inside.get(b)
+            if ia is None or ib is None:
+                if (ia is None or not ia) and (ib is None or not ib):
+                    continue                # neither end drawn (an end the mesh has not: tIn empty)
+                raise Fallback()
+            if ia and ib:
+                x1, y1, x2, y2 = sx[a], sy[a], sx[b], sy[b]
+            elif not ia and not ib:
+                continue
+            else:
+                if k is None:
+                    k, off_x, off_y = N(S.get('sprojk', '')), N(S.get('sprojoffx', '')), N(S.get('sprojoffy', ''))
+                clip = call(fr, 'ClipLineToNearPlane', [nm(cx[a]), nm(cy[a]), nm(cz[a]), nm(cx[b]), nm(cy[b]),
+                                                         nm(cz[b])], [])
+                if isempty(clip):
+                    continue
+                w = _WORDS(str.__str__(to_text(clip))) + [''] * 6
+                w3, w6 = N(w[2]), N(w[5])
+                if w3 == 0 or w6 == 0:
+                    raise Fallback()
+                x1 = N(w[0]) * k / w3 + off_x
+                y1 = N(w[1]) * k / w3 + off_y
+                x2 = N(w[3]) * k / w6 + off_x
+                y2 = N(w[4]) * k / w6 + off_y
+            if (num_cmp(x1, vl) < 0 or num_cmp(x1, vr) > 0 or num_cmp(y1, vt) < 0 or num_cmp(y1, vb) > 0 or
+                    num_cmp(x2, vl) < 0 or num_cmp(x2, vr) > 0 or num_cmp(y2, vt) < 0 or num_cmp(y2, vb) > 0):
+                clip = call(fr, 'ClipLineToViewport', [nm(x1), nm(y1), nm(x2), nm(y2)], [])
+                if isempty(clip):
+                    continue
+                w = _WORDS(str.__str__(to_text(clip))) + [''] * 4
+                x1, y1, x2, y2 = N(w[0]), N(w[1]), N(w[2]), N(w[3])
+            segs.append('\n%s,%s\n%s,%s\n\n' % (fmt_num(fround(x1)), fmt_num(fround(y1)),
+                                                   fmt_num(fround(x2)), fmt_num(fround(y2))))
+        drawn = N(S.get('sedgesdrawn', '')) + float(len(segs))
+    except XtError:
+        raise Fallback() from None
+    if segs:
+        V['pbuf'] = aput(V.get('pbuf', ''), [KY(pgraphic)], ''.join(segs), 'after')
+    S['sedgesdrawn'] = O(drawn)
+    return ''
+
+
+_WORDS = re.compile('[^%s]+' % re.escape(ch.WS)).findall
+
+
 def _isnum(v):
     if v == '':
         return True
@@ -379,7 +631,8 @@ def _isnum(v):
 # the xTalk each function was written from (tools/native_sigs.py): a changed handler keeps its xTalk
 SIGS = {'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c', 'updateobjecttransforms': '7e4930120ed1',
         'xform.object': '3b5f1786e58f', 'vibe.color': 'eeb18a0ddc52',
-        'setobjectposition': 'dafabac7315e'}
+        'setobjectposition': 'dafabac7315e', 'scene.has': '83f084e90f3c', 'scene.remove': 'ab775e5a9e16',
+        'setobjectvelocity': '6b01df99172b', 'rendermeshinto': 'b8f39ac19a8e'}
 
 # handlers other scripts' native code may stand in for while they are unchanged (xt3d_testbench_host reads
 # gMeshCache instead of calling Vibe.Mesh, which copies the whole mesh)
@@ -401,4 +654,8 @@ HANDLERS = {
     'xform.object': xform_object,
     'vibe.color': vibe_color,
     'setobjectposition': set_object_position,
+    'scene.has': scene_has,
+    'scene.remove': scene_remove,
+    'setobjectvelocity': set_object_velocity,
+    'rendermeshinto': render_mesh_into,
 }
