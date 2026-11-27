@@ -105,7 +105,7 @@ def main(a):
     rt.log_clicks = []                     # what was clicked, for the report at the end
     from xtalk.stack.view import window_scale, remember_scale
     name = rt.default_stack.name
-    v = View(rt, scale=window_scale(name))   # our scaleFactor: Windows' own (125% -> 1.25) or the remembered one
+    v = View(rt, scale=window_scale(name), show_after_open=True)   # our scaleFactor: Windows' own (125% -> 1.25) or the remembered one
     v.on_scale = lambda s: remember_scale(name, s)
     print('scale %.2f (Ctrl + bigger, Ctrl - smaller, Ctrl 0 = Windows\' scaling; remembered per stack)' % v.scale, flush=True)
     v.run()

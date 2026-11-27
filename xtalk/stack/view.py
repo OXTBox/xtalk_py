@@ -107,7 +107,7 @@ def colour(v, default=None):
 
 
 class View:
-    def __init__(self, rt, hidden=False, pos=(200, 32), scale=1.0):
+    def __init__(self, rt, hidden=False, pos=(200, 32), scale=1.0, show_after_open=False):
         """scale: our own scaleFactor (owner 26 Nov, x1-00: \"so I can read it\"). Everything is drawn that much
         bigger with sharp text; the scripts never see it (rects, the mouseLoc, the screenRect stay in units)"""
         self.rt = rt
@@ -117,10 +117,15 @@ class View:
         self.scale = max(SCALE_MIN, min(SCALE_MAX, float(scale)))
         self.on_scale = None           # called with the new scale after Ctrl + / - / 0 (open_stack remembers it)
         rl.set_trace_log_level(rl.LOG_WARNING)
-        if hidden:
+        # show_after_open (owner 27 Nov: "poor application presentation"): the window stays hidden while the
+        # stack's open messages run (the Library's Play makes the game's stack and sets its size then), and
+        # appears once, at its final size and place; a dialog or menu during opening shows it at once
+        self.pos = pos
+        self.unshown = bool(show_after_open) and not hidden
+        if hidden or self.unshown:
             rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
         rl.init_window(*self.scaled_size(), st.props.get('title') or st.name)
-        if not hidden:                 # 200,32 in units, as LiveCode places it on a scaled Windows screen
+        if not hidden and not self.unshown:   # 200,32 in units, as LiveCode places it on a scaled Windows screen
             rl.set_window_position(int(pos[0] * self.scale), int(pos[1] * self.scale))
         rl.set_exit_key(0)
         rl.set_target_fps(60)
@@ -974,8 +979,20 @@ class View:
                 m['pick'] = pick
             i = j
 
+    def reveal(self):
+        """show a window kept hidden while its stack opened (show_after_open), at its size and place now"""
+        if not self.unshown:
+            return
+        self.unshown = False
+        self.follow_stack_size()
+        st = self.rt.default_stack
+        rl.set_window_title(str(st.props.get('title') or st.name))
+        rl.clear_window_state(rl.FLAG_WINDOW_HIDDEN)
+        rl.set_window_position(int(self.pos[0] * self.scale), int(self.pos[1] * self.scale))
+
     def menu_frames(self, items, x, y):
         """a script shows a menu: draw until a pick or the menu closes (the handler waits)"""
+        self.reveal()
         self.wake()
         self.menu = {'items': items, 'x': x, 'y': y, 'pick': None, 'done': False}
         try:
@@ -1080,6 +1097,7 @@ class View:
 
     def dialog_frames(self, kind, sub, icon, prompt, extra, title):
         """a script shows answer/ask: draw until a button is clicked (the handler waits) -> (it, the result)"""
+        self.reveal()
         self.wake()
         typing = kind == 'ask' or sub in ('file', 'files', 'folder', 'folders')
         text = ''
@@ -1193,6 +1211,8 @@ class View:
         self.rt.on_menu = self.menu_frames
         self.rt.on_dialog = self.dialog_frames
         self.rt.open()
+        if not self.rt.closed:
+            self.reveal()
         last_active, fps = time.perf_counter(), 60
         while not self.should_close() and not self.rt.closed:
             self.frame()
