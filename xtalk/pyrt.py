@@ -221,6 +221,20 @@ def N0(v):
     return 0.0 if type(v) is Unset else N(v)
 
 
+_GDECL = {}
+
+
+def gdecl(G, names):
+    """a handler's globals (script-level ones declared above it): each made, empty, if not there yet. One set
+    test a call instead of a setdefault a name (an engine handler sees ~40 of them)"""
+    s = _GDECL.get(names)
+    if s is None:
+        s = _GDECL[names] = frozenset(names)
+    if not G.keys() >= s:
+        for n in names:                    # in the same order as before (the globals' order)
+            G.setdefault(n, "")
+
+
 def T(v):
     """a value as text (a number gets numberFormat)"""
     t = type(v)

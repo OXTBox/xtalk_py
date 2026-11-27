@@ -148,6 +148,7 @@ class Interp:
         self.G = {}                     # global variables
         self.S = {}                     # script-level locals and constants (shared by all handlers)
         self.SG = {}                    # handler name -> the script-level globals declared above it
+        self._sgc = {}                  # handler name as called -> (SG entry, params, globals it declares)
         self.host = Host()
         self.props = {'itemdelimiter': ',', 'linedelimiter': '\n', 'numberformat': '0.######',
                       'casesensitive': 'false'}
@@ -224,8 +225,12 @@ class Interp:
             P['casesensitive'], CASE[0] = 'false', False
         if saved[2] != '0.######' or saved[3] != '0.######':       # or the handlers it calls (measured 25 Nov)
             P['numberformat'] = NUMBER_FORMAT[0] = '0.######'
-        pl = {p.lower() for p in params}       # a parameter named like a script global wins (measured 25 Nov)
-        fr.globals.update(g for g in self.SG.get(name.lower(), ()) if g not in pl)
+        sg = self.SG.get(name.lower(), ())     # a parameter named like a script global wins (measured 25 Nov)
+        c = self._sgc.get(name)                # (worked out once a handler: the set of its script globals)
+        if c is None or c[0] is not sg or c[1] is not params:
+            pl = {p.lower() for p in params}
+            c = self._sgc[name] = (sg, params, frozenset(g for g in sg if g not in pl))
+        fr.globals.update(c[2])
         for i, p in enumerate(params):    # full number kept (measured); an array is copied, except for a
             a = args[i] if i < len(args) else ''    # @parameter: that IS the caller's variable (no copy: Dot Maze's
             fr.vars[p.lower()] = copy.deepcopy(a) if isinstance(a, dict) and i not in byref else a   # dots, 26 Nov)
