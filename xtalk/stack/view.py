@@ -429,6 +429,40 @@ class View:
                 if xb > xa:
                     rl.draw_rectangle(xa, y, xb - xa, 1, fill)
 
+    def dash_pattern(self, o):
+        """the dashes of a graphic ("2,5,10,20": 2 drawn, 5 left out, 10 drawn, 20 left out, again); empty or
+        not numbers: a solid line"""
+        t = str(self.prop(o, 'dashes') or '').strip()
+        if not t:
+            return None
+        try:
+            d = [float(x) for x in t.split(',') if x.strip()]
+        except ValueError:
+            return None
+        if len(d) % 2:
+            d = d + d                              # an odd list: on and off swap the second time round
+        return d if d and sum(d) > 0 and all(x >= 0 for x in d) else None
+
+    @staticmethod
+    def draw_dashed(run, dashes, lw, col):
+        """one stroke (connected points) drawn with a dash pattern; the pattern runs on over the corners
+        (Thrmnlra's missile trails: Term.Path ... "2,5,10,20")"""
+        i, left, on = 0, dashes[0], True
+        for (x0, y0), (x1, y1) in zip(run, run[1:]):
+            seg = math.hypot(x1 - x0, y1 - y0)
+            pos = 0.0
+            while pos < seg:
+                step = min(left, seg - pos)
+                if on and step > 0:
+                    a, b = pos / seg, (pos + step) / seg
+                    rl.draw_line_ex(rl.Vector2(x0 + (x1 - x0) * a, y0 + (y1 - y0) * a),
+                                    rl.Vector2(x0 + (x1 - x0) * b, y0 + (y1 - y0) * b), lw, col)
+                pos += step
+                left -= step
+                if left <= 0:
+                    i = (i + 1) % len(dashes)
+                    left, on = dashes[i], not on
+
     def draw_graphic(self, o):
         style = self.prop(o, 'style') or 'rectangle'
         fill = colour(self.inherit(o, 'backgroundColor'), rl.Color(240, 240, 240, 255))
@@ -462,10 +496,14 @@ class View:
             if style == 'polygon' and filled:
                 self.fill_polygon([p for p in pts if p is not None], fill)
             run = []
+            dashes = self.dash_pattern(o)
             for p in pts + [None]:
                 if p is None:
-                    for a, b in zip(run, run[1:]):
-                        rl.draw_line_ex(rl.Vector2(*a), rl.Vector2(*b), lw, line)
+                    if dashes:
+                        self.draw_dashed(run, dashes, lw, line)
+                    else:
+                        for a, b in zip(run, run[1:]):
+                            rl.draw_line_ex(rl.Vector2(*a), rl.Vector2(*b), lw, line)
                     run = []
                 else:
                     run.append(p)
