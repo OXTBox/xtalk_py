@@ -6,7 +6,7 @@ same answers and the same globals afterwards, in both run modes (interpreted and
 
 Answers are compared as text (a number's text is what the scripts see); the globals as their sorted dump.
 """
-import os, random, sys
+import copy, os, random, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 from xtalk import native                                      # noqa: E402
@@ -96,6 +96,26 @@ def scene(r):
     return t + '\n' if t and r.random() < 0.2 else t
 
 
+def meshes(r):
+    """gMeshCache: a few small meshes (vertices in front of, behind and across the near plane; edges to
+    vertices it has not, now and then)"""
+    mc = XtArray()
+    for name in ('m0', 'm1', 'm2', 'm3'):
+        m = XtArray()
+        n = r.choice([0, 1, 2, 3, 5, 8])
+        m['count'] = str(n) if r.random() < 0.95 else ''
+        for ax in ('vx', 'vy', 'vz'):
+            m[ax] = XtArray({str(i): r.choice([numstr(r.uniform(-300, 300)), repr(round(r.uniform(-50, 50), 3)),
+                                               '0', '1e2']) for i in range(1, n + 1)})
+        ne = r.randint(0, 10)
+        m['edgeCount'] = str(ne)
+        m['ea'] = XtArray({str(e): str(r.randint(0, n + 1)) for e in range(1, ne + 1)})
+        m['eb'] = XtArray({str(e): str(r.randint(1, n + 1)) for e in range(1, ne + 1)})
+        m['radius'] = '10'
+        mc[name] = m
+    return mc
+
+
 def main(a):
     n = int(a[a.index('--n') + 1]) if '--n' in a else 300
     src = open(ENGINE).read()
@@ -136,23 +156,40 @@ def main(a):
                       [r.choice([rnum(r), '', 'abc', numstr(r.uniform(-50, 50)), '0', ' 3'])
                        for _ in range(r.choice([3, 3, 3, 2, 1]))] + ([r.choice(['', 'true', 'x'])] if r.random() < 0.3 else []),
                       r.choice([g, g, transforms(r), ''])),
+                     ('RenderMeshInto', [r.choice(['m0', 'm1', 'm2', 'm3']), obj, r.choice(['g1', 'Batch_red']),
+                                         r.choice(['', XtArray({'g1': '\n1,2\n3,4\n\n'})]),
+                                         r.choice(['true', 'true', '']), r.choice(['', '', 'true'])], g),
                      ('Scene.Has', [r.choice(['Squad.G3_12', 'SQUAD.g3_12', 'box_1', 'Tower_7', 'nope', '12', '', 'x\u00c9',
                                               'a', 'Tower_7 x'])], None),
                      ('Scene.Remove', [r.choice(['Squad.G3_12', 'BOX_1', 'tower_7', 'nope', '12', '', 'A', 'x\u00e9'])], None)]
             sc = scene(r)
+            mc = meshes(r)
+            locals_.update({'sprojk': r.choice(['300', numstr(r.uniform(100, 500))]),
+                            'sprojoffx': '320', 'sprojoffy': r.choice(['240', numstr(r.uniform(0, 480))]),
+                            'srevon': r.choice(['', '', '', 'true']), 'sedgesdrawn': r.choice(['', '5', numstr(7.0)])})
+            if r.random() < 0.8:
+                locals_['sviewbands'] = r.choice(['', '1', '1', '3'])
+            view_g = {'gnearplane': r.choice(['1', '0.5', numstr(r.uniform(-5, 5))]), 'gviewleft': '0', 'gviewtop': '0',
+                      'gviewright': '640', 'gviewbottom': '480', 'gcullmode': r.choice(['', '0', '0', '1', '3'])}
+            for rt in (ref, nat):
+                rt.S.update(locals_)
+                rt.G.update(view_g)
+                rt.G['gmeshcache'] = copy.deepcopy(mc)
             for name, args, g in cases:
                 outs = []
                 for rt in (ref, nat):
                     rt.G['gsceneobjects'] = sc
                     if g is not None:
-                        import copy
                         rt.G['gobjecttransforms'] = copy.deepcopy(g)
                     try:
-                        got = str(rt.invoke(name, list(args)))
+                        got = str(rt.invoke(name, copy.deepcopy(list(args))))   # pBuf is an @ parameter: changed in place
                     except Exception as e:     # noqa: BLE001  (the same error is the same answer)
                         got = 'ERROR %s: %s' % (type(e).__name__, e)
                     outs.append(got + ' | ' + dump(rt.G.get('gobjecttransforms', '')) + ' | ' +
                                 repr(rt.G.get('gsceneobjects', '')))
+                    if name == 'RenderMeshInto':
+                        outs[-1] += ' | %s | %r | %s' % (dump(rt.refs.get(3, '')), rt.S.get('sedgesdrawn'),
+                                                         dump(rt.G.get('gmeshcache', '')))
                 total += 1
                 if outs[0] != outs[1]:
                     fails += 1
