@@ -226,9 +226,9 @@ class Interp:
             P['numberformat'] = NUMBER_FORMAT[0] = '0.######'
         pl = {p.lower() for p in params}       # a parameter named like a script global wins (measured 25 Nov)
         fr.globals.update(g for g in self.SG.get(name.lower(), ()) if g not in pl)
-        for i, p in enumerate(params):    # full number kept (measured); an array is copied
-            a = args[i] if i < len(args) else ''
-            fr.vars[p.lower()] = copy.deepcopy(a) if isinstance(a, dict) else a
+        for i, p in enumerate(params):    # full number kept (measured); an array is copied, except for a
+            a = args[i] if i < len(args) else ''    # @parameter: that IS the caller's variable (no copy: Dot Maze's
+            fr.vars[p.lower()] = copy.deepcopy(a) if isinstance(a, dict) and i not in byref else a   # dots, 26 Nov)
         try:
             if pyfn is not None:
                 return pyfn(self, fr)

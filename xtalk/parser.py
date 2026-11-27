@@ -1007,13 +1007,32 @@ class Parser:
 def parse_script(text):
     return Parser(text).script()
 
+# `do` and value() hand the same short texts over and over (the engine's SetObjectPosition does
+# `do "put px is empty into tBool"` three times a call): a text is parsed once, then remembered.
+_PARSED = {}
+_PARSED_MAX = 4000
+
+def _remember(key, tree):
+    if len(_PARSED) >= _PARSED_MAX:
+        _PARSED.clear()
+    _PARSED[key] = tree
+    return tree
+
 def parse_expr(text):
+    key = ('e', text)
+    e = _PARSED.get(key)
+    if e is not None:
+        return e
     p = Parser(text)
     e = p.expr()
     if p.peek()[0] not in ('nl', 'eof'):
         p.err('extra words after the expression')
-    return e
+    return _remember(key, e)
 
 def parse_statements(text):
+    key = ('s', text)
+    b = _PARSED.get(key)
+    if b is not None:
+        return b
     p = Parser(text)
-    return p.block(())
+    return _remember(key, p.block(()))

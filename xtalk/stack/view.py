@@ -682,8 +682,12 @@ class View:
         return True
 
     def draw_image(self, o):
-        tex = self.texture(o)
         rc = self.rect(o)
+        dt = o.direct_tex if o.pixels_from is not None else None
+        if dt is not None:                        # an xt3d frame still on the graphics card: drawn as it is
+            rl.draw_texture_pro(dt, rl.Rectangle(0, 0, dt.width, -dt.height), rc, rl.Vector2(0, 0), 0, rl.WHITE)
+            return                                # (a render texture is upside down: the source is flipped)
+        tex = self.texture(o)
         a = to_num(self.prop(o, 'angle') or 0) % 360
         un = getattr(o, 'unturned', None)
         if tex is not None and a and un:          # turned by a script: counterclockwise about the centre (measured)
