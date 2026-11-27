@@ -132,6 +132,10 @@ def main(a):
                      ('SetObjectPosition', [r.choice([obj, obj, 'newOne', '', 'BOX'])] +
                       [r.choice([rnum(r), '', 'abc', numstr(r.uniform(-50, 50)), '0', ' 3'])
                        for _ in range(r.choice([3, 3, 3, 2, 1]))], r.choice([g, g, transforms(r), ''])),
+                     ('SetObjectVelocity', [r.choice([obj, obj, 'newOne', '', 'BOX'])] +
+                      [r.choice([rnum(r), '', 'abc', numstr(r.uniform(-50, 50)), '0', ' 3'])
+                       for _ in range(r.choice([3, 3, 3, 2, 1]))] + ([r.choice(['', 'true', 'x'])] if r.random() < 0.3 else []),
+                      r.choice([g, g, transforms(r), ''])),
                      ('Scene.Has', [r.choice(['Squad.G3_12', 'SQUAD.g3_12', 'box_1', 'Tower_7', 'nope', '12', '', 'x\u00c9',
                                               'a', 'Tower_7 x'])], None),
                      ('Scene.Remove', [r.choice(['Squad.G3_12', 'BOX_1', 'tower_7', 'nope', '12', '', 'A', 'x\u00e9'])], None)]

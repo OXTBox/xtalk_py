@@ -368,6 +368,28 @@ def set_object_position(rt, fr):
     return ''
 
 
+def set_object_velocity(rt, fr):
+    """on SetObjectVelocity pObj,px,py,pz,pLocal: as SetObjectPosition (the same six `do` lines), into
+    gObjectTransforms[pObj]["vX"/"vY"/"vZ"]. With pLocal (its branch writes to the unset tObj): the xTalk"""
+    from ..pyrt import isempty, aput, CP, O
+    V = fr.vars
+    pobj = V.get('pobj', '')
+    if isempty(pobj):
+        return ''
+    vals = []
+    for k in ('px', 'py', 'pz'):
+        v = V.get(k, '')
+        if isinstance(v, dict):
+            raise Fallback()
+        vals.append('0' if isempty(v) else v)
+    if not isempty(V.get('plocal', '')):
+        raise Fallback()
+    G = rt.G
+    for key, v in zip(('vX', 'vY', 'vZ'), vals):
+        G['gobjecttransforms'] = aput(G.get('gobjecttransforms', ""), rt.key_vals([O(pobj), key]), CP(v), 'into')
+    return ''
+
+
 # ---------------------------------------------------------------- Scene.Has / Scene.Remove
 _WORD = re.compile('[^%s]+' % re.escape(ch.WS))     # a word as the runtime reads one (chunks.WS separates words)
 
@@ -467,7 +489,8 @@ def _isnum(v):
 # the xTalk each function was written from (tools/native_sigs.py): a changed handler keeps its xTalk
 SIGS = {'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c', 'updateobjecttransforms': '7e4930120ed1',
         'xform.object': '3b5f1786e58f', 'vibe.color': 'eeb18a0ddc52',
-        'setobjectposition': 'dafabac7315e', 'scene.has': '83f084e90f3c', 'scene.remove': 'ab775e5a9e16'}
+        'setobjectposition': 'dafabac7315e', 'scene.has': '83f084e90f3c', 'scene.remove': 'ab775e5a9e16',
+        'setobjectvelocity': '6b01df99172b'}
 
 # handlers other scripts' native code may stand in for while they are unchanged (xt3d_testbench_host reads
 # gMeshCache instead of calling Vibe.Mesh, which copies the whole mesh)
@@ -491,4 +514,5 @@ HANDLERS = {
     'setobjectposition': set_object_position,
     'scene.has': scene_has,
     'scene.remove': scene_remove,
+    'setobjectvelocity': set_object_velocity,
 }
