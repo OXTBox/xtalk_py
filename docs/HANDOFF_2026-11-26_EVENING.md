@@ -3,7 +3,7 @@
 Everything below is MERGED to main and PUSHED (xtalk_py, LIB_MENU, LIB_GAMES), on the owner's word.
 Nothing is waiting on a branch.
 
-## LATEST (26 Nov ~17:30): x1-00 window scale on branch `window-scale` (off `priority-tube`; waits for his look)
+## LATEST (26 Nov ~17:30): x1-00 window scale on branch `window-scale` (off `priority-tube`). OWNER CHECKED: Ctrl +/- works, menus open where he clicks, size kept on reopen (Tube remembered at 1.2). Not merged yet.
 
 - Why the windows were small: Windows is at 125% (AppliedDPI 120); WSLg draws our window one pixel a unit
   (measured: monitor 1920x1080, window DPI 1.0). LiveCode draws at 125%. Default scale = Windows' own (1.25).
