@@ -19,15 +19,17 @@ GAMES = os.path.expanduser('~/projects/LIB_GAMES/Vibecode3D_Games')
 
 def second_copy(harvest, engine, args):
     """the stack starts itself again (a standalone's second copy: the Library's Play, -game <folder>).
-    INTERIM (26 Nov, x1-02 step 1): a game folder opens the Python play window (tools/play_xt3d.sh) on the
-    game's LIB_GAMES copy, through the xt3d test bench host, not the installed copy through game_player
-    (that needs create stack / set the script of stack in the runtime: step 2). Anything else: this program
-    again, in its own window, with those arguments."""
+    Since 27 Nov (x1-02 step 2) a second copy is this program again, with its arguments: -game <folder> plays the
+    INSTALLED game through game_player, as in LiveCode. XTALK_PLAY=bench: the step-1 way, where a game folder
+    opens the Python play window (tools/play_xt3d.sh) on the game's LIB_GAMES copy, through the xt3d test bench."""
     import subprocess
     from xtalk.stack.host import StackHost
     game = args[1] if len(args) >= 2 and args[0].lower() == '-game' else None
     if game is None and len(args) == 1 and os.path.isfile(os.path.join(StackHost.real_path(args[0].replace('\\', '/')), 'game.txt')):
         game = args[0]                         # just <folder> (launch <folder> with <program>, LiveCode on Linux)
+    if game is not None and os.environ.get('XTALK_PLAY', 'player').lower() == 'player':
+        game = None        # step 2 (27 Nov): the second copy runs as written (-game: VL.Play, game_player, the INSTALLED
+                           # game); XTALK_PLAY=bench keeps the step-1 way (the LIB_GAMES copy in the xt3d bench window)
     if game is not None:
         folder = StackHost.real_path(game.replace('\\', '/'))
         script = ''

@@ -747,6 +747,34 @@ def _bhv_checks(fast):
 for _fast in (True, False):
     _bhv_checks(_fast)
 
+
+# create stack (measured 27 Nov, LIVECODE_FACTS "create stack"): the Library's Play makes the game's window this way
+rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
+rt.open()
+_msgs = ''.join('on %s\nglobal glog\nput "%s," after glog\nend %s\n' % (m, m, m) for m in
+                ('preOpenStack', 'openStack', 'openCard', 'closeCard', 'closeStack'))
+rt.G['gs'] = _msgs
+rt.G['glog'] = ''
+rt.run('global gS, gR\nlock messages\ncreate invisible stack "PlayX"\nunlock messages\nput it into gR\n'
+       'set the script of stack "PlayX" to gS\nput "|" & the result after gR')
+check('create stack: it, the defaultStack kept, open, invisible, 1 card, 32,32,288,288, script set (result empty)',
+      (rt.G['gr'], rt.eval('the short name of the defaultStack'), 'PlayX' in rt.eval('the openStacks').split('\n'),
+       rt.eval('the visible of stack "PlayX"'), rt.eval('the number of cards of stack "PlayX"'),
+       rt.eval('the rect of stack "PlayX"'), rt.eval('the mainStack of stack "PlayX"')),
+      ('stack "PlayX"|', 'xtM1', True, 'false', '1', '32,32,288,288', 'PlayX'))
+rt.run('show stack "PlayX"\ngo stack "PlayX"')
+check('create stack, then show + go: no open messages (it was open), it is shown',
+      (rt.G['glog'], rt.default_stack.name, rt.eval('the visible of stack "PlayX"')), ('', 'PlayX', 'true'))
+rt.run('close stack "xtM1"')
+check('the first stack closes while the made one is shown: the window goes on with it',
+      (rt.closed, rt.default_stack.name, rt.first_stack.name), (False, 'PlayX', 'PlayX'))
+rt.run('set the destroyStack of stack "PlayX" to true\nclose stack "PlayX"')
+check('then the shown one closes: closeCard, closeStack; the window ends', (rt.G['glog'], rt.closed), ('closeCard,closeStack,', True))
+rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
+rt.open()
+rt.run('quit')
+check('quit: the window ends', rt.closed, True)
+
 print('\n%d of %d stack checks pass' % (N[0] - len(BAD), N[0]))
 sys.exit(1 if BAD else 0)
 

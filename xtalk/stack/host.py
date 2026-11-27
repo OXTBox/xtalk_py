@@ -317,6 +317,8 @@ class StackHost(Host):
         settings copied; no name unless given. A new card is gone to. Returns the long id (into it)."""
         rt = self.rt
         rt.paths_changed()
+        if typ == 'stack':
+            return self.create_stack(name, invisible)
         st = rt.default_stack
         new_id = max([st.id] + list(st.ids.keys())) + 1
         t = rt.templates.get((id(st), typ))
@@ -348,6 +350,24 @@ class StackHost(Host):
         parent.children.append(o)
         rt.changed = True
         return self.name_of(o, 'long')
+
+    def create_stack(self, name, invisible):
+        """create [invisible] stack "X" (measured 27 Nov, LIVECODE_FACTS): a main stack of its own with one card
+        (no name, id 1002), rect 32,32,288,288, no filename; it is open at once (in the openStacks; a later
+        `go stack` sends no open messages) but not shown; the defaultStack does not change. it = stack "X" """
+        from .model import Stack
+        rt = self.rt
+        name = name or 'Untitled 1'
+        node = {'type': 'stack', 'name': name, 'id': 1001, 'role': 'main', 'rect': [32, 32, 288, 288],
+                'cards': [{'type': 'card', 'name': '', 'id': 1002, 'number': 1, 'controls': []}]}
+        st = Stack(node, rt.harvest.folder, rt.harvest.manifest.get('typeDefaults', {}) if isinstance(rt.harvest.manifest, dict) else {})
+        st.mainstack = st
+        st.filename = ''
+        st.props['visible'] = 'false' if invisible else 'true'
+        rt.harvest.stacks.append(st)
+        rt.opened.add(id(st))
+        rt.names_changed()
+        return 'stack "%s"' % name
 
     def delete_obj(self, desc):
         """delete graphic "x": it goes; anything pointing at it lets go"""
@@ -565,7 +585,12 @@ class StackHost(Host):
         if p == 'stacksinuse':
             return '\n'.join(st.name for st in rt.using)
         if p == 'mainstacks':
-            return rt.harvest.main.name
+            return '\n'.join([rt.harvest.main.name] + [x.name for x in rt.harvest.stacks if x is not rt.harvest.main
+                                                         and getattr(x, 'mainstack', None) is x and id(x) in rt.opened])
+        if p == 'openstacks':                  # the shown stack first, then the other open ones
+            shown = [rt.default_stack] + [x for x in reversed(rt.shown_before) if x is not rt.default_stack]
+            rest = [x for x in rt.harvest.stacks if id(x) in rt.opened and x not in shown]
+            return '\n'.join(x.name for x in shown + rest if id(x) in rt.opened or x is rt.default_stack)
         if p == 'clipboard':                   # what is on it: text, or empty (measured 26 Nov)
             return 'text' if rt.get_clipboard() != '' else 'empty'
         if p == 'navigationarrows':
@@ -1060,6 +1085,7 @@ class StackHost(Host):
             if es:
                 o = self.resolve(es[0])
                 if o.type == 'stack':          # one window: hide this stack = show the one before it
+                    o.props['visible'] = 'true' if name == 'show' else 'false'
                     if name == 'hide':
                         rt.leave_stack(o, closing=False)
                     return ''
@@ -1116,6 +1142,16 @@ class StackHost(Host):
                 return ''                      # window): nothing to close, the game goes on
             if o.type == 'stack' and o is not rt.first_stack:
                 rt.leave_stack(o, closing=True)    # a substack closes: back to the stack shown before it
+                self.destroyed(o)
+                return ''
+            if o.type == 'stack' and o is not rt.default_stack and any(
+                    id(x) in rt.opened for x in [rt.default_stack] if x is not o):
+                # the first stack closes while another one is shown (the Library's second copy closes itself
+                # once the game's window is up): it closes, the window goes on with the shown stack
+                rt.leave_stack(o, closing=True)
+                rt.shown_before = [x for x in rt.shown_before if x is not o]
+                rt.first_stack = rt.default_stack
+                self.destroyed(o)
                 return ''
             rt.close_stack()
             rt.closed = True               # close stack / close this stack: the window ends
@@ -1153,7 +1189,20 @@ class StackHost(Host):
             return ''
         if name == 'launch':
             return self.launch(es, words)
+        if name == 'quit':                     # the program ends: the shown stack closes, the window goes
+            rt.close_stack()
+            rt.closed = True
+            rt.quitting = True
+            return ''
         raise XtError("can't find handler %s" % name)
+
+    def destroyed(self, st):
+        """a closed stack with destroyStack true (and not the harvest's own): gone from memory"""
+        rt = self.rt
+        if st is rt.harvest.main or str(st.props.get('destroystack', '')).lower() != 'true':
+            return
+        if st in rt.harvest.stacks and getattr(st, 'mainstack', None) is st and not st.filename:
+            rt.forget_stack(st)
 
     @staticmethod
     def win_path(p):

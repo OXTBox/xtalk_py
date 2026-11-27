@@ -402,3 +402,20 @@ these follow the Dictionary and the owner's scripts, not a measurement. Measure 
 | order of rawKeyDown | front scripts, then the focused field or the card, its path | Dictionary |
 | a click on the card or an image while a field has the focus | the field loses the focus (runtime, unchanged) | not checked |
 | a card keyDown handler that never passes (Thrmnlra while playing) | a focused field gets no typing | message path: field, card, stack |
+
+## create stack (measured 27 Nov, 9.6.3 standalone; for the Library's Play, x1-02 step 2)
+
+`lock messages` / `create invisible stack "ProbeXY"` / `unlock messages`, then:
+
+| asked | answer |
+|---|---|
+| `it` | `stack "ProbeXY"` |
+| the defaultStack | unchanged (the stack that ran the create) |
+| in the openStacks / the mainStacks | true / true (open at once, a main stack of its own) |
+| the mainStack of it | ProbeXY |
+| visible, cards, rect | false, 1, `32,32,288,288` |
+| card 1's short name, the filename | `card id 1002` (no name), empty |
+| set its script to text that does not compile | the result = `114,2,5` (error line), the script text is kept |
+| set its script to good text | the result = empty |
+| `show stack` then `go stack` | no open messages (it was already open); the defaultStack becomes it after go |
+| `close stack` | closeCard, closeStack (to the card); the stack is still there (destroyStack false) |
