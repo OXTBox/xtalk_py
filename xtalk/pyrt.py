@@ -188,6 +188,7 @@ class Runtime(Interp):
 import copy
 import math
 import math as _m
+import re as _re
 from .values import NumStr, text_num, num_cmp, fmt_num, compare as _compare, array_cmp
 from .interp import rnd_half_away   # noqa: F401
 
@@ -464,6 +465,7 @@ def among_items(rt, l, r, kind='item'):
 
 
 _PARTS = {}
+_WORDS = _re.compile('[^%s]+' % _re.escape(ch.WS)).findall   # words as chunks.spans makes them
 
 
 def gchunk(rt, kind, text, n):
@@ -481,6 +483,15 @@ def gchunk(rt, kind, text, n):
                 parts = text.split(d) if text else []
                 if len(parts) > 1 and parts[-1] == '':     # one trailing delimiter starts no new line
                     parts.pop()
+                if len(_PARTS) > 256:
+                    _PARTS.clear()
+                _PARTS[key] = parts
+            return parts[i - 1] if i <= len(parts) else ''
+        if kind == 'word':                  # the text's words (runs of anything but chunks.WS), kept too
+            key = (text, 0)
+            parts = _PARTS.get(key)
+            if parts is None:
+                parts = _WORDS(text)
                 if len(_PARTS) > 256:
                     _PARTS.clear()
                 _PARTS[key] = parts
