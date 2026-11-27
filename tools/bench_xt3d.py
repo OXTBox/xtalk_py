@@ -10,7 +10,8 @@ What makes it the same every time (HANDOFF_NATIVE step 0):
     went by" (uDead.FieldWork) does the same amount of work every run, however fast the computer;
   - `set the randomSeed to the milliseconds` (uDead.Generate) therefore always gets the same seed, and
     `set the randomSeed` now really seeds random() (it did nothing before 25 Nov);
-  - no real input: the mouse stays in the middle, keys come from the KEYS script below, gNoMouse is true;
+  - no real input: the mouse stays in the middle, keys come from the KEYS script below (or XTALK_BENCH_KEYS,
+    e.g. "20:450:d"), gNoMouse is true;
   - every frame lets exactly FRAME_MS of messages run (no real-time budget).
 
 Timings are real (perf_counter), taken in Python around the host's own brackets: step = Vibe.Step,
@@ -33,6 +34,9 @@ START_MS = 1_000_000_000.0               # the test clock's first moment
 # the bench keys: (from frame, to frame, key), after the loading screen (the game reads no keys before it ends):
 # hiding mode 3 at 240, R (rush) at 270, then walk (W) and turn (left, then right arrow)
 KEYS = [(240, 246, '3'), (270, 276, 'r'), (300, 900, 'w'), (420, 480, 65361), (650, 690, 65363)]
+if os.environ.get('XTALK_BENCH_KEYS'):   # other keys, e.g. "20:450:d" (Squad Buggy drives right): from:to:key,...
+    KEYS = [(int(a), int(b), k if not k.isdigit() or len(k) == 1 else int(k)) for a, b, k in
+            (x.split(':') for x in os.environ['XTALK_BENCH_KEYS'].split(','))]
 
 
 def keys_at(i):

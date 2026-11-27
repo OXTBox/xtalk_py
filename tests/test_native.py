@@ -75,6 +75,27 @@ def transforms(r):
     return a if a or r.random() < 0.8 else ''
 
 
+def scene(r):
+    """gSceneObjects: lines "mesh key [graphic]", with the odd ones a real list may hold"""
+    keys = ['Squad.G3_12', 'squad.g3_12', 'BOX_1', 'box_1', 'Tower_7', '12', '12.0', 'x\u00e9', 'a']
+    lines = []
+    for _ in range(r.randint(0, 9)):
+        k = r.random()
+        if k < 0.6:
+            ln = '%s %s' % (r.choice(['cube', 'Squad.G3', 'ship']), r.choice(keys))
+            if r.random() < 0.3:
+                ln += ' Batch_' + r.choice(['red', '120_200_90'])
+        elif k < 0.7:
+            ln = ''
+        elif k < 0.8:
+            ln = r.choice(['onlyone', '  cube\t%s ' % r.choice(keys), 'cube\r%s' % r.choice(keys)])
+        else:
+            ln = 'cube  %s' % r.choice(keys)
+        lines.append(ln)
+    t = '\n'.join(lines)
+    return t + '\n' if t and r.random() < 0.2 else t
+
+
 def main(a):
     n = int(a[a.index('--n') + 1]) if '--n' in a else 300
     src = open(ENGINE).read()
@@ -110,10 +131,15 @@ def main(a):
                      ('UpdateObjectTransforms', [], transforms(r)),
                      ('SetObjectPosition', [r.choice([obj, obj, 'newOne', '', 'BOX'])] +
                       [r.choice([rnum(r), '', 'abc', numstr(r.uniform(-50, 50)), '0', ' 3'])
-                       for _ in range(r.choice([3, 3, 3, 2, 1]))], r.choice([g, g, transforms(r), '']))]
+                       for _ in range(r.choice([3, 3, 3, 2, 1]))], r.choice([g, g, transforms(r), ''])),
+                     ('Scene.Has', [r.choice(['Squad.G3_12', 'SQUAD.g3_12', 'box_1', 'Tower_7', 'nope', '12', '', 'x\u00c9',
+                                              'a', 'Tower_7 x'])], None),
+                     ('Scene.Remove', [r.choice(['Squad.G3_12', 'BOX_1', 'tower_7', 'nope', '12', '', 'A', 'x\u00e9'])], None)]
+            sc = scene(r)
             for name, args, g in cases:
                 outs = []
                 for rt in (ref, nat):
+                    rt.G['gsceneobjects'] = sc
                     if g is not None:
                         import copy
                         rt.G['gobjecttransforms'] = copy.deepcopy(g)
@@ -121,7 +147,8 @@ def main(a):
                         got = str(rt.invoke(name, list(args)))
                     except Exception as e:     # noqa: BLE001  (the same error is the same answer)
                         got = 'ERROR %s: %s' % (type(e).__name__, e)
-                    outs.append(got + ' | ' + dump(rt.G.get('gobjecttransforms', '')))
+                    outs.append(got + ' | ' + dump(rt.G.get('gobjecttransforms', '')) + ' | ' +
+                                repr(rt.G.get('gsceneobjects', '')))
                 total += 1
                 if outs[0] != outs[1]:
                     fails += 1

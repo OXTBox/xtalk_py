@@ -8,8 +8,10 @@ xTalk handler; tools/frame_referee.py checks the whole game.
 """
 import copy
 import math
+import re
+from .. import chunks as ch
 from ..interp import rnd_half_away
-from ..values import CASE, XtArray, NumStr, numstr, fmt_num, to_num, to_text, num_cmp, is_numeric_text, XtError
+from ..values import CASE, XtArray, NumStr, numstr, fmt_num, to_num, to_text, num_cmp, is_numeric_text, XtError, text_num
 from . import Fallback
 
 STACK = 'VibeEngineXt3d'
@@ -366,6 +368,92 @@ def set_object_position(rt, fr):
     return ''
 
 
+# ---------------------------------------------------------------- Scene.Has / Scene.Remove
+_WORD = re.compile('[^%s]+' % re.escape(ch.WS))     # a word as the runtime reads one (chunks.WS separates words)
+
+
+def _word2(line):
+    """word 2 of line"""
+    m = _WORD.search(line)
+    if m is None:
+        return ''
+    m = _WORD.search(line, m.end())
+    return '' if m is None else m.group()
+
+
+def _scene_key(rt, fr):
+    """pKey's text in lower case, for a key `is` compares as text (ignoring case); anything else (an array,
+    a number, caseSensitive true) goes to the xTalk handler"""
+    if CASE[0]:
+        raise Fallback()
+    k = fr.vars.get('pkey', '')
+    if isinstance(k, dict):
+        raise Fallback()
+    t = str.__str__(to_text(k))
+    if text_num(t) is not None:            # a number is compared as a number: the xTalk
+        raise Fallback()
+    return k, t.lower()
+
+
+def _scene_text(rt):
+    G = rt.G
+    v = G.setdefault('gsceneobjects', '')
+    if isinstance(v, dict):
+        raise Fallback()
+    return str.__str__(to_text(v))
+
+
+def _lines(rt, t):
+    """the lines of t, as chunks.spans makes them (one trailing delimiter starts no new line)"""
+    d = rt.props.get('linedelimiter', '\n')
+    if not d:
+        return [t[a:b] for a, b in ch.spans(t, 'line', **rt.delims())]
+    if t == '':
+        return []
+    p = t.split(d)
+    if len(p) > 1 and p[-1] == '':
+        p.pop()
+    return p
+
+
+def _ascii(kl, t):
+    """in ASCII text lower case is one char for one char, so a word equal to the key (ignoring case) is the
+    key's lower case inside the text's (or line's) lower case"""
+    return t.isascii() and kl.isascii()
+
+
+def scene_has(rt, fr):
+    """function Scene.Has pKey: is there a line in gSceneObjects whose word 2 is pKey"""
+    _, kl = _scene_key(rt, fr)
+    t = _scene_text(rt)
+    asc = _ascii(kl, t)
+    if asc and kl not in t.lower():
+        return 'false'
+    for ln in _lines(rt, t):
+        if (not asc or kl in ln.lower()) and _word2(ln).lower() == kl:
+            return 'true'
+    return 'false'
+
+
+def scene_remove(rt, fr):
+    """on Scene.Remove pKey: every line of gSceneObjects whose word 2 is pKey goes (the rest kept, a cr after
+    each, the last char deleted); then a graphic named pKey loses its points"""
+    k, kl = _scene_key(rt, fr)
+    t = _scene_text(rt)
+    lines = _lines(rt, t)
+    if _ascii(kl, t):
+        if kl in t.lower():
+            lines = [ln for ln in lines if kl not in ln.lower() or _word2(ln).lower() != kl]
+    else:
+        lines = [ln for ln in lines if _word2(ln).lower() != kl]
+    rt.G['gsceneobjects'] = '\n'.join(lines)   # each kept line & cr, then the last char deleted
+    from ..pyrt import Runtime
+    name = Runtime.obj_name('graphic', k)  # `graphic pKey` named as both run modes name it
+    if rt.host.exists(name) != False:      # noqa: E712  (as the translated handler asks it)
+        rt.host.set_prop(name, 'points', '', None)
+    return ''
+
+
 def _isnum(v):
     if v == '':
         return True
@@ -379,7 +467,7 @@ def _isnum(v):
 # the xTalk each function was written from (tools/native_sigs.py): a changed handler keeps its xTalk
 SIGS = {'mat3.mul': 'bed1180fb450', 'rotatelocalvector': 'ae5429e04f2c', 'updateobjecttransforms': '7e4930120ed1',
         'xform.object': '3b5f1786e58f', 'vibe.color': 'eeb18a0ddc52',
-        'setobjectposition': 'dafabac7315e'}
+        'setobjectposition': 'dafabac7315e', 'scene.has': '83f084e90f3c', 'scene.remove': 'ab775e5a9e16'}
 
 # handlers other scripts' native code may stand in for while they are unchanged (xt3d_testbench_host reads
 # gMeshCache instead of calling Vibe.Mesh, which copies the whole mesh)
@@ -401,4 +489,6 @@ HANDLERS = {
     'xform.object': xform_object,
     'vibe.color': vibe_color,
     'setobjectposition': set_object_position,
+    'scene.has': scene_has,
+    'scene.remove': scene_remove,
 }
