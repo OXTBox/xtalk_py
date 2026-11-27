@@ -3,7 +3,22 @@
 Everything below is MERGED to main and PUSHED (xtalk_py, LIB_MENU, LIB_GAMES), on the owner's word.
 Nothing is waiting on a branch.
 
-## LATEST (26 Nov ~17:45): priority-tube + window-scale MERGED and PUSHED. x1-01 (Tube reloads itself) on LIB_DEV branch `tube-auto-reload`
+## NOW (26 Nov ~19:00): x1-02 Vibecode3D Library in Python, step 1, branch `library-python` (waits for his look)
+
+- Open: `tools/open_library.sh` (reads the install on V:, `--engine "V:/Program Files (x86)/Vibecode3D"`).
+- Runs from `LIB_PUBLIC/launcher/vibe_launcher.livecodescript` (harvest run_files/target_harvests/Vibecode3D_Library,
+  git-ignored: `lcmcp --standalone harvest <that file> <that folder>` to remake). NOT from his saved
+  Vibecode3D_Launcher.livecode: there the script sits on card 1, the stack script is empty, and preOpenStack's
+  `send setStackScript to card 1` throws 573 in LiveCode too (measured, both engines); openStack then passes. Ask him.
+- New in the runtime: the window follows the stack's size set by script; `launch document/url X`, `launch X with Y`
+  (real window: cmd start; checks: noted); a stack starting ITSELF again (shell `start "" "<own file>" args` or
+  launch ... with <own file>) -> rt.on_self_launch(args) (open_stack: second_copy). open_stack takes --engine and `-- ARGS` ($1..).
+- Play is INTERIM: second_copy opens tools/play_xt3d.sh on the game's LIB_GAMES copy (test bench host), not the
+  installed copy through game_player. 53 of 54 installed games have a LIB_GAMES copy (not Genetic Anomaly).
+  Step 2 = create stack / set the script of stack / go stack in the runtime so VL.Play runs as written.
+- Hidden snapshots must use X11 (WAYLAND_DISPLAY=no-wayland): on Wayland a hidden window's picture does not resize.
+
+## LATEST (26 Nov ~17:45): priority-tube + window-scale MERGED and PUSHED. x1-01 (Tube reloads itself) MERGED + pushed too (owner saw it live). NOW: x1-02 Library in Python, branch `library-python`
 
 - ptWatch in the Tube's stack script: every 2 s compares items.txt + PRIORITY_ORDER.txt + TUBE_REMOVED.txt with what it
   last read/wrote; changed -> ptBuild true (scroll kept), bar "Reloaded: Claude changed the tube". Not while dragging.
