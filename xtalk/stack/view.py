@@ -738,6 +738,8 @@ class View:
     def draw_image(self, o):
         rc = self.rect(o)
         dt = o.direct_tex if o.pixels_from is not None else None
+        if dt is not None and self.scale > 1:     # a scaled window: the 2x frame xt3d made before shrinking it,
+            dt = getattr(o, 'direct_big', None) or dt   # so the 3D is drawn sharp at the window's size (g1-03)
         if dt is not None:                        # an xt3d frame still on the graphics card: drawn as it is
             rl.draw_texture_pro(dt, rl.Rectangle(0, 0, dt.width, -dt.height), rc, rl.Vector2(0, 0), 0, rl.WHITE)
             return                                # (a render texture is upside down: the source is flipped)

@@ -2,8 +2,8 @@
 """xt3d_game_check.py - play a Vibecode3D game through the xt3d testbench host, unchanged, in Python (Phase 3).
 
     .venv/bin/python -I tools/xt3d_game_check.py [GAME] [--frames N] [--keys "0:60,1:120"] [--snap OUT.png]
-                                                 [--size 720x540] [--profile] [--eval 'expr;;expr']
-    .venv/bin/python -I tools/xt3d_game_check.py [GAME] --window [--size 720x540]
+                                                 [--size 720x540] [--scale 1.25] [--profile] [--eval 'expr;;expr']
+    .venv/bin/python -I tools/xt3d_game_check.py [GAME] --window [--size 900x600]
                                                  a real window at 200,32 to play in; close it to stop
                                                  (tools/play_xt3d.sh is the owner's command for this)
 
@@ -21,6 +21,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 BRIDGE = os.path.expanduser('~/projects/xt3D_Raylib_Livecode_Bridge')
 HOST = os.path.join(BRIDGE, 'testbench', 'xt3d_testBench_lib_mcp.livecodescript')
+SCALE_KEY = 'xt3d game window'             # its line in run_files/window_scale.json (one scale for every game)
 
 
 def make_stack(folder, w, h):
@@ -45,7 +46,11 @@ def main(a):
     opt = lambda k, d: a[a.index(k) + 1] if k in a else d       # noqa: E731
     frames = int(opt('--frames', 150))
     out = opt('--snap', os.path.join(ROOT, 'run_files', 'xt3d_game.png'))
-    w, h = (int(x) for x in opt('--size', '720x540').split('x'))
+    # the play window's view is 900x600 like the Vibecode3D launcher's game window (LIB_PUBLIC
+    # launcher/vibe_launcher.livecodescript, VL.WindowRect): the games are framed for it (Block City Hustle's
+    # city and its border fill exactly 900x600; at 720x540 its left, right and bottom were cut off, g1-03).
+    # The checks keep 720x540 (their numbers and pictures stay comparable).
+    w, h = (int(x) for x in opt('--size', '900x600' if '--window' in a else '720x540').split('x'))
     keys = []
     for k in opt('--keys', '').split(','):
         if k:
@@ -63,7 +68,7 @@ def main(a):
     rt = StackRuntime(folder, real_folders=True)
     rt.harvest.main.filename = HOST            # the effective filename: the host finds LIB_GAMES above it
     rt.G['gxbviewrect'] = '0,0,%d,%d' % (w, h)  # view-only mode
-    v = View(rt, hidden=True)
+    v = View(rt, hidden=True, scale=float(opt('--scale', '1')))   # --scale 1.25: as the owner's window draws it
     rt.open()
     card = rt.default_stack.children[0]
     t1 = time.perf_counter()
@@ -162,13 +167,18 @@ def play(game, folder, w, h):
     Interp.CATCH_LOG = []
     from xtalk.stack import StackRuntime
     from xtalk.stack.view import View
-    from xtalk.stack.view import rl
+    from xtalk.stack.view import rl, window_scale, remember_scale
     rt = StackRuntime(folder, real_app=True)   # his play window: a real app (owner 26 Nov)
     rt.harvest.main.filename = HOST
     rt.G['gxbviewrect'] = '0,0,%d,%d' % (w, h)
     rt.log_clicks = []
     test = dict(x.split(':') for x in os.environ.get('XTALK_PLAY_TEST', '').split(',') if ':' in x)
-    v = View(rt, hidden=bool(test))      # XTALK_PLAY_TEST="note:100;150,close:300" (or end:300): a hidden check
+    # the window's scale (g1-03): Windows' own (125% -> 1.25) like the other Python windows, Ctrl + / - / 0 change
+    # it, remembered for every game window as "xt3d game window" in run_files/window_scale.json; XTALK_SCALE
+    # overrides. A hidden play test stays at 1 unless XTALK_SCALE is given.
+    scale = window_scale(SCALE_KEY) if not test or os.environ.get('XTALK_SCALE') else 1.0
+    v = View(rt, hidden=bool(test), scale=scale)   # XTALK_PLAY_TEST="note:100;150,close:300" (or end:300): a hidden check
+    v.on_scale = lambda s: remember_scale(SCALE_KEY, s)
     at = lambda k: str(n[0]) in test.get(k, '').split(';')   # noqa: E731 - this frame has a k: event
     pressed, real_pressed = set(), rl.is_key_pressed       # esc:N = Escape pressed at frame N, as the window
     rl.is_key_pressed = lambda k: k in pressed or real_pressed(k)   # sees it (View.frame decides who gets it)
@@ -242,6 +252,8 @@ def play(game, folder, w, h):
             rt.mouse_up(w // 2, h // 2, down_on=down)
         if at('esc'):
             pressed.add(rl.KEY_ESCAPE)
+        if at('snap'):                                   # snap:N = the window as drawn, run_files/play_snap_N.png
+            v.snapshot(os.path.join(ROOT, 'run_files', 'play_snap_%d.png' % n[0]))
         if test.get('close') == str(n[0]):               # as if the close box was clicked
             rl.window_should_close = lambda: True
         if test.get('end') == str(n[0]):                 # as if the game ended itself
