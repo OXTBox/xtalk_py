@@ -3,7 +3,18 @@
 Everything below is MERGED to main and PUSHED (xtalk_py, LIB_MENU, LIB_GAMES), on the owner's word.
 Nothing is waiting on a branch.
 
-## NOW (26 Nov ~19:00): x1-02 Vibecode3D Library in Python, step 1, branch `library-python` (waits for his look)
+## GAME SPEED (26 Nov night): branch `game-speed`, 3 commits, waits for his look + "merge"
+
+- 4d0ac02 an @parameter's array is not copied: Dot Maze dots rebuild 325 -> 45 ms (the 3-4 dot jumps).
+- 4b8c8b3 direct drawing: an xt3d frame goes graphics card -> window (Obj.pixels_from makes imageData only when
+  read; XTALK_DIRECT=0 = old way). Dot Maze 15 -> 62 fps in his window (log of his play).
+- 005e1cc `do`/value() texts parsed once (parser._PARSED); native SetObjectPosition (engine's six `do` lines);
+  UpdateObjectTransforms via a lower-case key table. Squad Buggy hidden test 3.6 -> 26 fps (step 290 -> 25 ms);
+  in his window it was 12 fps before this commit. Next if wanted: Squad.Ground's ~94 Entity.SetPosition calls a step.
+- Profiling: `XTALK_PROF_OUT=file tools/xt3d_game_check.py GAME --frames N --profile` (pstats dump).
+- Bug for the tube: LIB_LOADING asks `Users.Driver` (unknown property, caught by try) in every game.
+
+## (26 Nov ~19:00): x1-02 Vibecode3D Library in Python, step 1, branch `library-python` (waits for his look)
 
 - Open: `tools/open_library.sh` (reads the install on V:, `--engine "V:/Program Files (x86)/Vibecode3D"`).
 - Runs from `LIB_PUBLIC/launcher/vibe_launcher.livecodescript` (harvest run_files/target_harvests/Vibecode3D_Library,
