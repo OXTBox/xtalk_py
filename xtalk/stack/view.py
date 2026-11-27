@@ -174,7 +174,19 @@ class View:
     def scale_imgui(self):
         """menus, dialogs and the runtime panel grow with the window (ImGui draws its font at the size, sharp)"""
         style = imgui.get_style()
-        style.scale_all_sizes(self.scale / self.imgui_scale)
+        if not hasattr(self, 'imgui_base'):    # its sizes at scale 1: scaling step on step rounds them away
+            self.imgui_base = {}
+            for k in dir(style):
+                if k.startswith('_') or k in ('font_scale_main', 'font_scale_dpi', 'mouse_cursor_scale', 'alpha'):
+                    continue
+                v = getattr(style, k, None)
+                if isinstance(v, float):
+                    self.imgui_base[k] = v
+                elif isinstance(v, imgui.ImVec2):
+                    self.imgui_base[k] = imgui.ImVec2(v.x, v.y)
+        for k, v in self.imgui_base.items():
+            setattr(style, k, imgui.ImVec2(v.x, v.y) if isinstance(v, imgui.ImVec2) else v)
+        style.scale_all_sizes(self.scale)
         style.font_scale_main = self.scale
         self.imgui_scale = self.scale
 
@@ -184,6 +196,8 @@ class View:
         if s == self.scale:
             return
         self.scale = s
+        for k in [k for k in self.fonts if len(k) == 3]:   # bigger letter sets made for the old scale
+            rl.unload_font(self.fonts.pop(k))
         rl.set_window_size(*self.scaled_size())
         self.scale_imgui()
         self.cache_dirty = True
@@ -199,7 +213,12 @@ class View:
     def scissor(self, x, y, w, h):
         """clip to a card rect (scissors work in real pixels: the scale's matrix does not reach them)"""
         s = self.scale
-        rl.begin_scissor_mode(int(x * s), int(y * s), max(0, int(w * s)), max(0, int(h * s)))
+        if s == 1:
+            rl.begin_scissor_mode(int(x), int(y), max(0, int(w)), max(0, int(h)))
+            return
+        x0, y0 = math.floor(x * s), math.floor(y * s)     # edges rounded outward: truncating the top and the
+        x1, y1 = math.ceil((x + w) * s), math.ceil((y + h) * s)   # height cut the last row's descenders
+        rl.begin_scissor_mode(x0, y0, max(0, x1 - x0), max(0, y1 - y0))
 
     # ------------------------------------------------------------ helpers
     def capture(self):
