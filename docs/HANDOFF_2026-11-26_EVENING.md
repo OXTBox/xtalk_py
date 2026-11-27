@@ -3,6 +3,16 @@
 Everything below is MERGED to main and PUSHED (xtalk_py, LIB_MENU, LIB_GAMES), on the owner's word.
 Nothing is waiting on a branch.
 
+## LATEST (26 Nov ~17:45): priority-tube + window-scale MERGED and PUSHED. x1-01 (Tube reloads itself) on LIB_DEV branch `tube-auto-reload`
+
+- ptWatch in the Tube's stack script: every 2 s compares items.txt + PRIORITY_ORDER.txt + TUBE_REMOVED.txt with what it
+  last read/wrote; changed -> ptBuild true (scroll kept), bar "Reloaded: Claude changed the tube". Not while dragging.
+- The script now lives in `LIB_DEV/PriorityTube/priority_tube.livecodescript`; applied to the .oxtstack headless
+  (OXT-BEYOND/tests/oxt_headless.py: lock messages, set the script of stack <file>, save) and re-harvested with
+  `lcmcp --standalone harvest`. Checked hidden: 21 -> 20 bubbles within 2 s after marking x1-00 done.
+- A raylib-examples helper runs in xt3D_Raylib_Livecode_Bridge (branch raylib-examples; plan in
+  reference/raylib_examples/PLAN_OUR_EXAMPLES.md).
+
 ## LATEST (26 Nov ~17:30): x1-00 window scale on branch `window-scale` (off `priority-tube`). OWNER CHECKED: Ctrl +/- works, menus open where he clicks, size kept on reopen (Tube remembered at 1.2). Not merged yet.
 
 - Why the windows were small: Windows is at 125% (AppliedDPI 120); WSLg draws our window one pixel a unit
