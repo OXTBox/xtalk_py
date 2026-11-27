@@ -365,3 +365,28 @@ Test stack "BhvTest" made and deleted in the run; scripts set with `set the scri
 Harvests: LIB_XTJSON's harvester writes `node["behavior"]` = `the behavior of X` (the form above). None of the
 harvests in ~/projects/XTJSON has one (26 Nov): their "behavior" keys are listBehavior / backgroundBehavior /
 radioBehavior / sharedBehavior / tabGroupBehavior flags, not script behaviors.
+
+## A library that is not in use; specialFolderPath("support"); caseSensitive and text operators (27 Nov, g1-06)
+
+Measured with `lcmcp --standalone` (LiveCode 9.6.3 on Windows):
+
+| What | LiveCode |
+|---|---|
+| `put Nope.Driver() into x` (no such handler anywhere, no library in use) | runtime error 219 (`219,311,7,Nope.Driver`): can't find handler; a `try` catches it and the error names the function |
+| `value("Nope.Driver()")` | the same error 219 |
+| the same function once its stack is `start using`-ed | runs (42) |
+| `the Zq.Fn` for a custom function Zq.Fn (in a script) | compile error: `the X` is only for properties and built-in functions, never a custom function |
+| `value("the Zq.Fn")` | error 618 |
+| `specialFolderPath("support")` | `C:/Users/<name>/AppData/Roaming` (documents, home, desktop: `C:/Users/<name>/...`) |
+| caseSensitive true: `"x" is in "X"`, `"AbC" begins with "a"`, `ends with "c"`, `"a" = "A"`, `"a" is among the items of "A,B"`, `offset("b","ABC")` | false, false, false, false, false, 0 (all case-sensitive) |
+
+So `unknown property "the users.driver"` in the Python play logs was only Python's wording for
+`Users.Driver()` with LIB_USERS not in use: no `the` form is involved. In LiveCode the same call fails the same
+way, because neither the xt3d test bench (xt3d_testBench_lib_mcp) nor LIB_DEV's game_player starts using
+LIB_USERS; game_player starts LIB_DATA only for a game with an `.input.txt`, PhotonBall/VectorToss start it
+themselves. lib_loading's Loading.User and GameNotes' Notes.DataRoot catch the error on purpose and fall back
+($XT_USER / "OWNER"; the install's data_root.txt, `<support>/Vibecode3D/data_root.txt`, Documents/Data).
+Python now says `can't find function Users.Driver` (same as LiveCode's meaning), and has the support folder.
+
+Not fixed yet (Python, found while measuring): `is in`, `begins with`, `ends with`, `=`, `among`,
+`offset` ignore caseSensitive true in the Python runtime (they always ignore case).

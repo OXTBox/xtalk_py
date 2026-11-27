@@ -108,7 +108,7 @@ class Runtime(Interp):
         if f is None and n == 'mouse' and args and hasattr(self.host, 'mouse_button'):
             return self.host.mouse_button(args[0])     # mouse(3): the right button (Dictionary)
         if f is None and (not args or n == 'mouse'):   # mouseLoc() is the mouseLoc (measured 25 Nov)
-            return self.e_prop(('prop', n), fr)
+            return self.fn_as_prop(name, fr)
         if f is None:
             raise XtError("expression: can't find function %s" % name)
         if n == 'matchtext':                       # captures go into the variables named after the pattern
