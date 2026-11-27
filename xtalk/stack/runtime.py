@@ -1162,9 +1162,10 @@ class StackRuntime:
 
     def raw_key(self, code):
         """a key went down: rawKeyDown with its code to the focused field (else the card), before keyDown.
-        Not done: a rawKeyDown not passed should stop the keyDown (LiveCode); we only send it"""
+        True when a handler took it (did not pass it): LiveCode then sends no keyDown (the View drops the
+        character it would type, View.frame)"""
         f = self.focused
-        self.handled(f or self.default_stack.current, 'rawKeyDown', [str(code)])
+        return self.handled(f or self.default_stack.current, 'rawKeyDown', [str(code)])
 
     def wheel(self, o, amount):
         """the mouse wheel: LiveCode sends rawKeyDown 65309 (up) / 65308 (down) a notch, to the control under

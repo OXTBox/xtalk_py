@@ -169,6 +169,9 @@ def play(game, folder, w, h):
     rt.log_clicks = []
     test = dict(x.split(':') for x in os.environ.get('XTALK_PLAY_TEST', '').split(',') if ':' in x)
     v = View(rt, hidden=bool(test))      # XTALK_PLAY_TEST="note:100;150,close:300" (or end:300): a hidden check
+    at = lambda k: str(n[0]) in test.get(k, '').split(';')   # noqa: E731 - this frame has a k: event
+    pressed, real_pressed = set(), rl.is_key_pressed       # esc:N = Escape pressed at frame N, as the window
+    rl.is_key_pressed = lambda k: k in pressed or real_pressed(k)   # sees it (View.frame decides who gets it)
     rt.on_wait, rt.on_menu, rt.on_dialog = v.wait_frames, v.menu_frames, v.dialog_frames
     v.esc_frees = True
     rt.open()
@@ -202,6 +205,10 @@ def play(game, folder, w, h):
         for e in rt.errors[:20]:
             print('script error:', *e)
         print('script errors: %d' % len(rt.errors))
+        box = rt.host.resolve('field "GameNote"', must=False)
+        if box is not None:
+            print('note box at the end: %s; game paused %s; mouse and keys freed %s' % (
+                'OPEN' if rt._shown(box) else 'closed', rt.G.get('bpaused', ''), v.freed))
         after = open(notes_file, encoding='utf-8', errors='replace').read() if os.path.exists(notes_file) else ''
         new = after[len(notes_before):] if after.startswith(notes_before) else after
         for line in new.splitlines():
@@ -226,11 +233,21 @@ def play(game, folder, w, h):
             for ch in 'a note from the play test at frame %d' % n[0]:
                 rt.key(ch)
             rt.special_key('return')
+        if at('typenote'):                               # ` then a line typed (no Return): the box stays open
+            rt.raw_key(96)
+            for ch in 'typed at frame %d' % n[0]:
+                rt.key(ch)
+        if at('click'):                                  # click:N = a click in the middle of the view
+            down = rt.mouse_down(w // 2, h // 2)
+            rt.mouse_up(w // 2, h // 2, down_on=down)
+        if at('esc'):
+            pressed.add(rl.KEY_ESCAPE)
         if test.get('close') == str(n[0]):               # as if the close box was clicked
             rl.window_should_close = lambda: True
         if test.get('end') == str(n[0]):                 # as if the game ended itself
             rt.message(card, 'xbGameEnded')
         v.frame()
+        pressed.clear()
         slow[0] = max(slow[0], time.perf_counter() - tf)
         n[0] += 1
         if n[0] % 60 == 0:

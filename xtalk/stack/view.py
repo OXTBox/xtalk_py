@@ -383,6 +383,22 @@ class View:
         if self.esc_frees:
             self.draw_escape_label()
 
+    def fronts_take(self, code):
+        """play mode: Escape (or another key the View keeps) goes first to the front scripts only, as rawKeyDown
+        reaches them first in LiveCode. True when one took it (did not pass it): GameNotes closing its box,
+        whatever has the focus (a click on the card had taken it from the box, and Escape then freed the mouse
+        instead, leaving the box up and the game paused: g1-02). Passed by them all: the View's, the game never
+        sees it."""
+        rt = self.rt
+        fronts = [rt.ctx[id(x)] for x in rt.fronts if id(x) in rt.ctx]
+        if not any('rawkeydown' in c.handlers for c in fronts):
+            return False
+        rt.engine_contexts = lambda o, f=fronts: f        # for this one message, the path is the front scripts
+        try:
+            return rt.handled(rt.default_stack.current, 'rawKeyDown', [str(code)])
+        finally:
+            del rt.engine_contexts
+
     def draw_escape_label(self):
         """play mode: a corner line that says whether the game has the mouse and keys"""
         if self.freed:
@@ -762,10 +778,14 @@ class View:
         self.after_frame()
         esc_mine = self.esc_frees and rt.focused is None   # play mode: Escape is the View's, not the game's
         if esc_mine and rl.is_key_pressed(rl.KEY_ESCAPE):  # (typing in a field, e.g. GameNotes: the script's)
-            self.freed = not self.freed
-            if hasattr(rt, 'log_clicks'):
-                rt.log_clicks.append('key escape (%s)' % ('mouse and keys freed' if self.freed else 'back to the game'))
-            self.capture()
+            if self.fronts_take(65307):           # a front script took it first (GameNotes closing its box)
+                if hasattr(rt, 'log_clicks'):
+                    rt.log_clicks.append('key escape (taken by a front script)')
+            else:
+                self.freed = not self.freed
+                if hasattr(rt, 'log_clicks'):
+                    rt.log_clicks.append('key escape (%s)' % ('mouse and keys freed' if self.freed else 'back to the game'))
+                self.capture()
         if self.freed:                            # the game gets no mouse moves, clicks or keys; it plays on
             rt.keys_down, rt.held_codes, rt.buttons_down = set(), list(rt.test_keys), set()
             rt.mouse_move(int(self.vmouse[0]), int(self.vmouse[1]))   # where the game last put it: no turning
@@ -834,6 +854,7 @@ class View:
         rt.held_codes = [code for key, code in self.KEYCODES if rl.is_key_down(key)
                          and not (code == 65307 and esc_mine)] + list(rt.test_keys)   # the keysDown
                                                    # (test_keys: keys a check tool holds down, tools/xt3d_game_check.py)
+        taken = set()                              # rawKeyDown not passed: LiveCode sends no keyDown for it
         for key, code in self.KEYCODES:            # rawKeyDown (Raycasting_101: Esc / ` free the mouse)
             if rl.is_key_pressed(key):
                 if code == 65307:
@@ -841,7 +862,8 @@ class View:
                         continue
                     if hasattr(rt, 'log_clicks'):
                         rt.log_clicks.append('key escape')
-                rt.raw_key(code)
+                if rt.raw_key(code) and code < 128:
+                    taken.add(code)
         self.capture()
         if rl.is_key_pressed(rl.KEY_F2):
             self.panel = not self.panel
@@ -854,7 +876,9 @@ class View:
                 self.set_scale(windows_scale())
         ch = rl.get_char_pressed()
         while ch:
-            if 'controlkey' not in held:          # Control + a letter is a command key (below), not typing
+            if ch < 128 and ord(chr(ch).lower()) in taken:   # its rawKeyDown was taken (GameNotes' `: the
+                taken.discard(ord(chr(ch).lower()))           # box opens, no ` typed into it)
+            elif 'controlkey' not in held:        # Control + a letter is a command key (below), not typing
                 rt.key(chr(ch))
             ch = rl.get_char_pressed()
         if 'controlkey' in held:
