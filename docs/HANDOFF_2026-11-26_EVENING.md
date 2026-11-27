@@ -3,7 +3,7 @@
 Everything below is MERGED to main and PUSHED (xtalk_py, LIB_MENU, LIB_GAMES), on the owner's word.
 Nothing is waiting on a branch.
 
-## GAME SPEED (26 Nov night): branch `game-speed`, 3 commits, waits for his look + "merge"
+## GAME SPEED (26 Nov night): MERGED + pushed (owner: merge; played Dot Maze 62 fps, Squad Buggy 29 fps)
 
 - 4d0ac02 an @parameter's array is not copied: Dot Maze dots rebuild 325 -> 45 ms (the 3-4 dot jumps).
 - 4b8c8b3 direct drawing: an xt3d frame goes graphics card -> window (Obj.pixels_from makes imageData only when
