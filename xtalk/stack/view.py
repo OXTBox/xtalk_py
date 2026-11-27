@@ -732,9 +732,22 @@ class View:
         return io.want_capture_mouse
 
     # ------------------------------------------------------------ the loop
+    def follow_stack_size(self):
+        """a script set the stack's size (the Library: set the width of me to 960): the window follows"""
+        st = self.rt.default_stack
+        try:
+            w, h = int(st.width), int(st.height)
+        except (TypeError, ValueError):
+            return
+        if w > 0 and h > 0 and (w, h) != self.base_size:
+            self.base_size = (w, h)
+            rl.set_window_size(*self.scaled_size())
+            self.cache_dirty = True
+
     def frame(self):
         rt = self.rt
         busy = False
+        self.follow_stack_size()
         rl.begin_drawing()
         if self.idling and rt.focused is None:    # nothing happening: the last picture of the card, not a redraw
             self.draw_cached_card()               # (a focused field keeps drawing: its caret blinks)
@@ -1134,6 +1147,7 @@ class View:
         self.close()
 
     def snapshot(self, path, frames=2):
+        self.follow_stack_size()
         for _ in range(frames):
             rl.begin_drawing()
             self.draw_card()

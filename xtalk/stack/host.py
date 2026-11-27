@@ -403,6 +403,9 @@ class StackHost(Host):
         Which Python: XTALK_SCRIPT_PYTHON if set (one with Tkinter, say), else the one running this."""
         path = command.strip().strip('"').replace('\\', '/')
         full = self.sandboxed(path)
+        m = self.SELF_START.match(str(command))
+        if m and self.own_file(m.group(1)):        # start "" "<this program>" -game "<folder>": a second copy
+            return self.self_launch([x or y for x, y in re.findall(r'"([^"]*)"|(\S+)', m.group(2))])
         if not path.lower().endswith('.py') or full != os.path.abspath(path) or not os.path.isfile(full):
             if getattr(self.rt, 'real_app', False) and self.rt.start_programs:
                 return self.windows_shell(command)
@@ -1148,7 +1151,54 @@ class StackHost(Host):
             if es:
                 rt.grab(self.resolve(es[0]))
             return ''
+        if name == 'launch':
+            return self.launch(es, words)
         raise XtError("can't find handler %s" % name)
+
+    @staticmethod
+    def win_path(p):
+        """a path as Windows' start wants it: back slashes (//wsl$/... -> \\\\wsl$\\...)"""
+        return str(p).replace('/', '\\')
+
+    def own_file(self, path):
+        """is path this program itself (the stack's own file, as a standalone's exe)?"""
+        me = getattr(self.rt.harvest.main, 'filename', '') or ''
+        norm = lambda x: str(x).replace('\\', '/').strip().strip('"').lower()
+        return bool(me) and norm(path) == norm(me)
+
+    def launch(self, es, words):
+        """launch document X / launch url X (Windows opens it: Explorer for a folder), launch X with Y (program Y
+        opens X). A real window only (owner 26 Nov: real apps); in checks it is recorded, not started.
+        Launching this program itself ("a second copy", the Library's Play) goes to rt.on_self_launch."""
+        rt = self.rt
+        if es and str(es[0]).lower() in ('document', 'url') and len(es) > 1:
+            what, prog = str(es[1]), None
+        elif es and 'with' in words and len(es) > 1:
+            what, prog = str(es[0]), str(es[1])
+        elif es:
+            what, prog = None, str(es[0])          # launch "program.exe"
+        else:
+            return ''
+        if prog is not None and self.own_file(prog):
+            return self.self_launch([what] if what is not None else [])
+        cmd = 'start "" ' + ('"%s" ' % self.win_path(prog) if prog else '') + ('"%s"' % self.win_path(what) if what else '')
+        if not (getattr(rt, 'real_app', False) and rt.start_programs):
+            rt.not_started.append('launch: ' + cmd)
+            return ''
+        self.windows_shell(cmd)
+        return ''
+
+    def self_launch(self, args):
+        """a second copy of this program with these arguments (a standalone starting itself again)"""
+        rt = self.rt
+        if getattr(rt, 'on_self_launch', None) is None or not rt.start_programs:
+            rt.not_started.append('this program again: %s' % ' '.join(args))
+            return ''
+        print('second copy:', args, flush=True)
+        rt.on_self_launch(list(args))
+        return ''
+
+    SELF_START = re.compile(r'^\s*start\s+""\s+"([^"]+)"\s*(.*)$', re.I)
 
     def send(self, name, parts):
         rt = self.rt

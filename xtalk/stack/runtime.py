@@ -262,6 +262,7 @@ class StackRuntime:
         self._rows = {}                # id(field) -> (key, rows): the layout, made again when its key changes
         self.start_programs = True     # False: shell() only notes the script (the survey: no windows pop up)
         self.not_started = []          # the scripts shell() would have started
+        self.on_self_launch = None     # the window: start a second copy of this program (args) (Library's Play)
         self.clock = 0.0               # virtual milliseconds
         self.timers, self._seq = [], 0
         self.t0 = time.time()          # real seconds at virtual time 0 (the pendingMessages shows due times)
