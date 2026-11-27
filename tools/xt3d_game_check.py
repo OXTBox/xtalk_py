@@ -70,6 +70,7 @@ def main(a):
     rt.message(card, 'xbPlayGame', [game])
     t2 = time.perf_counter()
     print('host opened in %.2f s; %s started in %.2f s (engine load included)' % (t1 - t0, game, t2 - t1))
+    slow_ms = float(opt('--slow', '0') or 0)
     prof = None
     if '--profile' in a:
         import cProfile
@@ -86,7 +87,22 @@ def main(a):
                 code = ord(key) if len(key) == 1 else int(key)
                 rt.test_keys = rt.test_keys + [code]
                 rt.raw_key(code)
-        v.frame()
+        if slow_ms:                            # --slow MS: what ran in a frame that took longer than MS
+            import cProfile, pstats, io
+            fp = cProfile.Profile()
+            f0 = time.perf_counter()
+            fp.enable()
+            v.frame()
+            fp.disable()
+            took = (time.perf_counter() - f0) * 1000
+            if took > slow_ms:
+                s = io.StringIO()
+                st_ = pstats.Stats(fp, stream=s).sort_stats('cumulative')
+                st_.print_stats(r'h_|native|helpers', 14)
+                print('---- slow frame %d: %.0f ms' % (i + 1, took))
+                print('\n'.join(l for l in s.getvalue().splitlines() if 'h_' in l or 'native' in l or 'helpers' in l))
+        else:
+            v.frame()
         if i % 30 == 29:
             st = rt.ctx[id(rt.harvest.main)].invoke('xbGameStats', [])
             print('frame %4d  %s' % (i + 1, st))
