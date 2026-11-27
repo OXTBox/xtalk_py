@@ -186,9 +186,36 @@ def xb_draw_game(rt, fr):
                              0.0, 0.0, 0.0, 255.0, 255.0, 255.0, 255.0)
     last = X['xt3d_endtexturemode']()
     rt.result = to_text(last)
+    if _direct(rt, view, S['starget']):
+        return ''
     data = rt.fn(fr, 'xt3d_RenderTextureImageData', [S['starget']], [])
     rt.host.set_prop(view, 'imagedata', rt.setprop_value(data, True), None)
     return ''
+
+
+def _direct(rt, view, target):
+    """direct drawing (26 Nov, owner: "do the direct drawing"): the window draws the frame straight from the
+    graphics card. Before, every frame went card -> processor -> imageData text -> card again (about 9 ms of a
+    16 ms frame). The text is made only if a script or a check tool reads the imageData (Obj.pixels_from).
+    Off with XTALK_DIRECT=0, or when xt3d_RenderTextureImageData is not the built-in one (a script's own)."""
+    import os
+    if os.environ.get('XTALK_DIRECT', '1') == '0' or rt.lookup('xt3d_rendertextureimagedata')[1] is not None:
+        return False
+    from ..xt3d import helpers, ready
+    if not ready():
+        return False
+    try:
+        o = rt.host.resolve(view)
+        tex = helpers.T_RenderTexture.get(helpers.I(target)).texture
+    except Exception:                      # noqa: BLE001 - no such image or render texture: the old way
+        return False
+    if o is None or o.type != 'image':
+        return False
+    o.imagedata = None                     # (clears an older frame's pixels)
+    o.direct_tex = tex
+    o.pixels_from = lambda t=target: helpers.xt3d_RenderTextureImageData(t)
+    rt.changed = True
+    return True
 
 
 def _cached_model(rt, fr, sig_local, model_local, need):

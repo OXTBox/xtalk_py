@@ -132,6 +132,27 @@ class Obj:
         self.stack = stack
         self.layer = node.get('layer', 0)
 
+    # an image's pixels (imageData). Direct drawing (xt3d games, 26 Nov): the frame stays on the graphics
+    # card (direct_tex, a raylib texture drawn as it is) and the text of its pixels is made only when someone
+    # reads them (pixels_from: a function giving that text). Setting imageData ends direct drawing.
+    _imagedata = None
+    pixels_from = None
+    direct_tex = None
+
+    @property
+    def imagedata(self):
+        f = self.pixels_from
+        if f is not None:
+            self.pixels_from = None
+            self._imagedata = f()
+        return self._imagedata
+
+    @imagedata.setter
+    def imagedata(self, v):
+        self.pixels_from = None
+        self.direct_tex = None
+        self._imagedata = v
+
     def __repr__(self):
         return '<%s %r id %d>' % (self.type, self.name, self.id)
 
