@@ -365,3 +365,15 @@ Test stack "BhvTest" made and deleted in the run; scripts set with `set the scri
 Harvests: LIB_XTJSON's harvester writes `node["behavior"]` = `the behavior of X` (the form above). None of the
 harvests in ~/projects/XTJSON has one (26 Nov): their "behavior" keys are listBehavior / backgroundBehavior /
 radioBehavior / sharedBehavior / tabGroupBehavior flags, not script behaviors.
+
+## Keys and focus in the play window (27 Nov, g1-02; NOT measured: the standalone server has no window or focus)
+
+Asked of the standalone (`focus on field`, `click at`, `the focusedObject`): every answer came back empty, so
+these follow the Dictionary and the owner's scripts, not a measurement. Measure them in the IDE when it is free.
+
+| Question | What the runtime does now | Source |
+|---|---|---|
+| a rawKeyDown handler that does not pass | no keyDown follows (the key is not typed) | Dictionary (rawKeyDown); GameNotes relies on it ("the engine never sees this Escape") |
+| order of rawKeyDown | front scripts, then the focused field or the card, its path | Dictionary |
+| a click on the card or an image while a field has the focus | the field loses the focus (runtime, unchanged) | not checked |
+| a card keyDown handler that never passes (Thrmnlra while playing) | a focused field gets no typing | message path: field, card, stack |
