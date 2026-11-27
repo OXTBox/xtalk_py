@@ -1143,6 +1143,17 @@ class Interp:
                 raise XtError('expression: bad operand')
         raise XtError('expression: unknown operator %s' % op)
 
+    def fn_as_prop(self, name, fr):
+        """name() with no handler and no built-in: the property of that name (mouseLoc() = the mouseLoc), else
+        LiveCode's runtime error 219 "can't find handler" (measured 27 Nov: Users.Driver() with LIB_USERS not in
+        use), not 'unknown property "the users.driver"'"""
+        try:
+            return self.e_prop(('prop', name.lower()), fr)
+        except XtError as err:
+            if 'unknown property' not in str(err):
+                raise
+        raise XtError("expression: can't find function %s" % name)
+
     def e_call(self, e, fr):
         name = e[1]
         n = name.lower()
@@ -1163,7 +1174,7 @@ class Interp:
         if f is None and n == 'mouse' and args and hasattr(self.host, 'mouse_button'):
             return self.host.mouse_button(args[0])             # mouse(3): the right button (Dictionary)
         if f is None and (not args or n == 'mouse'):          # mouseLoc() is the mouseLoc (measured 25 Nov)
-            return self.e_prop(('prop', n), fr)
+            return self.fn_as_prop(name, fr)
         if f is None:
             raise XtError("expression: can't find function %s" % name)
         if n == 'matchtext':                                   # captures go into the variables named after the pattern

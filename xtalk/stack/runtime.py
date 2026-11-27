@@ -208,7 +208,8 @@ class StackRuntime:
         files = files_dir or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                                           'run_files')
         self.host.folders = {'documents': os.path.join(files, 'Documents'), 'temporary': os.path.join(files, 'tmp'),
-                             'desktop': os.path.join(files, 'Desktop'), 'home': files, 'resources': self.harvest.folder}
+                             'desktop': os.path.join(files, 'Desktop'), 'home': files, 'resources': self.harvest.folder,
+                             'support': os.path.join(files, 'AppData', 'Roaming')}
         self.host.sandbox_root = files     # every write goes in here, whatever the folders are
         self.real_folders = real_folders or real_app
         self.real_app = real_app           # the owner's own window (open_stack, play): writes his real files, shell()
@@ -216,7 +217,9 @@ class StackRuntime:
         if self.real_folders:              # a real window: specialFolderPath and reading use the user's own folders;
             home = self.host.user_home()   # writes too when real_app (checking tools: writes stay sandboxed)
             self.host.folders.update({'home': home, 'documents': os.path.join(home, 'Documents'),
-                                      'desktop': os.path.join(home, 'Desktop'), 'pictures': os.path.join(home, 'Pictures')})
+                                      'desktop': os.path.join(home, 'Desktop'), 'pictures': os.path.join(home, 'Pictures'),
+                                      'support': os.path.join(home, 'AppData', 'Roaming')})   # C:/Users/<name>/AppData/Roaming
+                                   # (measured 27 Nov): GameNotes' and LIB_DATA's data_root.txt, iGame3D XT's settings
         if real_app:
             self.host.platform = 'Win32'   # his stacks then take their Windows paths (shell(): cmd.exe, owner 26 Nov)
             src = linux_path(self.harvest.manifest.get('sourceFile', ''))

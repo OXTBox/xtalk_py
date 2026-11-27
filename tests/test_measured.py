@@ -17,6 +17,16 @@ from xtalk.pyrt import Runtime                                # noqa: E402
 from xtalk.transpile import translate_script                  # noqa: E402
 
 CASES = [
+    ('a missing function (a library not in use) is caught, and the error names it', '''
+function t
+   try
+      put Nope.Driver() into tR
+      put "no error" into tR
+   catch tErr
+      put "caught" && matchText(tErr, "Nope\\.Driver") into tR   -- regex: case counts
+   end try
+   return tR
+end t''', 'caught true'),
     ('comment after a continuing backslash', '''
 function t
    put 1 & \\   -- c
