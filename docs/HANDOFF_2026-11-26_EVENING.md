@@ -1,6 +1,21 @@
 # Handoff, 26 Nov evening: START HERE
 
-## FRESH TERMINAL (27 Nov): helpers in parallel -> read docs/PLAN_HELPERS_2026-11-27.md FIRST
+## 27 Nov: HELPERS DONE, ALL FOUR MERGED on his "merge" (main 9ea4e5c; NOT pushed). Worktrees + branches removed.
+
+- speed-2 (C): natives Scene.Has/Remove, SetObjectVelocity, RenderMeshInto; globals declared once a call; `word n of`
+  fast. His Squad Buggy play: 37 fps avg, worst second 36 (was 8). DotMazeLean via game_player: 3 game-s in 1.1 s (was 18).
+- game-libs (B): "can't find function Users.Driver" (was "unknown property"; LiveCode fails the same, scripts fall
+  back on purpose); specialFolderPath("support"). g1-04 not reproduced (his play: no crash).
+- play-window (A): game windows 900x600 like VL.WindowRect, scaled like other windows (1.25; "xt3d game window" in
+  window_scale.json); Escape goes to front scripts first (GameNotes closes); dashed lines. His plays: Block City
+  Hustle "runs smooth and fits in the window", Thrmnlra "the best".
+- library-play (lead, x1-02 step 2): create stack (measured), the openStacks, quit, closing the hidden Library while
+  the game shows. Library Play = second copy with -game -> VL.Play -> game_player on the INSTALLED V: game.
+  XTALK_PLAY=bench = old way. NOT yet tried by him in a window: `tools/open_library.sh`, pick a game, Play.
+- New bubbles: g1-08 caseSensitive ignored (shared rules), g1-09 Thrmnlra note typing (game script, his word).
+- Known: the tick of game_player keeps defaultStack == shown stack (one window); exports still open 720x540.
+
+## (done) FRESH TERMINAL (27 Nov): helpers in parallel -> read docs/PLAN_HELPERS_2026-11-27.md FIRST
 
 Owner agreed: helper A play-window (g1-01/02/03), B game-libs (g1-04/06), C speed-2 (Squad Buggy spells),
 lead = x1-02 step 2; D raylib batch 2 only on his word. Each in its own git worktree ../xtalk_py_wt/<branch>,
