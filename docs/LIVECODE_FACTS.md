@@ -390,3 +390,15 @@ Python now says `can't find function Users.Driver` (same as LiveCode's meaning),
 
 Not fixed yet (Python, found while measuring): `is in`, `begins with`, `ends with`, `=`, `among`,
 `offset` ignore caseSensitive true in the Python runtime (they always ignore case).
+
+## Keys and focus in the play window (27 Nov, g1-02; NOT measured: the standalone server has no window or focus)
+
+Asked of the standalone (`focus on field`, `click at`, `the focusedObject`): every answer came back empty, so
+these follow the Dictionary and the owner's scripts, not a measurement. Measure them in the IDE when it is free.
+
+| Question | What the runtime does now | Source |
+|---|---|---|
+| a rawKeyDown handler that does not pass | no keyDown follows (the key is not typed) | Dictionary (rawKeyDown); GameNotes relies on it ("the engine never sees this Escape") |
+| order of rawKeyDown | front scripts, then the focused field or the card, its path | Dictionary |
+| a click on the card or an image while a field has the focus | the field loses the focus (runtime, unchanged) | not checked |
+| a card keyDown handler that never passes (Thrmnlra while playing) | a focused field gets no typing | message path: field, card, stack |

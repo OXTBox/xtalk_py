@@ -383,6 +383,22 @@ class View:
         if self.esc_frees:
             self.draw_escape_label()
 
+    def fronts_take(self, code):
+        """play mode: Escape (or another key the View keeps) goes first to the front scripts only, as rawKeyDown
+        reaches them first in LiveCode. True when one took it (did not pass it): GameNotes closing its box,
+        whatever has the focus (a click on the card had taken it from the box, and Escape then freed the mouse
+        instead, leaving the box up and the game paused: g1-02). Passed by them all: the View's, the game never
+        sees it."""
+        rt = self.rt
+        fronts = [rt.ctx[id(x)] for x in rt.fronts if id(x) in rt.ctx]
+        if not any('rawkeydown' in c.handlers for c in fronts):
+            return False
+        rt.engine_contexts = lambda o, f=fronts: f        # for this one message, the path is the front scripts
+        try:
+            return rt.handled(rt.default_stack.current, 'rawKeyDown', [str(code)])
+        finally:
+            del rt.engine_contexts
+
     def draw_escape_label(self):
         """play mode: a corner line that says whether the game has the mouse and keys"""
         if self.freed:
@@ -412,6 +428,40 @@ class View:
                 xa, xb = int(round(a)), int(round(b))
                 if xb > xa:
                     rl.draw_rectangle(xa, y, xb - xa, 1, fill)
+
+    def dash_pattern(self, o):
+        """the dashes of a graphic ("2,5,10,20": 2 drawn, 5 left out, 10 drawn, 20 left out, again); empty or
+        not numbers: a solid line"""
+        t = str(self.prop(o, 'dashes') or '').strip()
+        if not t:
+            return None
+        try:
+            d = [float(x) for x in t.split(',') if x.strip()]
+        except ValueError:
+            return None
+        if len(d) % 2:
+            d = d + d                              # an odd list: on and off swap the second time round
+        return d if d and sum(d) > 0 and all(x >= 0 for x in d) else None
+
+    @staticmethod
+    def draw_dashed(run, dashes, lw, col):
+        """one stroke (connected points) drawn with a dash pattern; the pattern runs on over the corners
+        (Thrmnlra's missile trails: Term.Path ... "2,5,10,20")"""
+        i, left, on = 0, dashes[0], True
+        for (x0, y0), (x1, y1) in zip(run, run[1:]):
+            seg = math.hypot(x1 - x0, y1 - y0)
+            pos = 0.0
+            while pos < seg:
+                step = min(left, seg - pos)
+                if on and step > 0:
+                    a, b = pos / seg, (pos + step) / seg
+                    rl.draw_line_ex(rl.Vector2(x0 + (x1 - x0) * a, y0 + (y1 - y0) * a),
+                                    rl.Vector2(x0 + (x1 - x0) * b, y0 + (y1 - y0) * b), lw, col)
+                pos += step
+                left -= step
+                if left <= 0:
+                    i = (i + 1) % len(dashes)
+                    left, on = dashes[i], not on
 
     def draw_graphic(self, o):
         style = self.prop(o, 'style') or 'rectangle'
@@ -446,10 +496,14 @@ class View:
             if style == 'polygon' and filled:
                 self.fill_polygon([p for p in pts if p is not None], fill)
             run = []
+            dashes = self.dash_pattern(o)
             for p in pts + [None]:
                 if p is None:
-                    for a, b in zip(run, run[1:]):
-                        rl.draw_line_ex(rl.Vector2(*a), rl.Vector2(*b), lw, line)
+                    if dashes:
+                        self.draw_dashed(run, dashes, lw, line)
+                    else:
+                        for a, b in zip(run, run[1:]):
+                            rl.draw_line_ex(rl.Vector2(*a), rl.Vector2(*b), lw, line)
                     run = []
                 else:
                     run.append(p)
@@ -684,6 +738,8 @@ class View:
     def draw_image(self, o):
         rc = self.rect(o)
         dt = o.direct_tex if o.pixels_from is not None else None
+        if dt is not None and self.scale > 1:     # a scaled window: the 2x frame xt3d made before shrinking it,
+            dt = getattr(o, 'direct_big', None) or dt   # so the 3D is drawn sharp at the window's size (g1-03)
         if dt is not None:                        # an xt3d frame still on the graphics card: drawn as it is
             rl.draw_texture_pro(dt, rl.Rectangle(0, 0, dt.width, -dt.height), rc, rl.Vector2(0, 0), 0, rl.WHITE)
             return                                # (a render texture is upside down: the source is flipped)
@@ -762,10 +818,14 @@ class View:
         self.after_frame()
         esc_mine = self.esc_frees and rt.focused is None   # play mode: Escape is the View's, not the game's
         if esc_mine and rl.is_key_pressed(rl.KEY_ESCAPE):  # (typing in a field, e.g. GameNotes: the script's)
-            self.freed = not self.freed
-            if hasattr(rt, 'log_clicks'):
-                rt.log_clicks.append('key escape (%s)' % ('mouse and keys freed' if self.freed else 'back to the game'))
-            self.capture()
+            if self.fronts_take(65307):           # a front script took it first (GameNotes closing its box)
+                if hasattr(rt, 'log_clicks'):
+                    rt.log_clicks.append('key escape (taken by a front script)')
+            else:
+                self.freed = not self.freed
+                if hasattr(rt, 'log_clicks'):
+                    rt.log_clicks.append('key escape (%s)' % ('mouse and keys freed' if self.freed else 'back to the game'))
+                self.capture()
         if self.freed:                            # the game gets no mouse moves, clicks or keys; it plays on
             rt.keys_down, rt.held_codes, rt.buttons_down = set(), list(rt.test_keys), set()
             rt.mouse_move(int(self.vmouse[0]), int(self.vmouse[1]))   # where the game last put it: no turning
@@ -834,6 +894,7 @@ class View:
         rt.held_codes = [code for key, code in self.KEYCODES if rl.is_key_down(key)
                          and not (code == 65307 and esc_mine)] + list(rt.test_keys)   # the keysDown
                                                    # (test_keys: keys a check tool holds down, tools/xt3d_game_check.py)
+        taken = set()                              # rawKeyDown not passed: LiveCode sends no keyDown for it
         for key, code in self.KEYCODES:            # rawKeyDown (Raycasting_101: Esc / ` free the mouse)
             if rl.is_key_pressed(key):
                 if code == 65307:
@@ -841,7 +902,8 @@ class View:
                         continue
                     if hasattr(rt, 'log_clicks'):
                         rt.log_clicks.append('key escape')
-                rt.raw_key(code)
+                if rt.raw_key(code) and code < 128:
+                    taken.add(code)
         self.capture()
         if rl.is_key_pressed(rl.KEY_F2):
             self.panel = not self.panel
@@ -854,7 +916,9 @@ class View:
                 self.set_scale(windows_scale())
         ch = rl.get_char_pressed()
         while ch:
-            if 'controlkey' not in held:          # Control + a letter is a command key (below), not typing
+            if ch < 128 and ord(chr(ch).lower()) in taken:   # its rawKeyDown was taken (GameNotes' `: the
+                taken.discard(ord(chr(ch).lower()))           # box opens, no ` typed into it)
+            elif 'controlkey' not in held:        # Control + a letter is a command key (below), not typing
                 rt.key(chr(ch))
             ch = rl.get_char_pressed()
         if 'controlkey' in held:
