@@ -63,7 +63,6 @@ repeating requirements into `LIB_<Name>` projects.
   `tests/test_xt3d.py`, `tests/test_window_rules.py`, `tests/test_effects.py`, `tests/test_xtpy.py`.
 - To ask a stack or game something hidden (any number at once, its writes stay in run_files/xtpy/):
   `tools/xtpy GAME_OR_HARVEST 'frames 40' 'type hello' 'key left' 'eval EXPR' 'snap out.png'` (help: `tools/xtpy -h`).
-
 - The reference for behaviour is LiveCode 9.6.3 itself, not documentation or memory.
   When unsure what LiveCode does, ask it: `~/projects/LIB_MCP/tools/lcmcp --standalone eval --server '<expr>'`,
   and record the answer in `docs/LIVECODE_FACTS.md`.
