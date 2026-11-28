@@ -18,6 +18,19 @@ TYPE = {'button': 'button', 'btn': 'button', 'field': 'field', 'fld': 'field', '
         'control': 'control', 'card': 'card', 'cd': 'card', 'stack': 'stack', 'background': 'group',
         'bkgnd': 'group', 'bg': 'group', 'buttons': 'button', 'fields': 'field', 'graphics': 'graphic',
         'images': 'image', 'groups': 'group', 'controls': 'control', 'cards': 'card', 'players': 'player'}
+EFFECTS = {'outerglow': 'outerGlow', 'innerglow': 'innerGlow', 'dropshadow': 'dropShadow',   # graphic effects:
+           'innershadow': 'innerShadow', 'coloroverlay': 'colorOverlay'}       # an array each (docs/SHADERS.md)
+
+
+def effect_of(o, p):
+    """o's effect p (canonical, lower case) as its array (a dict), or None"""
+    for k in o.props.keys_for(p):
+        v = o.props[k]
+        if isinstance(v, dict) and v:
+            return v
+    return None
+
+
 GEOMETRY = {'rect', 'rectangle', 'left', 'top', 'right', 'bottom', 'width', 'height', 'loc', 'location',
             'topleft', 'topright', 'bottomleft', 'bottomright'}
 SYNONYM = {'backcolor': 'backgroundcolor', 'forecolor': 'foregroundcolor', 'hilitecolor': 'hilitecolor',
@@ -339,6 +352,7 @@ class StackHost(Host):
         settings copied; no name unless given. A new card is gone to. Returns the long id (into it)."""
         rt = self.rt
         rt.paths_changed()
+        rt.fx_version = getattr(rt, 'fx_version', 0) + 1     # the template may carry an effect
         if typ == 'stack':
             return self.create_stack(name, invisible)
         st = rt.default_stack
@@ -549,6 +563,9 @@ class StackHost(Host):
         if not desc:
             return self.global_prop(p)
         o = self.resolve(desc)
+        if key is not None and p in EFFECTS:   # the outerGlow["size"] of X: the harvested glow's own value
+            d = effect_of(o, p) or {}
+            return to_text(next((v for k, v in d.items() if k.lower() == key.lower()), ''))
         if key is not None:
             s = next((v for k, v in o.sets.items() if k.lower() == p), None)
             if isinstance(s, dict):
@@ -813,6 +830,9 @@ class StackHost(Host):
             return
         o = self.resolve(desc)
         self.rt.changed = True
+        if p in EFFECTS:
+            self.set_effect(o, p, value, key)
+            return
         if key is not None:
             s = next((k for k in o.sets if k.lower() == p), None)
             if s is not None and isinstance(o.sets[s], dict):
@@ -1231,6 +1251,24 @@ class StackHost(Host):
             rt.quitting = True
             return ''
         raise XtError("can't find handler %s" % name)
+
+    def set_effect(self, o, p, value, key=None):
+        """set the outerGlow["size"] of X to 5 (one key; the others stay), set the outerGlow of X to tArray,
+        set the outerGlow of X to empty (gone). The window redraws it (rt.fx_version)"""
+        name = next(iter(o.props.keys_for(p)), EFFECTS[p])
+        d = dict(effect_of(o, p) or {})
+        if key is not None:
+            k = next((x for x in d if x.lower() == str(key).lower()), str(key).lower())
+            d[k] = value if isinstance(value, (int, float)) else to_text(value)
+        elif isinstance(value, dict):
+            d = {str(k).lower(): v for k, v in value.items()}
+        else:
+            d = {}                             # set ... to empty: no effect
+        if d:
+            o.props[name] = d
+        elif name in o.props:
+            del o.props[name]
+        self.rt.fx_version = getattr(self.rt, 'fx_version', 0) + 1
 
     def stack_resized(self, st, old):
         """the stack's size changed (a script, or the owner dragging the window: View.user_resize):

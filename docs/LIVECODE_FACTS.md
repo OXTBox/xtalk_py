@@ -492,3 +492,14 @@ handlers set destroyStack and close the mainStack themselves).
   "U" = "U"); a folder that is not there = "can't open that file". (`read from file` is not built in Python yet.)
 - An option menu button (style menu, menuMode option): a new one's label is empty; `set the text` makes the label
   line 1 and the menuHistory 1; `set the menuHistory to 2` makes the label line 2.
+
+## Graphic effects (x1-09, 27 Nov): NOT MEASURED YET
+
+The one probe (`create invisible stack`, a graphic with an outerGlow, `export snapshot from graphic ... with effects
+to tVar as PNG`) never answered, and the standalone server (port 8767) stayed silent afterwards (lead told).
+Wanted when it answers, no snapshot first: each effect's array after setting one key on a bare graphic (its
+defaults: effects.DEFAULTS is LiveCode's DOCUMENTED meaning, from memory, until then); then, with the 26 Nov
+roundRadius recipe (export snapshot to a file), the pixel profile of an outerGlow (size 10, spread 0 / 128) and
+the direction of a dropShadow's angle. Harvested from his stacks (read, not measured): effects are arrays with keys
+color, blendMode, opacity (0-255), filter (box3pass / gaussian), size, spread (0-255), range; shadows add distance,
+angle, knockout; innerGlow adds source (edge); colorOverlay has color, blendMode, opacity.
