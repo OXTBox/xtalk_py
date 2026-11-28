@@ -31,10 +31,16 @@ xt3d play window; its scale stays under `xt3d game window`).
 
 ## Checks
 
-`WAYLAND_DISPLAY=no-wayland .venv/bin/python -I tests/test_window_rules.py`: 41 checks on hidden windows (the place, a
-script resize, the owner's resize faked by giving the window a new size, min size, the grip, resizable false, the close
+`WAYLAND_DISPLAY=no-wayland .venv/bin/python -I tests/test_window_rules.py`: 48 checks on hidden windows (the place, a
+script resize, the owner's resize faked by giving the window a new size (also at 1.25, where pixels and units do not divide), min size, the grip, resizable false, the close
 box faked by setting GLFW's close flag (raylib reads it for one frame), kept / passed / during a wait / second click,
-remembered place and size, too big for the screen, a hidden window without rules untouched).
+remembered place and size, too big for the screen, a hidden window without rules untouched, and the real path: View.run, hidden while opening, shown once, a close click).
 
 What only a real window shows (the owner's try): the WSLg frame's own edge resize, the real close click, the place the
 window system really gives (raylib asks it again for ~0.2 s after showing, `XTALK_DEBUG_PLACE=1` prints it).
+
+## Changed from before x1-08
+
+- The opening place is in screen units times WINDOWS' scale (200,32 -> 250,40 pixels at 125%), no longer times our
+  zoom (the Library at 1.6 opened at 320,51 pixels; LiveCode would put it at 250,40).
+- Not built: LiveCode clips a script's size to maxWidth / maxHeight (measured); ours takes it as given.

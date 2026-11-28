@@ -192,6 +192,19 @@ check('a place off the screen is brought back on it', (st.rect[0] * WS + 420 <= 
       (True, True))
 v.close()
 
+# 3b. his drag at a scale that does not divide: the window stays as he made it, one resizeStack
+rt2, v2 = window(MINI, scale=1.25)
+rl.set_window_size(1003, 701)
+frames(v2, 3)
+check('drag at 1.25: window kept', (rl.get_screen_width(), rl.get_screen_height()), (1003, 701))
+check('drag at 1.25: one resizeStack', rt2.G['glog'], 'resize:802,561,300,200;')
+rt2.run('set the minWidth of this stack to 760')
+v2.set_scale(1.1)
+frames(v2)
+check('min size at 1.1: 836 px, not 837', v2.limits_px[0], 836)
+v2.close()
+
+
 # 9. too big for the screen: moved, then shrunk (resizable) not under its min size; scale remembered too
 rt, v = window(MINI, scale=2.0)
 st = rt.default_stack
@@ -217,6 +230,31 @@ v.frame()
 check('hidden, no rules: rect untouched', rt.default_stack.rect, before)
 check('hidden, no rules: not placed', v.placed, False)
 v.close()
+
+# 11. the real path (open_stack.sh): View.run, the window hidden while the stack opens, then shown once at its
+# place (show_after_open), a close click at frame 5; the window's showing is faked (it stays hidden)
+rt = StackRuntime(MINI, files_dir=FILES)
+rt.G['gscript'] = LOG
+rt.run('global gScript\nset the script of this stack to gScript')
+rt.G['glog'], rt.G['gkeep'] = '', 'false'
+v = V.View(rt, hidden=True, rules=True, key='run test')
+v.unshown, v.remember = True, True
+real = (rl.clear_window_state, rl.window_should_close)
+shown, n = [], [0]
+rl.clear_window_state = lambda f: shown.append(f) if f == rl.FLAG_WINDOW_HIDDEN else real[0](f)
+def close_at_5():
+    n[0] += 1
+    return n[0] == 5
+rl.window_should_close = close_at_5
+try:
+    v.run()
+finally:
+    rl.clear_window_state, rl.window_should_close = real
+check('run: shown once', shown, [rl.FLAG_WINDOW_HIDDEN])
+check('run: placed at 200,32', v.place, (200, 32))
+check('run: close click -> request, closeStack', rt.G['glog'], 'request;closeStack;')
+check('run: place remembered at close', {k: V.remembered_windows()['run test'].get(k) for k in ('left', 'top')},
+      {'left': 200, 'top': 32})
 
 print('%d of %d window rule checks pass' % (N[0] - len(BAD), N[0]))
 sys.exit(1 if BAD else 0)

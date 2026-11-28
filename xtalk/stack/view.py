@@ -180,6 +180,9 @@ class View:
         self.last_px = self.scaled_size()      # the size we last gave the window (a different one = the owner's drag)
         if not hidden and not self.unshown and not self.rules:
             rl.set_window_position(int(pos[0] * self.scale), int(pos[1] * self.scale))
+        elif not hidden and not self.unshown:  # shown at once (the xt3d play window): at its place now, so it does
+            ws = windows_scale()               # not sit elsewhere while the engine loads; fitted at its first frame
+            rl.set_window_position(int(pos[0] * ws), int(pos[1] * ws))
         rl.set_exit_key(0)
         rl.set_target_fps(60)
         try:                           # xt3d scripts draw with this window; their CloseWindow must not close it
@@ -286,7 +289,7 @@ class View:
         given again only when they change (the Library sets resizable false in its openStack)"""
         a, b, c, d = self.min_max()
         s = self.scale
-        want = (int(math.ceil(a * s)), int(math.ceil(b * s)), int(c * s), int(d * s), self.resizable())
+        want = (int(round(a * s)), int(round(b * s)), int(round(c * s)), int(round(d * s)), self.resizable())
         if want == self.limits_px:
             return
         self.limits_px = want
@@ -313,14 +316,14 @@ class View:
         """the stack and the window to w x h units (top-left kept), resizeStack to its card. by_owner: he
         dragged the window to that size (it is that size already, unless the min/max size held it)"""
         st = self.rt.default_stack
+        held = self.clamp_units(w, h) != (int(w), int(h))
         w, h = self.clamp_units(w, h)
         old = list(st.rect)
         st.rect = [old[0], old[1], old[0] + w, old[1] + h]
         self.base_size = (w, h)
-        px = self.scaled_size()
-        if px != self.last_px or not by_owner:
-            self.last_px = px
-            rl.set_window_size(*px)
+        if held or not by_owner:               # his drag at 1.25: 1003 px is 802 units is 1002 px; left as he made it
+            self.last_px = self.scaled_size()
+            rl.set_window_size(*self.last_px)
         self.cache_dirty = True
         self.wake()
         self.rt.host.stack_resized(st, old)
