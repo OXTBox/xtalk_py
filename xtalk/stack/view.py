@@ -223,8 +223,6 @@ class View:
         imgui.backends.opengl3_init('#version 330')
         self.imgui_scale = 1.0
         self.scale_imgui()
-        if self.rules and not self.unshown:    # shown at once (a hidden check, the xt3d play window): placed now
-            self.place_window(show=False)
 
     # ------------------------------------------------------------ scale
     def scaled_size(self):
@@ -1093,6 +1091,8 @@ class View:
             self.cache_dirty = True
         if self.placed:
             self.follow_window()
+        elif self.rules and not self.unshown:  # shown at once (the xt3d play window, a check): placed at its
+            self.place_window()                # first frame, once its tool has said what it is (esc_frees)
 
     def frame(self):
         rt = self.rt
@@ -1270,8 +1270,8 @@ class View:
         """show a window kept hidden while its stack opened (show_after_open), at its size and place now"""
         if not self.unshown:
             return
-        self.unshown = False
         self.follow_stack_size()
+        self.unshown = False
         st = self.rt.default_stack
         rl.set_window_title(str(st.props.get('title') or st.name))
         if self.rules:

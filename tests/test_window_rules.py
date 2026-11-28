@@ -65,6 +65,7 @@ def window(folder, remember=False, **kw):
     v = V.View(rt, hidden=True, rules=True, scale=kw.pop('scale', 1.0), **kw)
     rt.on_wait, rt.on_menu, rt.on_dialog = v.wait_frames, v.menu_frames, v.dialog_frames
     rt.open()
+    v.frame()                          # a window shown at once is placed at its first frame
     rt.G['gscript'] = LOG
     rt.run('global gScript\nset the script of this stack to gScript')
     rt.G['glog'] = ''
@@ -212,6 +213,7 @@ rt = StackRuntime(MINI, files_dir=FILES)
 before = list(rt.default_stack.rect)
 v = V.View(rt, hidden=True)
 rt.open()
+v.frame()
 check('hidden, no rules: rect untouched', rt.default_stack.rect, before)
 check('hidden, no rules: not placed', v.placed, False)
 v.close()
