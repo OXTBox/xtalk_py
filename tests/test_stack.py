@@ -116,6 +116,12 @@ rt.run('select after text of field "T"')
 rt.key('!')
 rt.run('select char 1 to 2 of field "T"')
 check('select: after text, then a chunk (the selectedText)', (rt.get('field "T"', 'text'), rt.eval('the selection')), ('ab\nzc!', 'ab'))
+rt.run('select after text of field "T"')
+for c in 'qx\bw':
+    rt.type_char(c)                       # x1-11: rawKeyDown + keyDown like a window; x taken; \b = Backspace
+check('type_char: typed like a window (keyDown takes x, \\b backspaces)', rt.get('field "T"', 'text'), 'ab\nzc!w')
+rt.type_char('\b')
+rt.run('select char 1 to 2 of field "T"')
 rt.G['glog'] = ''
 rt.click('40,30')                         # elsewhere: the field had changed: closeField
 check('typing: leaving a changed field sends closeField', (rt.G['glog'].split(';')[0], rt.eval('the focusedObject')), ('close', ''))
@@ -559,6 +565,14 @@ rt.raw_key(65307)
 check('the keysDown; rawKeyDown with the code; globalLoc / localLoc add / take the window place',
       (rt.eval('the keysDown'), rt.G['glog'], rt.eval('globalLoc("10,20")'), rt.eval('localLoc("210,52")')),
       ('119,65362', '65307,', '210,52', '10,20'))
+rt.run('set the script of card 1 to "on rawKeyDown k" & cr & "global glog" & cr & "put k & comma after glog" & cr & '
+       '"if k is not 113 then pass rawKeyDown" & cr & "end rawKeyDown" & cr & "on keyDown c" & cr & "global glog" & cr & '
+       '"put c & comma after glog" & cr & "end keyDown"')
+rt.G['glog'] = ''
+for c in 'qW':
+    rt.type_char(c)
+check('type_char: a taken rawKeyDown sends no keyDown; letters go as lower-case codes',
+      rt.G['glog'], '113,119,W,')
 rt.run('set the screenMouseLoc to 5,5')          # no window: nothing moves, no error
 check('set the screenMouseLoc with no window: no error', rt.errors, [])
 

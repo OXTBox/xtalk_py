@@ -50,3 +50,13 @@ two helpers side by side (different files); x1-14 waits for x1-12.
 2. The rest: all four, in that order, or only some?
 3. x1-14: register the Python tools for Claude Code in all of ~/projects (every session and helper sees them), or
    only inside xtalk_py?
+
+## His answers (27 Nov night)
+
+"for now run with MCP Python": all five, built in the order above (x1-11, x1-12, x1-13, x1-14, x1-15; the
+tube now lists them that way). Shaders (x1-09) next, then the raylib Examples folder (x1-16).
+Question 3 not answered: Claude's pick is to register the x1-14 tools in all of ~/projects, so every helper has
+them (he can say otherwise before x1-14 is merged).
+
+- x1-11 DONE on branch `type-keys`: `StackRuntime.type_char` + `xt3d_game_check.py --type "TEXT:FRAME"`
+  (repeatable; \b \n \t). Tried on Thrmnlra: `` `hellx\bo:40 `` opened the note box and left "hello" in it.

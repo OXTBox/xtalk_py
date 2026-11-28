@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """xt3d_game_check.py - play a Vibecode3D game through the xt3d testbench host, unchanged, in Python (Phase 3).
 
-    .venv/bin/python -I tools/xt3d_game_check.py [GAME] [--frames N] [--keys "0:60,1:120"] [--snap OUT.png]
+    .venv/bin/python -I tools/xt3d_game_check.py [GAME] [--frames N] [--keys "0:60,1:120"] [--type "hello:300"] [--snap OUT.png]
                                                  [--size 720x540] [--scale 1.25] [--profile] [--eval 'expr;;expr']
     .venv/bin/python -I tools/xt3d_game_check.py [GAME] --window [--size 900x600]
                                                  a real window at 200,32 to play in; close it to stop
@@ -13,7 +13,9 @@ opened in its view-only mode (the global gXbViewRect: one image filling the wind
 games). It loads the engine's xt3d edition (testbench/vibe_engine_xt3d.livecodescript) with start using, then
 xbPlayGame GAME. A hidden window runs N frames; --keys holds a key down from a frame on ("0:60" = the 0 key
 from frame 60: uDead's culling modes are keys 0-3; a number is a key code, 65361 = left arrow; "-65361:90"
-lets it go at frame 90). Prints the host's stats line (fps, step, scene, draw...)
+lets it go at frame 90). --type "TEXT:FRAME" types TEXT from that frame, one key a frame, the way a window
+does (rawKeyDown, then keyDown with the character, typed into the focused field); \\b = Backspace, \\n = Return,
+\\t = Tab; --type may be given more than once (x1-11). Prints the host's stats line (fps, step, scene, draw...)
 each second of frames, script errors, and saves a snapshot (default run_files/xt3d_game.png).
 """
 import json, os, shutil, sys, time
@@ -56,6 +58,13 @@ def main(a):
         if k:
             key, at = k.split(':')
             keys.append((int(at), key))
+    typed = {}                                 # --type "TEXT:FRAME": frame -> the character typed then
+    for i, k in enumerate(a):
+        if k == '--type' and i + 1 < len(a):
+            text, at = a[i + 1].rsplit(':', 1)
+            text = text.replace('\\b', '\b').replace('\\n', '\n').replace('\\t', '\t')
+            for j, ch in enumerate(text):
+                typed.setdefault(int(at) + j, []).append(ch)
     folder = os.path.join(ROOT, 'run_files', 'xt3d_bench')
     make_stack(folder, w, h)
     if '--window' in a:
@@ -92,6 +101,8 @@ def main(a):
                 code = ord(key) if len(key) == 1 else int(key)
                 rt.test_keys = rt.test_keys + [code]
                 rt.raw_key(code)
+        for ch in typed.get(i, ()):
+            rt.type_char(ch)
         if slow_ms:                            # --slow MS: what ran in a frame that took longer than MS
             import cProfile, pstats, io
             fp = cProfile.Profile()
