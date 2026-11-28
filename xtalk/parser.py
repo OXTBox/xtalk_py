@@ -218,7 +218,7 @@ class Parser:
                 self.end_stmt()
             return r
         self.i += 1
-        r = ('cmd', w, self.cmd_parts())
+        r = ('cmd', w, self.file_parts(w, self.cmd_parts()))
         self.end_stmt()
         return r
 
@@ -254,7 +254,29 @@ class Parser:
             self.i += 1
             return m()
         self.i += 1
-        return ('cmd', w, self.cmd_parts())
+        return ('cmd', w, self.file_parts(w, self.cmd_parts()))
+
+    FILE_CMDS = ('open', 'close', 'write', 'read')
+    FILE_WORDS = ('read', 'write', 'append', 'update', 'text', 'binary', 'until', 'eof')
+
+    def file_parts(self, w, parts):
+        """open / close / write / read with `file X` (x1-04, the xt3d bench's check log): the file's NAME goes to
+        the command, not its contents (`file X` alone reads like URL "file:" & X). The name comes as a text
+        starting with NUL + "file:" (or "binfile:"), and the mode words (for append, until EOF) as words."""
+        def is_call(p):                    # open file (p & ".txt"): read as a call of a function `file`
+            return p[0] == 'e' and p[1][0] == 'call' and p[1][1].lower() in ('file', 'binfile') and len(p[1][2]) == 1
+        if w not in self.FILE_CMDS or not any(p[0] == 'e' and p[1][0] == 'url' or is_call(p) for p in parts):
+            return parts
+        out = []
+        for p in parts:
+            if is_call(p):
+                p = ('e', ('url', p[1][1].lower(), p[1][2][0]))
+            if p[0] == 'e' and p[1][0] == 'url' and p[1][1] in ('file', 'binfile'):
+                p = ('e', ('bin', '&', ('str', '\x00%s:' % p[1][1]), p[1][2]))
+            elif p[0] == 'e' and p[1][0] == 'var' and p[1][1].lower() in self.FILE_WORDS:
+                p = ('w', p[1][1].lower())
+            out.append(p)
+        return out
 
     def list_expr(self):
         e = self.expr()

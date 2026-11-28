@@ -10,7 +10,7 @@ listen), then `go stack` the bench script (testbench/xt3d_testBench_lib_mcp.live
 
 STEPS, done in order (each followed by --frames frames, default 30):
     click:NAME          a click on the control of that short name (gamesBtn, faceBtn, spinChk, checksBtn...)
-    pick:NAME:LINE      click line LINE of list field NAME (fileList:3) - a model, a game or an example card
+    pick:NAME:LINE      click line LINE (a number or the text) of list field NAME (fileList:3, fileList:SquadBuggy)
     game:NAME           xbPlayGame NAME (as picking it from the Games list)
     key:CODE            rawKeyDown CODE (65307 = Escape)
     answer:TEXT         the reply to the next answer folder / answer file dialog
@@ -80,8 +80,8 @@ def main(a):
             name, _, line = arg.partition(':')
             o = rt.host.resolve('field "%s" of card 1 of stack "xt3dTestBenchLibMCP"' % name)
             lines = o.text.split('\n')
-            print('   %s lines: %s' % (name, ', '.join(lines[:30])))
-            i = int(line)
+            print('   %s: %d lines: %s' % (name, len(lines), ', '.join(lines[:12])))
+            i = int(line) if line.isdigit() else lines.index(line) + 1   # a line number or the line itself
             rt.host.set_prop('field "%s" of card 1 of stack "xt3dTestBenchLibMCP"' % name, 'hilitedLines', str(i), None)
             rt.message(o, 'mouseUp', ['1'])
         elif kind == 'game':

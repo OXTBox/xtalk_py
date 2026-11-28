@@ -16,8 +16,14 @@ from raylib import ffi
 from ..values import XtError, to_num, to_text, numstr  # noqa: F401  (numstr is used by generated.py)
 
 
+# CLOSED: a script's xt3d_CloseWindow while the stack's own window is raylib's (the xt3d bench's Run checks and
+# closeStack, x1-04): the window stays (it is the stack's), but to the script it is closed until its next
+# InitWindow / InitHidden, as with the bridge: IsWindowReady false, drawing does nothing, LoadModel answers 0.
+CLOSED = [False]
+
+
 def ready():
-    return rl.IsWindowReady()
+    return rl.IsWindowReady() and not CLOSED[0]
 
 
 # ---- script values -> C values (the LiveCode Builder side of the bridge does these).

@@ -112,6 +112,7 @@ class StackHost(Host):
             from .. import xt3d      # does: read where they are, written where this runtime writes (x1-04)
             xt3d.PATHS['read'] = self.real_path
             xt3d.PATHS['write'] = lambda p: self.write_path(self.real_path(p))
+            xt3d.CLOSED[0] = False   # a new stack: no script has closed its xt3d window
         except ImportError:          # no raylib in this Python: no xt3d calls either
             pass
 
@@ -775,6 +776,23 @@ class StackHost(Host):
         return o.sets[k]
 
     def set_prop(self, desc, prop, value, key=None):
+        r = self._set_prop(desc, prop, value, key)
+        p = prop.lower()
+        if desc and key is None and p in ('text', 'menuhistory'):
+            o = self.resolve(desc)             # an option menu shows its chosen line as its label (measured 27 Nov:
+            if o.type == 'button' and str(self.obj_prop(o, 'menumode')).lower() == 'option':   # set the text =
+                lines = (o.text or '').split('\n')    # line 1 and menuHistory 1; set the menuHistory to 2 = line 2)
+                if p == 'text':
+                    o.props['menuHistory'] = '1'
+                try:
+                    n = int(float(o.props.get('menuHistory', '1') or 1))
+                except ValueError:
+                    n = 1
+                if 1 <= n <= len(lines):
+                    o.props['label'] = lines[n - 1]
+        return r
+
+    def _set_prop(self, desc, prop, value, key=None):
         p = prop.lower()
         if not desc:
             return
@@ -1140,6 +1158,8 @@ class StackHost(Host):
                 self.resolve(es[0]).props['disabled'] = 'true' if name == 'disable' else 'false'
                 rt.changed = True
             return ''
+        if name in ('open', 'close', 'write', 'read') and any(e.startswith('\x00') for e in es):
+            return self.file_command(name, es, words)
         if name == 'open' and es:              # open stack "about": shown in the one window (first time: its open messages)
             o = self.resolve(es[0])
             if o.type == 'stack':
@@ -1207,6 +1227,50 @@ class StackHost(Host):
             rt.quitting = True
             return ''
         raise XtError("can't find handler %s" % name)
+
+    def file_command(self, name, es, words):
+        """open file / write to file / close file (x1-04: the xt3d bench's check log). Measured 27 Nov: open with no
+        mode = update (writes over the start), for write empties the file, for append adds at the end; a missing
+        folder = "can't open that file"; write to a file not open = "file is not open for write", close =
+        "file is not open". The file is written at every write (a check log survives a crash), where every write of
+        this runtime goes (write_path: his real file in his window, the sandbox in checks)."""
+        ref = next(e for e in es if e.startswith('\x00'))[1:]
+        real = self._path(ref)
+        files = self.__dict__.setdefault('open_files', {})
+        key = os.path.abspath(real)
+        if name == 'open':
+            mode = next((w for w in words if w in ('read', 'write', 'append', 'update')), 'update')
+            wp = self.write_path(real)
+            src = wp if os.path.exists(wp) else real
+            if mode == 'read':
+                if not os.path.isfile(src):
+                    return "can't open that file"
+                text = open(src, 'rb').read().decode('latin-1' if ref.startswith('binfile:') else 'utf-8', 'replace')
+            else:
+                if not os.path.isdir(os.path.dirname(real) or '.'):
+                    return "can't open that file"
+                text = '' if mode == 'write' or not os.path.isfile(src) else \
+                    open(src, encoding='utf-8', errors='replace').read()
+                os.makedirs(os.path.dirname(wp) or '.', exist_ok=True)
+                open(wp, 'w', encoding='utf-8').write(text)
+            files[key] = {'mode': mode, 'pos': len(text) if mode == 'append' else 0, 'text': text, 'wp': wp}
+            return ''
+        f = files.get(key)
+        if name == 'close':
+            if f is None:
+                return 'file is not open'
+            del files[key]
+            return ''
+        if name == 'write':
+            if f is None or f['mode'] == 'read':
+                return 'file is not open for write'
+            data = es[0]
+            t, pos = f['text'], f['pos']
+            f['text'] = t[:pos] + data + t[pos + len(data):]
+            f['pos'] = pos + len(data)
+            open(f['wp'], 'w', encoding='utf-8').write(f['text'])
+            return ''
+        raise XtError('read from file: not built in Python yet (it would set `it`)')
 
     def destroyed(self, st):
         """a closed stack with destroyStack true (and not the harvest's own): gone from memory"""

@@ -775,6 +775,30 @@ rt.open()
 rt.run('quit')
 check('quit: the window ends', rt.closed, True)
 
+# x1-04 (the xt3d bench, measured 27 Nov): file commands, an option menu's label, accept, the screenLoc
+rt = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=os.path.join(ROOT, 'run_files', 'test'))
+rt.open()
+_p = os.path.join(ROOT, 'run_files', 'test', 'x104_file.txt')
+check('write / close a file not open; append, write (empties), update (over the start); missing folder',
+      rt.run('put "%s" into p\nput "abc" into URL ("file:" & p)\nwrite "zz" to file p\nput "[" & the result & "]" into r\n'
+             'close file p\nput "[" & the result & "]" after r\nopen file p for append\nwrite "1" & return to file p\n'
+             'write "2" to file p\nclose file p\nput "[" & URL ("file:" & p) & "]" after r\nopen file p for write\n'
+             'write "w" to file p\nclose file p\nput "[" & URL ("file:" & p) & "]" after r\nopen file p\n'
+             'write "U" to file p\nclose file p\nput "[" & URL ("file:" & p) & "]" after r\n'
+             'open file (p & ".nope/q") for append\nput "[" & the result & "]" after r\nreplace return with "/" in r\n'
+             'return r' % _p),
+      "[file is not open for write][file is not open][abc1/2][w][U][can't open that file]")
+check('an option menu: set the text = line 1 is the label, set the menuHistory = that line',
+      rt.run('create button "OptX"\nset the style of it to "menu"\nset the menuMode of it to "option"\n'
+             'put "[" & the label of button "OptX" & "]" into r\nset the text of button "OptX" to "a" & cr & "b"\n'
+             'put "[" & the label of button "OptX" & "]" after r\nset the menuHistory of button "OptX" to 2\n'
+             'put "[" & the label of button "OptX" & "]" after r\nset the text of button "OptX" to "x" & cr & "y"\n'
+             'return r & "[" & the label of button "OptX" & "]" & the menuHistory of button "OptX"'),
+      '[][a][b][x]1')
+check('accept connections: no sockets, the result says so; the screenLoc',
+      rt.run('accept connections on port 8799 with message "x"\nreturn (the result is not empty) & "," & the screenLoc'),
+      'true,768,432')
+
 print('\n%d of %d stack checks pass' % (N[0] - len(BAD), N[0]))
 sys.exit(1 if BAD else 0)
 

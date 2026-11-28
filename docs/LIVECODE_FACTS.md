@@ -435,3 +435,9 @@ these follow the Dictionary and the owner's scripts, not a measurement. Measure 
   `put`, `get`, `add` keep it (a failed `open file` = "can't open that file" stays through them).
   `set the defaultFolder to "Q:/nope"` (no such folder): the result is "can't open directory".
 - `the screenLoc` = 768,432 and `the screenRect` = 0,0,1536,864 on his laptop (the middle of the screenRect).
+- File commands (for the bench's check log, C:/xt3d/bench_checks.txt): `write "zz" to file p` with p not open = the
+  result "file is not open for write"; `close file p` not open = "file is not open"; `open file p for append` adds
+  at the end; `for write` empties the file first; `open file p` (no mode = update) writes over the start ("w" then
+  "U" = "U"); a folder that is not there = "can't open that file". (`read from file` is not built in Python yet.)
+- An option menu button (style menu, menuMode option): a new one's label is empty; `set the text` makes the label
+  line 1 and the menuHistory 1; `set the menuHistory to 2` makes the label line 2.
