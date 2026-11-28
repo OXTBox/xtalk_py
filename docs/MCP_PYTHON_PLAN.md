@@ -60,3 +60,9 @@ them (he can say otherwise before x1-14 is merged).
 
 - x1-11 DONE on branch `type-keys`: `StackRuntime.type_char` + `xt3d_game_check.py --type "TEXT:FRAME"`
   (repeatable; \b \n \t). Tried on Thrmnlra: `` `hellx\bo:40 `` opened the note box and left "hello" in it.
+- x1-12 DONE on branch `xtpy` (made from `type-keys`: merge type-keys first): `xtalk/session.py` (one stack kept
+  open hidden, steps click/type/key/hold/release/frames/eval/run/snap/stats/errors) + `tools/xtpy` (steps on the
+  command line, or `serve`: one step a line in, one JSON answer a line out, for x1-14). One session a process
+  (raylib has one window a process): many at once = many processes, each its own run_files/xtpy/<pid> folder,
+  where the stack's writes go (checked: a note saved in Thrmnlra's box lands there, GAME_NOTES.txt unchanged).
+  tests/test_xtpy.py (14, two at once included). make_stack moved from xt3d_game_check into xtalk/session.py.

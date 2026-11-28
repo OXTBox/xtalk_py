@@ -58,6 +58,12 @@ repeating requirements into `LIB_<Name>` projects.
 
 ## Working rules
 
+- The full test list (after any change to `xtalk/`; all must pass before a merge): `python3 -I tests/test_interp.py`,
+  `tests/test_transpile.py`, `tests/test_stack.py`, `tests/test_native.py`; `.venv/bin/python -I tests/test_measured.py`,
+  `tests/test_xt3d.py`, `tests/test_window_rules.py`, `tests/test_effects.py`, `tests/test_xtpy.py`.
+- To ask a stack or game something hidden (any number at once, its writes stay in run_files/xtpy/):
+  `tools/xtpy GAME_OR_HARVEST 'frames 40' 'type hello' 'key left' 'eval EXPR' 'snap out.png'` (help: `tools/xtpy -h`).
+
 - The reference for behaviour is LiveCode 9.6.3 itself, not documentation or memory.
   When unsure what LiveCode does, ask it: `~/projects/LIB_MCP/tools/lcmcp --standalone eval --server '<expr>'`,
   and record the answer in `docs/LIVECODE_FACTS.md`.
