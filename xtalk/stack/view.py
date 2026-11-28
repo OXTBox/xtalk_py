@@ -226,6 +226,10 @@ class View:
         imgui.backends.opengl3_init('#version 330')
         self.imgui_scale = 1.0
         self.scale_imgui()
+        from .effects import Effects
+        self.fx = Effects(self)        # graphic effects (glow, shadow: x1-09); nothing is made for a stack without
+        self.fx_origin = None          # drawing an object's shape for its effect: the texture's corner, in units
+        self.fx_ready = False          # the effect textures were made this frame (the idle picture makes them first)
 
     # ------------------------------------------------------------ scale
     def scaled_size(self):
@@ -499,6 +503,8 @@ class View:
     def scissor(self, x, y, w, h):
         """clip to a card rect (scissors work in real pixels: the scale's matrix does not reach them)"""
         s = self.scale
+        if self.fx_origin is not None:          # inside an effect's shape texture: from its corner
+            x, y = x - self.fx_origin[0], y - self.fx_origin[1]
         if s == 1:
             rl.begin_scissor_mode(int(x), int(y), max(0, int(w)), max(0, int(h)))
             return
@@ -652,6 +658,10 @@ class View:
     def draw_card(self):
         st = self.rt.default_stack
         card = st.current
+        fx = self.fx.refresh()             # the objects with a glow / shadow (none: nothing more is done)
+        if fx and not self.fx_ready:
+            self.fx.prepare()              # their textures, before the scale matrix (a texture pass resets it)
+        self.fx_ready = False
         bg = colour(self.inherit(card, 'backgroundColor'), rl.Color(240, 240, 240, 255))
         rl.clear_background(bg)
         scaled = self.scale != 1
@@ -659,10 +669,22 @@ class View:
             rl.rl_draw_render_batch_active()
             rl.rl_push_matrix()
             rl.rl_scalef(self.scale, self.scale, 1)
-        for o in card.flat():
-            if o.type == 'group' or not self.rt._shown(o):
-                continue
-            getattr(self, 'draw_' + o.type, self.draw_other)(o)
+        if not fx:
+            for o in card.flat():
+                if o.type == 'group' or not self.rt._shown(o):
+                    continue
+                getattr(self, 'draw_' + o.type, self.draw_other)(o)
+        else:
+            from .effects import UNDER, OVER
+            for o in card.flat():
+                if o.type == 'group' or not self.rt._shown(o):
+                    continue
+                has = id(o) in fx
+                if has:
+                    self.fx.draw(o, UNDER)
+                getattr(self, 'draw_' + o.type, self.draw_other)(o)
+                if has:
+                    self.fx.draw(o, OVER)
         if scaled:
             rl.rl_draw_render_batch_active()
             rl.rl_pop_matrix()
@@ -1484,6 +1506,9 @@ class View:
                 if c is not None:
                     rl.unload_render_texture(c)
                 c = self.card_cache = rl.load_render_texture(w, h)
+            if self.fx.refresh():                 # effect textures first: no texture pass inside another
+                self.fx.prepare()
+                self.fx_ready = True
             rl.end_drawing()                      # drawing into the picture happens outside the window's frame
             rl.begin_texture_mode(c)
             rl.clear_background(rl.BLANK)
@@ -1560,6 +1585,7 @@ class View:
             rl.end_drawing()
 
     def close(self):
+        self.fx.close()
         imgui.backends.opengl3_shutdown()
         imgui.destroy_context()
         rl.close_window()
