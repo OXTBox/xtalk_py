@@ -5,6 +5,7 @@
 # The Library runs from LIB_PUBLIC/launcher/vibe_launcher.livecodescript (harvest: run_files/target_harvests/Vibecode3D_Library).
 cd "$(dirname "$0")/.." || exit 1
 mkdir -p run_files
+. tools/gpu.sh                      # graphics card when WSL has one; XTALK_GPU=0: CPU
 if ! .venv/bin/python -I tools/open_stack.py run_files/target_harvests/Vibecode3D_Library \
      --engine "V:/Program Files (x86)/Vibecode3D" > run_files/open_library.log 2>&1; then
   echo "open_library: it stopped with an error. Last lines of run_files/open_library.log:"
