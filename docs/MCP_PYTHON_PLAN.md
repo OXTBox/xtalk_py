@@ -70,3 +70,11 @@ them (he can say otherwise before x1-14 is merged).
   translated, fast mode, LiveCode; AGREE / DIFFER; `--fact` drafts the LIVECODE_FACTS line; `--no-lc`.
   LiveCode is asked once, never retried (exit 2 = not asked). The LiveCode column is NOT yet tried: it waits for
   his OK to ping lcmcp (a failed start opens a command prompt on his screen).
+- x1-14 BUILT on branch `mcp-pack` (made from `xtpy-diff`): `mcp/xtpy_tools.py`, a pack for LIB_MCP's server
+  (`--tools ~/projects/xtalk_py/mcp/xtpy_tools.py`): xtpy_games, xtpy_open (up to 4 at once, each its own
+  `xtpy serve` process), xtpy_eval, xtpy_run, xtpy_click, xtpy_type, xtpy_key (hold/let go), xtpy_frames,
+  xtpy_snap (a PNG picture), xtpy_step, xtpy_close, xtpy_list, xtpy_game (one game N frames: speed, stats, errors,
+  picture), xtpy_diff. Tried through the server: SquadBuggy 120 frames 60 a second, no errors (its first ~300
+  frames are the loading screen). NOT yet registered for Claude Code: registering points at this file, so after
+  the merge (`claude mcp add -s user xtpy -- python3 -I ~/projects/LIB_MCP/python/lib_mcp/mcp_server.py --tools
+  ~/projects/xtalk_py/mcp/xtpy_tools.py`; user scope = every session in ~/projects, his question 3).

@@ -4,7 +4,7 @@
     python3 -I tests/test_xtpy.py           the session on tests/stacks/mini (no window, standard library only)
     .venv/bin/python -I tests/test_xtpy.py  the same, plus tools/xtpy runs: two at once, serve mode, a game
 """
-import json, os, subprocess, sys, time
+import base64, json, os, subprocess, sys, time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -74,6 +74,29 @@ if have_raylib or os.path.isfile(VENV):
     p = subprocess.run(cmd + ['Thrmnlra', 'frames 40', 'type `hellx\\bo', 'eval the text of field "GameNote"'],
                        capture_output=True, text=True, timeout=300)
     check('a game: type into its note box', p.stdout.split('\n')[-2:], ['hello', ''])
+
+    # x1-14: the MCP pack through LIB_MCP's server (plain python3, as LM Studio / Claude Code start it)
+    server = os.path.expanduser('~/projects/LIB_MCP/python/lib_mcp/mcp_server.py')
+    if os.path.isfile(server):
+        msgs = [{'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {}},
+                {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list'},
+                {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'xtpy_open', 'arguments': {'target': MINI}}},
+                {'jsonrpc': '2.0', 'id': 4, 'method': 'tools/call', 'params': {'name': 'xtpy_eval', 'arguments': {'expression': '6 * 7'}}},
+                {'jsonrpc': '2.0', 'id': 5, 'method': 'tools/call', 'params': {'name': 'xtpy_run', 'arguments': {'code': 'global gA\nput 5 into gA'}}},
+                {'jsonrpc': '2.0', 'id': 6, 'method': 'tools/call', 'params': {'name': 'xtpy_eval', 'arguments': {'session': '1', 'expression': 'gA'}}},
+                {'jsonrpc': '2.0', 'id': 7, 'method': 'tools/call', 'params': {'name': 'xtpy_snap', 'arguments': {}}},
+                {'jsonrpc': '2.0', 'id': 8, 'method': 'tools/call', 'params': {'name': 'xtpy_close', 'arguments': {}}},
+                {'jsonrpc': '2.0', 'id': 9, 'method': 'tools/call', 'params': {'name': 'xtpy_diff', 'arguments': {'code': '7 mod -3'}}}]
+        p = subprocess.run(['python3', '-I', server, '--tools', os.path.join(ROOT, 'mcp', 'xtpy_tools.py')],
+                           input=''.join(json.dumps(m) + '\n' for m in msgs), capture_output=True, text=True, timeout=300)
+        r = {m['id']: m.get('result', {}) for m in map(json.loads, p.stdout.splitlines())}
+        names = [t['name'] for t in r[2].get('tools', [])]
+        check('mcp: the pack\'s tools are listed', all(n in names for n in ('xtpy_open', 'xtpy_eval', 'xtpy_game')), True)
+        txt = lambda i: r[i]['content'][0].get('text', '')  # noqa: E731
+        check('mcp: open, eval, run + eval a global', (txt(3)[:9], txt(4), txt(6)), ('session 1', '42', '5'))
+        check('mcp: snap is a PNG picture', (r[7]['content'][0]['type'], base64.b64decode(r[7]['content'][0]['data'])[:4]),
+              ('image', b'\x89PNG'))
+        check('mcp: close; diff without LiveCode', (txt(8)[:6], 'the Python answers agree' in txt(9)), ('closed', True))
 
 print('%d of %d xtpy checks pass' % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)
