@@ -17,6 +17,54 @@ from xtalk.pyrt import Runtime                                # noqa: E402
 from xtalk.transpile import translate_script                  # noqa: E402
 
 CASES = [
+    ('filter with regex pattern / wildcard pattern: regex found anywhere, both follow the caseSensitive (x1-04, measured 27 Nov)', '''
+function t
+local t, u, r
+put "abc" & cr & "ABD" & cr & "xbz" & cr & "b" into t
+put t into u
+filter u with regex pattern "b"
+put u & "|" into r
+put t into u
+filter u with regex pattern "^b$"
+put u & "|" after r
+put t into u
+filter u without regex pattern "B"
+put u & "|" after r
+put t into u
+filter lines of u with pattern "*b*"
+put u & "|" after r
+put t into u
+filter u with wildcard pattern "?B?"
+put u & "|" after r
+put "a,Bb,c" into u
+filter items of u with regex pattern "b"
+put u & "|" after r
+put t into u
+filter u with regex pattern "(?i)^ab"
+put u after r
+replace cr with "/" in r
+set the caseSensitive to true
+put "abc" & cr & "ABD" into u
+filter u with regex pattern "b"
+put "|" & u after r
+put "abc" & cr & "ABD" into u
+filter u with pattern "*b*"
+put "|" & u after r
+return r
+end t''', 'abc/ABD/xbz/b|b||abc/ABD/xbz/b|abc/ABD/xbz|Bb|abc/ABD|abc|abc'),
+    ('set empties the result; put, get and add keep it (x1-04, measured 27 Nov)', '''
+function t
+   tCmd
+   put 1 into x
+   get 2
+   add 1 to x
+   put the result & "|" into tR
+   set the itemDel to comma
+   return tR & the result
+end t
+on tCmd
+   return "x"
+end tCmd''', 'x|'),
     ('the caseSensitive true: text operators count case (g1-08, measured 27 Nov); false again in a called function', '''
 function t
    put ("x" is in "X") & ("AbC" begins with "a") & ("AbC" ends with "c") & ("a" = "A") into tR

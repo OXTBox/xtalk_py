@@ -7,8 +7,8 @@ tests/test_xt3d.py checks them against the real bridge. Not the same yet:
 - xt3d_RenderTextureImageData / AlphaData give the bytes as text (one char a byte), as LiveCode's
   imageData is; step 4 (where the 3D view draws) will likely draw the texture straight instead.
 """
-import re, struct
-from . import rl, ffi, ready, numstr, I, F, B, C, S, R, W, MX, XtError   # noqa: F401
+import os, re, struct
+from . import rl, ffi, ready, numstr, I, F, B, C, S, P, PW, R, W, MX, XtError   # noqa: F401
 from .tables import TABLES, T_Image, T_Texture, T_RenderTexture, T_Mesh, T_Shader, T_Material, T_Model, \
     T_ModelAnimation, T_Camera3D, T_Camera2D
 
@@ -191,7 +191,7 @@ MAX_ANIMSETS = 256
 
 def xt3d_LoadModelAnimations(*a):
     n = ffi.new('int *')
-    anims = rl.LoadModelAnimations(S(_pad(a, 1)[0]), n)
+    anims = rl.LoadModelAnimations(P(_pad(a, 1)[0]), n)
     count = n[0]
     if anims == ffi.NULL or count <= 0:
         return '0,0'
@@ -286,7 +286,7 @@ def xt3d_RenderTextureExport(*a):
         return 'false'
     p = ffi.new('Image *', img)
     rl.ImageFlipVertical(p)
-    ok = rl.ExportImage(p[0], S(a[1]))
+    ok = rl.ExportImage(p[0], PW(a[1]))
     rl.UnloadImage(p[0])
     return 'true' if ok else 'false'
 
@@ -441,6 +441,10 @@ def xt3d_SetTraceLogFile(*a):
     if not name:
         return 'true'
     try:
+        from . import PATHS                # his window: C:/xt3d/raylib_log.txt itself; checks: the sandbox (x1-04)
+        if PATHS['write'] is not None:
+            name = PATHS['write'](name)
+            os.makedirs(os.path.dirname(name) or '.', exist_ok=True)
         LOG['file'] = open(name, 'w')
     except OSError:
         return 'false'

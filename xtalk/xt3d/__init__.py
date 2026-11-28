@@ -73,6 +73,22 @@ def S(x):
     return to_text(x).encode('latin-1', 'replace')
 
 
+# x1-04: a path a call opens, as a script gives it (C:/xt3d/test_models/x.glb, //wsl$/Ubuntu/...). The stack
+# host sets these (StackHost: real_path for reading; write_path = his real file in his window, the sandbox in
+# checks). Without a host the text goes to raylib as it is.
+PATHS = {'read': None, 'write': None}
+
+
+def P(x):
+    f = PATHS['read']
+    return S(f(to_text(x)) if f is not None and to_text(x) else x)
+
+
+def PW(x):
+    f = PATHS['write']
+    return S(f(to_text(x)) if f is not None and to_text(x) else x)
+
+
 def R(p):
     """a C string result -> text (read back byte by byte in the bridge: Latin-1)"""
     return '' if p == ffi.NULL else ffi.string(p).decode('latin-1')

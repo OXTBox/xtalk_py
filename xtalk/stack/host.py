@@ -108,6 +108,12 @@ class StackHost(Host):
         self.rt = rt
         self.real_files = True
         self.folders = {}            # specialFolderPath name (lower) -> folder, set by the runtime
+        try:                         # xt3d calls that open files take the script's paths (C:/xt3d/...) as LiveCode
+            from .. import xt3d      # does: read where they are, written where this runtime writes (x1-04)
+            xt3d.PATHS['read'] = self.real_path
+            xt3d.PATHS['write'] = lambda p: self.write_path(self.real_path(p))
+        except ImportError:          # no raylib in this Python: no xt3d calls either
+            pass
 
     # ------------------------------------------------------------ names
     def long_id(self, o):
@@ -575,6 +581,8 @@ class StackHost(Host):
             return '1'
         if p == 'screenrect':
             return '0,0,1536,864'
+        if p == 'screenloc':                   # the middle of the screenRect (the xt3d bench centres itself, x1-04)
+            return '768,432'
         if p == 'environment':                 # we run stacks the way a standalone does
             return 'standalone application'
         if p == 'loadedextensions':            # xt3d (the raylib bridge) when its Python twin is installed
@@ -623,7 +631,8 @@ class StackHost(Host):
             p = self.real_path(v)
             if os.path.isdir(p):
                 self.default_folder = p
-            return
+                return
+            return "can't open directory"     # measured 27 Nov (the folder stays as it was)
         if name == 'screenmouseloc' and rt.on_warp is not None:
             try:
                 x, y = (int(round(to_num(p))) for p in str(v).split(',')[:2])
@@ -1189,6 +1198,9 @@ class StackHost(Host):
             return ''
         if name == 'launch':
             return self.launch(es, words)
+        if name == 'accept':                   # accept connections on port N with message M (LIB_MCP's dev server,
+            return 'no sockets in the Python runtime'   # the xt3d bench): not built; the result says so, the
+                                               # script goes on as when LiveCode cannot listen there (x1-04)
         if name == 'quit':                     # the program ends: the shown stack closes, the window goes
             rt.close_stack()
             rt.closed = True

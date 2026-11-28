@@ -15,6 +15,7 @@ import ast, re, warnings
 from .values import XtError
 from .parser import Parser, parse_expr, parse_statements, tokenize
 from .interp import CONST, BUILTINS, Interp, split_form
+from .host import filter_pattern_parts
 
 __all__ = ['translate_script', 'translate_expr', 'translate_statements', 'TranslateError']
 
@@ -523,6 +524,8 @@ class Gen:
             target = parts[i][1]
             rest = parts[i + 1:]
             neg = rest[0] == ('w', 'without')
+            regex, after = filter_pattern_parts(rest[1:])
+            rest = rest[:1] + after
             pat = rest[1][1]
             dest = rest[3][1] if len(rest) >= 4 and rest[2] == ('w', 'into') else target
         except IndexError:
@@ -530,7 +533,7 @@ class Gen:
         p, t = self.tmp('p'), self.tmp('t')
         self.emit(ind, '%s = %s' % (p, _tt(self.ex(pat))))
         self.emit(ind, '%s = to_text(%s)' % (t, self.ex(target)))
-        self.emit(ind, self.assign(dest, 'rt.filter_text(%s, %s, %s, %r)' % (t, _r(kind), p, neg), 'into'))
+        self.emit(ind, self.assign(dest, 'rt.filter_text(%s, %s, %s, %r, %r)' % (t, _r(kind), p, neg, regex), 'into'))
 
 
 def _pyname(name, used):

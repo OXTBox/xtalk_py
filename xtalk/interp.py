@@ -4,7 +4,7 @@ import math, random, time, base64, re
 from . import chunks as ch
 from .values import XtError, XtArray, CASE, array_cmp, to_num, fmt_num, numstr, plain, to_text, to_bool, is_numeric_text, compare, fold, NUMBER_FORMAT
 from .parser import parse_script, parse_expr, parse_statements, OBJTYPES
-from .host import Host, wildcard
+from .host import Host, wildcard, filter_pattern_parts
 
 # a test may give the scripts a clock of its own: CLOCK[0] = a function answering milliseconds (None = the real one)
 CLOCK = [None]
@@ -433,10 +433,13 @@ class Interp:
 
     def set_global_prop(self, name, v):
         name = self.ALIAS.get(name, name)
-        self.props[name] = v
+        self.result = ''                         # every `set` empties the result (measured 27 Nov: set the itemDel,
+        self.props[name] = v                     # set the defaultFolder; put / get / add keep it)
         f = getattr(self.host, 'on_global_prop', None)    # the stack runtime acts on some (screenMouseLoc)
         if f is not None:
-            f(name, v)
+            r = f(name, v)                       # a text: the result (set the defaultFolder to a missing folder)
+            if isinstance(r, str) and r:
+                self.result = r
         if name == 'numberformat':
             NUMBER_FORMAT[0] = v
         if name == 'randomseed':                 # measured 25 Nov: rounded, read back as set; random() follows it
@@ -648,7 +651,9 @@ class Interp:
         target = parts[i][1]
         rest = parts[i + 1:]
         neg = rest[0] == ('w', 'without')
-        pat = wildcard(to_text(self.ev(rest[1][1], fr)))
+        regex, after = filter_pattern_parts(rest[1:])
+        rest = rest[:1] + after
+        pat = wildcard(to_text(self.ev(rest[1][1], fr)), regex)
         dest = rest[3][1] if len(rest) >= 4 and rest[2] == ('w', 'into') else target
         text = to_text(self.ev(target, fr))
         kw = self.delims()

@@ -422,3 +422,16 @@ these follow the Dictionary and the owner's scripts, not a measurement. Measure 
 | set its script to good text | the result = empty |
 | `show stack` then `go stack` | no open messages (it was already open); the defaultStack becomes it after go |
 | `close stack` | closeCard, closeStack (to the card); the stack is still there (destroyStack false) |
+
+## x1-04, the xt3d bench (measured 27 Nov evening, 9.6.3 standalone, helper C)
+
+- `filter X with regex pattern P`: P is found ANYWHERE in the line (a search, not a whole-line match) and follows
+  the caseSensitive: false (the default) = `"b"` keeps `abc`, `ABD`, `xbz`, `b`; true = only `abc`. `without regex
+  pattern "B"` with caseSensitive false drops all four. `filter items of X with regex pattern` works on items.
+  `with wildcard pattern "?B?"` and `with pattern "*b*"` match the whole line and follow the caseSensitive too
+  (true: `"*b*"` keeps `abc`, not `ABD`). Before x1-04 Python read `regex` and `pattern` as variables (empty), so
+  the bench's model list (`filter tFiles with regex pattern kModelTypes`) came out empty.
+- `set` (any property: `set the itemDel`, `set the defaultFolder`, `set the cXx of me`) empties the result;
+  `put`, `get`, `add` keep it (a failed `open file` = "can't open that file" stays through them).
+  `set the defaultFolder to "Q:/nope"` (no such folder): the result is "can't open directory".
+- `the screenLoc` = 768,432 and `the screenRect` = 0,0,1536,864 on his laptop (the middle of the screenRect).

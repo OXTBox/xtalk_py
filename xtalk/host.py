@@ -91,6 +91,27 @@ class Host:
             open(path, 'w', encoding='utf-8').write(text)
 
 
-def wildcard(pattern):
-    """LiveCode filter patterns: * ? and [..], not case sensitive"""
-    return re.compile(fnmatch.translate(pattern), re.I | re.S)
+def wildcard(pattern, regex=False):
+    """LiveCode filter patterns: * ? and [..] matching the whole line; `regex pattern`: a regular expression found
+    anywhere in the line. Both follow the caseSensitive (measured 27 Nov: false = "b" keeps "ABD")."""
+    from .values import CASE
+    flags = re.S if CASE[0] else re.I | re.S
+    if regex:
+        r = re.compile(pattern, flags)
+        return type('Search', (), {'match': staticmethod(lambda t: r.search(t))})
+    return re.compile(fnmatch.translate(pattern), flags)
+
+
+FILTER_WORDS = ('regex', 'wildcard', 'pattern')
+
+
+def filter_pattern_parts(rest):
+    """filter X with [regex|wildcard] [pattern] P: the parser reads those words as variables; -> (regex?, the parts
+    from P on)"""
+    regex = False
+    rest = list(rest)
+    while len(rest) > 1 and rest[0][0] == 'e' and rest[0][1][0] == 'var' and rest[0][1][1].lower() in FILTER_WORDS \
+            and rest[1][0] == 'e':
+        regex = regex or rest[0][1][1].lower() == 'regex'
+        rest.pop(0)
+    return regex, rest
