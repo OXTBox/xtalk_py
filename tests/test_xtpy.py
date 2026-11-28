@@ -38,6 +38,16 @@ folder = s.folder
 s.close()
 check('close removes the session folder', os.path.isdir(folder), False)
 
+sys.path.insert(0, os.path.join(ROOT, 'tools'))
+import xtpy_diff   # noqa: E402
+rows, kind, verdict, status = xtpy_diff.diff('7 mod -3', ask_lc=False)
+check('diff: an expression, three Python answers, LiveCode left out',
+      (kind, [v for _, v in rows[:3]], status), ('expr', ['1', '1', '1'], 2))
+rows, kind, verdict, status = xtpy_diff.diff('put "a,b" into x;; put item 2 of x into tOut', ask_lc=False)
+check('diff: statements answer with tOut', (kind, [v for _, v in rows[:3]]), ('script', ['b', 'b', 'b']))
+check('diff: an error is ERR', [v for _, v in xtpy_diff.diff('1/0', ask_lc=False)[0][:3]], ['ERR'] * 3)
+check('diff: the fact line', xtpy_diff.fact_line('7 mod -3', 'expr', '1').split(' (measured')[0], '- `7 mod -3` = `1`')
+
 try:
     import raylib  # noqa: F401
     have_raylib = True
