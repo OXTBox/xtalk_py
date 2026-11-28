@@ -76,9 +76,12 @@ them (he can say otherwise before x1-14 is merged).
   xtpy_snap (a PNG picture), xtpy_step, xtpy_close, xtpy_list, xtpy_game (one game N frames: speed, stats, errors,
   picture), xtpy_diff. Tried through the server: SquadBuggy 120 frames 60 a second, no errors (its first ~300
   frames are the loading screen). NOT yet registered for Claude Code: registering points at this file, so after
-  the merge (`claude mcp add -s user xtpy -- python3 -I ~/projects/LIB_MCP/python/lib_mcp/mcp_server.py --tools
-  ~/projects/xtalk_py/mcp/xtpy_tools.py`; user scope = every session in ~/projects, his question 3).
+  the merge, with its own small server `mcp/xtpy_server.py` (the xtpy tools ONLY: helpers must not get LIB_MCP's
+  livecode_* tools, one LiveCode driver): `claude mcp add -s user xtpy -- python3 -I
+  /home/igame3d/projects/xtalk_py/mcp/xtpy_server.py` (user scope = every session, his question 3, Claude's pick).
 - x1-15 READY, not run: LM Studio was not running (27 Nov night; starting it is his). `mcp/xtpy_primer.md` (the
-  page Spark reads first, also the tool xtpy_primer) + `tools/spark_try_xtpy.sh [MODEL]`: four asks (list games,
+  page Spark reads first, also the tool xtpy_primer) + `python3 -I tools/spark_try_xtpy.py [--model NAME]`: Spark gets ONLY the xtpy tools (never
+  LiveCode's: their standalone start can open a prompt on his screen); four asks (list games,
   drive SquadBuggy, type in Thrmnlra's note box, a diff), log in run_files/spark_try_xtpy.log. Then: note what a
-  small model gets wrong, fix the primer. ask_local passes text only (pictures are dropped for text models).
+  small model gets wrong, fix the primer. Pictures are left out for a text model. xtpy_diff in the pack leaves LiveCode out until LIB_MCP's
+  hidden-restart fix; sessions start no programs (shell/launch noted only); a step past 180 s stops its stack.

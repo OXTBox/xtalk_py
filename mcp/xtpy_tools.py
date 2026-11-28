@@ -38,8 +38,9 @@ class _Worker:
         sel = selectors.DefaultSelector()
         sel.register(self.proc.stdout, selectors.EVENT_READ)
         try:
-            if not sel.select(timeout):
-                return {'ok': False, 'answer': 'no answer in %d s (the stack may be stuck: xtpy_close it)' % timeout}
+            if not sel.select(timeout):              # a late answer would be read as the next one's: end it
+                self.proc.kill()
+                return {'ok': False, 'answer': 'no answer in %d s: the stack was stopped; open it again' % timeout}
             line = self.proc.stdout.readline()
         finally:
             sel.close()
@@ -77,7 +78,13 @@ def _text(r):
 
 
 def _step(args, step):
-    return _text(_session(args)['w'].ask(step))
+    s = _session(args)
+    r = s['w'].ask(step)
+    if s['w'].proc.poll() is not None:               # stopped (a timeout) or ended: no longer open
+        for k, v in list(_sessions.items()):
+            if v is s:
+                del _sessions[k]
+    return _text(r)
 
 
 def t_open(args):
@@ -177,6 +184,8 @@ def t_frames(args):
 
 
 def t_step(args):
+    if args['step'].strip().lower().startswith('snap'):
+        raise ValueError('use xtpy_snap for a picture')   # snap FILE would write anywhere
     return _step(args, args['step'])
 
 
@@ -205,9 +214,9 @@ def t_game(args):
 
 
 def t_diff(args):
-    cmd = [_python(), '-I', XTPY, 'diff', args['code']]
-    if not args.get('ask_livecode'):
-        cmd.insert(4, '--no-lc')
+    # LiveCode is left out until LIB_MCP starts its standalone hidden (a failed start opens a command prompt
+    # on the owner's screen): the column says so
+    cmd = [_python(), '-I', XTPY, 'diff', '--no-lc', args['code']]
     r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=180, stdin=subprocess.DEVNULL)
     return r.stdout.strip() or r.stderr.strip()
 
@@ -248,14 +257,14 @@ TOOLS = [
      schema({'count': {'type': 'integer'}}, ['count'])),
     ('xtpy_snap', t_snap, 'A PNG picture of the hidden window.', schema()),
     ('xtpy_step', t_step, 'Any one xtpy step (click, type, key, hold, release, frames, eval, run, snap FILE, stats, '
-     'errors), for what the other tools do not cover.', schema({'step': S}, ['step'])),
+     'errors; snap: use xtpy_snap), for what the other tools do not cover.', schema({'step': S}, ['step'])),
     ('xtpy_close', t_close, 'Close an open stack (session "all" closes every one).', schema()),
     ('xtpy_list', t_list, 'The stacks open now.', {'type': 'object', 'properties': {}}),
     ('xtpy_game', t_game, 'Play one game hidden for N frames (default 450; 60 a second): speed, stats line, script errors, a '
      'picture. Opens and closes it. The first 3-6 seconds of a game are its loading screen (a black picture).', {'type': 'object', 'properties': {'game': S, 'frames': {'type': 'integer'}},
                                        'required': ['game']}),
     ('xtpy_diff', t_diff, 'Run an xTalk snippet (an expression, or statements that put the answer into tOut) in the '
-     'interpreter, the translated and the fast mode; with ask_livecode true also in real LiveCode 9.6.3 (one try). '
-     'Says AGREE or which differ.', {'type': 'object', 'properties': {'code': S, 'ask_livecode': {'type': 'boolean'}},
+     'interpreter, the translated and the fast mode; says whether they agree.',
+     {'type': 'object', 'properties': {'code': S},
                                      'required': ['code']}),
 ]

@@ -34,6 +34,11 @@ ok, ans = s.step('run put 1 into field "nope"')
 check('a script error fails the step', ok, False)
 check('frames with no window run timers', s.step('frames 3'), (True, '3 frames'))
 check('snap without a window says why', s.step('snap x.png'), (False, 'snap needs the .venv (raylib)'))
+s.step('run set the script of this card to "on arrowKey k" & cr & "global gK" & cr & "put k after gK" & cr & "end arrowKey"')
+s.step('key left')
+s.step('key down')
+check('key left / down: rawKeyDown, then arrowKey (as the window)', s.step('eval gK'), (True, 'leftdown'))
+check('a session starts no programs (shell, launch only noted)', s.rt.start_programs, False)
 folder = s.folder
 s.close()
 check('close removes the session folder', os.path.isdir(folder), False)
@@ -42,7 +47,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import xtpy_diff   # noqa: E402
 rows, kind, verdict, status = xtpy_diff.diff('7 mod -3', ask_lc=False)
 check('diff: an expression, three Python answers, LiveCode left out',
-      (kind, [v for _, v in rows[:3]], status), ('expr', ['1', '1', '1'], 2))
+      (kind, [v for _, v in rows[:3]], status), ('expr', ['1', '1', '1'], 0))
 rows, kind, verdict, status = xtpy_diff.diff('put "a,b" into x;; put item 2 of x into tOut', ask_lc=False)
 check('diff: statements answer with tOut', (kind, [v for _, v in rows[:3]]), ('script', ['b', 'b', 'b']))
 check('diff: an error is ERR', [v for _, v in xtpy_diff.diff('1/0', ask_lc=False)[0][:3]], ['ERR'] * 3)
@@ -97,6 +102,13 @@ if have_raylib or os.path.isfile(VENV):
         check('mcp: snap is a PNG picture', (r[7]['content'][0]['type'], base64.b64decode(r[7]['content'][0]['data'])[:4]),
               ('image', b'\x89PNG'))
         check('mcp: close; diff without LiveCode', (txt(8)[:6], 'the Python answers agree' in txt(9)), ('closed', True))
+        p = subprocess.run(['python3', '-I', os.path.join(ROOT, 'mcp', 'xtpy_server.py')], capture_output=True, text=True,
+                           timeout=60, input=json.dumps(msgs[0]) + '\n' + json.dumps(msgs[1]) + '\n')
+        r = [json.loads(x)['result'] for x in p.stdout.splitlines()]
+        names = [t['name'] for t in r[1]['tools']]
+        check('xtpy_server: its own name, xtpy tools only (no livecode_*)',
+              (r[0]['serverInfo']['name'], 'xtpy_open' in names, any(n.startswith('livecode') for n in names)),
+              ('xtpy', True, False))
 
 print('%d of %d xtpy checks pass' % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

@@ -51,5 +51,5 @@ put 9 into gLives
 - `put x into y`, never `y = x`. A test is `if x = 1 then`; `==` does not exist.
 - The line delimiter is `return` (or `cr`). Strings are joined with `&`, or `&&` for a space between.
 - A FAILED answer says why. Read it before trying again, and do not repeat the same call unchanged.
-- `xtpy_diff` runs a small piece of xTalk in Python three ways. With `ask_livecode` true it also asks
-  real LiveCode. Use it to check what an expression gives.
+- `xtpy_diff` runs a small piece of xTalk in Python three ways and says whether they agree. Use it to
+  check what an expression gives.
