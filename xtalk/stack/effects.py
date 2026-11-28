@@ -40,7 +40,7 @@ class Effects:
     def __init__(self, view):
         self.view = view
         self.shaders = None            # name -> (shader, {uniform: location}); False: could not load
-        self.cache = {}                # id(object) -> {'sig', 'origin', 'size', 'mask', 'tmp', 'blur': {effect: rt}}
+        self.cache = {}                # id(object) -> {'sig', 'pad', 'size', 'mask', 'tmp', 'blur': {effect: rt}}
         self.objs = {}                 # id -> object: the current card's objects with an effect
         self.seen = None               # (rt.fx_version, card) the list was made for
         self.ms = 0.0                  # time spent making textures (the last frame), for checks
@@ -126,8 +126,11 @@ class Effects:
         self.ms = (time.perf_counter() - t0) * 1000
 
     def sig(self, o, fx):
+        """what the shape looks like, not where it is: a moving puck keeps its textures (only drawn elsewhere)"""
         v = self.view
-        return (tuple(o.rect), v.scale, repr(sorted(fx.items())), repr(o.points), o.text, str(o.props),
+        l, t, r, b = o.rect
+        pts = None if not o.points else tuple(None if q is None else (q[0] - l, q[1] - t) for q in o.points)
+        return (r - l, b - t, v.scale, repr(sorted(fx.items())), pts, o.text, str(o.props),
                 id(getattr(o, 'imagedata', None)))
 
     def make(self, k, o):
@@ -154,7 +157,7 @@ class Effects:
             self.forget(k)
             c = {'mask': rl.load_render_texture(w, h), 'tmp': rl.load_render_texture(w, h), 'blur': {}, 'size': (w, h)}
             self.cache[k] = c
-        c['sig'], c['origin'] = s, (ox, oy)
+        c['sig'], c['pad'] = s, pad
         # 1. the shape
         rl.begin_texture_mode(c['mask'])
         rl.clear_background(rl.BLANK)
@@ -206,7 +209,7 @@ class Effects:
         v = self.view
         fx = self.effects(o)
         w, h = c['size']
-        ox, oy = c['origin']
+        ox, oy = o.rect[0] - c['pad'], o.rect[1] - c['pad']   # where it is now (the shape may have moved)
         for p in which:
             d = fx.get(p)
             if d is None:

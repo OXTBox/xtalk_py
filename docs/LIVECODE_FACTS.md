@@ -439,3 +439,14 @@ these follow the Dictionary and the owner's scripts, not a measurement. Measure 
 Not measured (no window on the server): closeStackRequest on a close-box click. Used as LiveCode documents it: to the
 stack's current card; passed (or no handler) = the stack closes; not passed = it stays open (LIB_ALPHA rule 12b
 handlers set destroyStack and close the mainStack themselves).
+
+## Graphic effects (x1-09, 27 Nov): NOT MEASURED YET
+
+The one probe (`create invisible stack`, a graphic with an outerGlow, `export snapshot from graphic ... with effects
+to tVar as PNG`) never answered, and the standalone server (port 8767) stayed silent afterwards (lead told).
+Wanted when it answers, no snapshot first: each effect's array after setting one key on a bare graphic (its
+defaults: effects.DEFAULTS is LiveCode's DOCUMENTED meaning, from memory, until then); then, with the 26 Nov
+roundRadius recipe (export snapshot to a file), the pixel profile of an outerGlow (size 10, spread 0 / 128) and
+the direction of a dropShadow's angle. Harvested from his stacks (read, not measured): effects are arrays with keys
+color, blendMode, opacity (0-255), filter (box3pass / gaussian), size, spread (0-255), range; shadows add distance,
+angle, knockout; innerGlow adds source (edge); colorOverlay has color, blendMode, opacity.

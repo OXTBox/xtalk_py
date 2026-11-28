@@ -100,6 +100,32 @@ at, free = pixels()
 check('color overlay: the shape in the colour', at(130, 90), (255, 0, 0))
 check('color overlay: only the shape', at(90, 90), (255, 255, 255))
 free()
+rt.run('set the colorOverlay of graphic "G" to empty\nhide graphic "G"')
+
+# a field (drawn with scissors inside the shape texture) and a button, at the owner's scale 1.25
+v.set_scale(1.25)
+rt.run('show field "F"\nset the rect of field "F" to 40,40,120,100\nset the opaque of field "F" to true\n'
+       'set the backgroundColor of field "F" to "0,0,0"\nset the outerGlow["color"] of field "F" to "0,255,0"\n'
+       'set the outerGlow["size"] of field "F" to 8')
+frame()
+at, free = pixels()
+check('field glow at 1.25: green just right of the field', at(int(121 * 1.25), int(70 * 1.25))[1] > 200
+      and at(int(121 * 1.25), int(70 * 1.25))[0] < 200, True)
+check('field glow at 1.25: the field still black', at(int(80 * 1.25), int(70 * 1.25)), (0, 0, 0))
+check('field glow at 1.25: gone far away', at(int(140 * 1.25), int(70 * 1.25)), (255, 255, 255))
+free()
+rt.run('hide field "F"\nshow button "B"\nset the rect of button "B" to 150,40,230,70')
+# a handler sets the glow (his hover scripts), run the way stacks run (translated)
+rt.run('set the script of button "B" to "on mouseUp" & cr & "set the outerGlow[" & quote & "size" & quote & "] of me to 9" & cr & '
+       '"set the outerGlow[" & quote & "color" & quote & "] of me to " & quote & "0,0,255" & quote & cr & "end mouseUp"')
+rt.click('button "B"')
+check('a handler set the glow', rt.eval('the outerGlow["size"] of button "B"'), '9')
+frame()
+check('a handler set the glow: drawn', id(rt.obj('button "B"')) in v.fx.objs and id(rt.obj('button "B"')) in v.fx.cache, True)
+at, free = pixels()
+check('button glow at 1.25: blue just under the button', at(int(190 * 1.25), int(71 * 1.25))[2] > 200
+      and at(int(190 * 1.25), int(71 * 1.25))[0] < 200, True)
+free()
 v.close()
 
 print('%d of %d effect checks pass' % (N[0] - len(BAD), N[0]))
