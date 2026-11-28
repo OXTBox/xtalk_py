@@ -76,8 +76,8 @@ class Runtime(Interp):
     def join(vals):
         return ','.join(to_text(x) for x in vals)
 
-    def filter_text(self, text, kind, pattern, neg):
-        pat = wildcard(pattern)
+    def filter_text(self, text, kind, pattern, neg, regex=False):
+        pat = wildcard(pattern, regex)
         kw = self.delims()
         d = kw['item_delim'] if kind == 'item' else kw['line_delim']
         return d.join(text[a:b] for a, b in ch.spans(text, kind, **kw) if bool(pat.match(text[a:b])) != neg)

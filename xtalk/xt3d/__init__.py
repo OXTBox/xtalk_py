@@ -16,8 +16,14 @@ from raylib import ffi
 from ..values import XtError, to_num, to_text, numstr  # noqa: F401  (numstr is used by generated.py)
 
 
+# CLOSED: a script's xt3d_CloseWindow while the stack's own window is raylib's (the xt3d bench's Run checks and
+# closeStack, x1-04): the window stays (it is the stack's), but to the script it is closed until its next
+# InitWindow / InitHidden, as with the bridge: IsWindowReady false, drawing does nothing, LoadModel answers 0.
+CLOSED = [False]
+
+
 def ready():
-    return rl.IsWindowReady()
+    return rl.IsWindowReady() and not CLOSED[0]
 
 
 # ---- script values -> C values (the LiveCode Builder side of the bridge does these).
@@ -71,6 +77,22 @@ def C(x):
 def S(x):
     # ZStringNative: the platform's native 8-bit text (Latin-1 here), not UTF-8
     return to_text(x).encode('latin-1', 'replace')
+
+
+# x1-04: a path a call opens, as a script gives it (C:/xt3d/test_models/x.glb, //wsl$/Ubuntu/...). The stack
+# host sets these (StackHost: real_path for reading; write_path = his real file in his window, the sandbox in
+# checks). Without a host the text goes to raylib as it is.
+PATHS = {'read': None, 'write': None}
+
+
+def P(x):
+    f = PATHS['read']
+    return S(f(to_text(x)) if f is not None and to_text(x) else x)
+
+
+def PW(x):
+    f = PATHS['write']
+    return S(f(to_text(x)) if f is not None and to_text(x) else x)
 
 
 def R(p):

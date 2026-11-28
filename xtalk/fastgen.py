@@ -629,7 +629,8 @@ class FastGen(Gen):
             self.emit(ind, 'rt.set_global_prop(%s, %s)' % (_r(name), v))
         else:
             kc = 'None' if key is None else 'T(%s)' % self.val(key)
-            self.emit(ind, 'rt.host.set_prop(%s, %s, %s, %s)' % (self.desc(obj), self.prop_code(name), v, kc))
+            self.emit(ind, 'rt.result = rt.host.set_prop(%s, %s, %s, %s) or \'\'' % (   # set empties the result;
+                self.desc(obj), self.prop_code(name), v, kc))   # set the script: its compile errors (x1-04)
 
     def s_cmd(self, s, ind):
         name, parts = s[1], s[2]

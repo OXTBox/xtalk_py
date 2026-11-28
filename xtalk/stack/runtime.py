@@ -457,7 +457,9 @@ class StackRuntime:
             return old
         node = {'type': 'stack', 'name': name, 'id': 1001, 'role': 'sub', 'rect': [0, 0, 400, 400],
                 'cards': [{'type': 'card', 'name': '', 'id': 1002, 'number': 1, 'controls': []}]}
-        st = Stack(node, os.path.dirname(path), {})
+        defaults = self.harvest.manifest.get('typeDefaults', {}) if isinstance(self.harvest.manifest, dict) else {}
+        st = Stack(node, os.path.dirname(path), defaults)   # LiveCode's defaults for new controls (the bench
+                                           # builds its own buttons: their labels and borders need showName...)
         st.mainstack = st                  # a script-only stack is a main stack of its own
         st.filename = path
         st.script = text

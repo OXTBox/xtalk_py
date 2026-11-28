@@ -472,3 +472,23 @@ these follow the Dictionary and the owner's scripts, not a measurement. Measure 
 Not measured (no window on the server): closeStackRequest on a close-box click. Used as LiveCode documents it: to the
 stack's current card; passed (or no handler) = the stack closes; not passed = it stays open (LIB_ALPHA rule 12b
 handlers set destroyStack and close the mainStack themselves).
+
+## x1-04, the xt3d bench (measured 27 Nov evening, 9.6.3 standalone, helper C)
+
+- `filter X with regex pattern P`: P is found ANYWHERE in the line (a search, not a whole-line match) and follows
+  the caseSensitive: false (the default) = `"b"` keeps `abc`, `ABD`, `xbz`, `b`; true = only `abc`. `without regex
+  pattern "B"` with caseSensitive false drops all four. `filter items of X with regex pattern` works on items.
+  `with wildcard pattern "?B?"` and `with pattern "*b*"` match the whole line and follow the caseSensitive too
+  (true: `"*b*"` keeps `abc`, not `ABD`). Before x1-04 Python read `regex` and `pattern` as variables (empty), so
+  the bench's model list (`filter tFiles with regex pattern kModelTypes`) came out empty.
+- `set` (any property: `set the itemDel`, `set the defaultFolder`, `set the cXx of me`) empties the result
+  (built for global and object properties; `set the script of X` gives its compile errors as the result);
+  `put`, `get`, `add` keep it (a failed `open file` = "can't open that file" stays through them).
+  `set the defaultFolder to "Q:/nope"` (no such folder): the result is "can't open directory".
+- `the screenLoc` = 768,432 and `the screenRect` = 0,0,1536,864 on his laptop (the middle of the screenRect).
+- File commands (for the bench's check log, C:/xt3d/bench_checks.txt): `write "zz" to file p` with p not open = the
+  result "file is not open for write"; `close file p` not open = "file is not open"; `open file p for append` adds
+  at the end; `for write` empties the file first; `open file p` (no mode = update) writes over the start ("w" then
+  "U" = "U"); a folder that is not there = "can't open that file". (`read from file` is not built in Python yet.)
+- An option menu button (style menu, menuMode option): a new one's label is empty; `set the text` makes the label
+  line 1 and the menuHistory 1; `set the menuHistory to 2` makes the label line 2.
