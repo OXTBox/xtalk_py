@@ -1,6 +1,15 @@
-# Handoff 27 Nov night: START HERE (helpers run finished, nothing merged)
+# Handoff 27 Nov night: START HERE (helpers run finished, ALL MERGED + PUSHED on his "merge")
 
-All four helper bubbles reported; everything sits on branches in worktrees, waiting for his look and "merge".
+All five branches merged to main in order (behaviours-2, window-rules, xt3d-bench, shaders + LIB_SHADERS shaders,
+mcp-python), full tests + survey after each: interp 458, transpile 921, stack 199 (x2), measured 46, xt3d 248,
+native ok, referee AGREE, window_rules 48, effects 24, survey 59/61. Worktrees removed. The try commands below now
+run from ~/projects/xtalk_py (same paths without `_wt/<branch>`).
+
+NEW in the full test list: `.venv/bin/python -I tests/test_window_rules.py` (48), `.venv/bin/python -I tests/test_effects.py` (24).
+
+LESSON 27 Nov: lcmcp's Client.standalone restarts the copy with `cmd.exe /c start`, which opens a visible
+command prompt on his screen (his x64 Native Tools prompt) at every failed ping: proposed fix in LIB_MCP (start
+hidden, one retry only), waits for his word.
 Older handoffs (27_EVENING and before) are history.
 
 | Bubble | Branch / worktree | State | His try |
