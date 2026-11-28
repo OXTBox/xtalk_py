@@ -15,12 +15,15 @@ STEPS, done in order (each followed by --frames frames, default 30):
     key:CODE            rawKeyDown CODE (65307 = Escape)
     type:TEXT           a click in the console line (under the view), then TEXT typed
     special:NAME        return, tab, up, down, backspace... to the focused field (else the card)
+    vkey:NAME           a key pressed in the window, through the View (vkey:escape, vkey:tab, vkey:a)
+    vwheel:N[@X,Y]      a wheel notch (-1 = down) with the mouse at X,Y (default the view's middle)
+    vdrag:X1,Y1,X2,Y2   the mouse button pressed, moved, let go (orbit the camera on the view)
     answer:TEXT         the reply to the next answer folder / answer file dialog
     frames:N            N more frames
     snap:FILE           a picture of the window now
 
 The checks write nothing of his: real_folders, so files are read from where they are, writes go to run_files.
---real: as his window runs it (real_app: shell() through cmd.exe, his real files written), still hidden.
+--scale 1.25: the window's scale (his window opens at Windows' 125%). --real: as his window runs it (real_app: shell() through cmd.exe, his real files written), still hidden.
 """
 import os, sys, time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,7 +31,7 @@ sys.path.insert(0, ROOT)
 HARVEST = os.path.join(ROOT, 'run_files', 'target_harvests', 'xt3d_Bench')
 
 
-def open_bench(hidden=True, real_app=False):
+def open_bench(hidden=True, real_app=False, scale=1.0):
     """the runtime + view with the starter open and the bench shown"""
     if not os.path.isdir(HARVEST):
         sys.exit('no harvest at %s: run tools/harvest_xt3d_bench.sh' % HARVEST)
@@ -37,8 +40,32 @@ def open_bench(hidden=True, real_app=False):
     rt = StackRuntime(HARVEST, real_folders=True, real_app=real_app)
     if not getattr(rt.harvest.main, 'filename', ''):         # the effective filename: the starter finds the bench above it
         rt.harvest.main.filename = str(rt.harvest.manifest['sourceFile']).replace('\\', '/')
-    v = View(rt, hidden=hidden)
+    v = View(rt, hidden=hidden, scale=scale)
     return rt, v
+
+
+def window_input(v):
+    """keys, the wheel and the mouse given to the View as raylib would give them (the window's own input path:
+    View.frame reads them), one frame at a time; the real ones still count (none in a hidden window)"""
+    from xtalk.stack.view import rl
+    vin = {'keys': set(), 'wheel': 0.0, 'mouse': None, 'pressed': False, 'released': False, 'down': False}
+    kp, wh, bp, br, bd = (rl.is_key_pressed, rl.get_mouse_wheel_move, rl.is_mouse_button_pressed,
+                          rl.is_mouse_button_released, rl.is_mouse_button_down)
+    units = v.mouse_units
+    rl.is_key_pressed = lambda k: k in vin['keys'] or kp(k)
+    rl.get_mouse_wheel_move = lambda: vin['wheel'] or wh()
+    rl.is_mouse_button_pressed = lambda b: (b == 0 and vin['pressed']) or bp(b)
+    rl.is_mouse_button_released = lambda b: (b == 0 and vin['released']) or br(b)
+    rl.is_mouse_button_down = lambda b: (b == 0 and vin['down']) or bd(b)
+    v.mouse_units = lambda: vin['mouse'] or units()
+
+    def frame():                           # one frame; what was pressed counts for that frame only
+        v.frame()
+        vin['keys'].clear()
+        vin['wheel'] = 0.0
+        vin['pressed'] = vin['released'] = False
+    vin['frame'] = frame
+    return vin
 
 
 def main(a):
@@ -54,7 +81,7 @@ def main(a):
         if skip:
             skip = False
             continue
-        if x in ('--frames', '--snap', '--eval'):
+        if x in ('--frames', '--snap', '--eval', '--scale'):
             skip = True
             continue
         if x == '--real':
@@ -63,12 +90,13 @@ def main(a):
     from xtalk.interp import Interp
     Interp.CATCH_LOG = []
     t0 = time.perf_counter()
-    rt, v = open_bench(real_app='--real' in a)
+    rt, v = open_bench(real_app='--real' in a, scale=float(opt('--scale', '1')))
     rt.open()
     for _ in range(frames):
         v.frame()
     print('opened in %.2f s; shown stack: %s' % (time.perf_counter() - t0, rt.default_stack.name))
     bench = rt.harvest.stack('xt3dTestBenchLibMCP')
+    vin = window_input(v)
     for s in steps:
         kind, _, arg = s.partition(':')
         t = time.perf_counter()
@@ -103,6 +131,24 @@ def main(a):
                     rt.key(c)
         elif kind == 'special':                # special:return, special:tab ...
             rt.special_key(arg)
+        elif kind == 'vkey':                   # a key pressed in the window (through the View, as his keyboard)
+            from xtalk.stack.view import rl
+            vin['keys'].add(getattr(rl, 'KEY_' + arg.upper()))
+            vin['frame']()
+        elif kind == 'vwheel':                 # vwheel:-1@360,270: a wheel notch with the mouse there
+            notch, _, at = arg.partition('@')
+            vin['mouse'] = tuple(float(q) for q in (at or '360,270').split(','))
+            vin['wheel'] = float(notch)
+            vin['frame']()
+        elif kind == 'vdrag':                  # vdrag:x1,y1,x2,y2: press, move in 6 frames, let go (the mouse button)
+            x1, y1, x2, y2 = (float(q) for q in arg.split(','))
+            vin['mouse'], vin['pressed'], vin['down'] = (x1, y1), True, True
+            vin['frame']()
+            for i in range(1, 7):
+                vin['mouse'] = (x1 + (x2 - x1) * i / 6, y1 + (y2 - y1) * i / 6)
+                vin['frame']()
+            vin['released'], vin['down'] = True, False
+            vin['frame']()
         elif kind == 'answer':
             rt.dialog_answers.append(arg)
             n = 0

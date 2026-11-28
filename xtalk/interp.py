@@ -424,7 +424,8 @@ class Interp:
             if r is not None and hasattr(self.host, 'set_chunk_prop'):
                 self.host.set_chunk_prop(r[0], r[1], r[2], name, to_text(v))
                 return
-        self.host.set_prop(self.desc(obj, fr), self.prop_name(fr, name), v, None if key is None else to_text(self.ev(key, fr)))
+        r = self.host.set_prop(self.desc(obj, fr), self.prop_name(fr, name), v, None if key is None else to_text(self.ev(key, fr)))
+        self.result = r if isinstance(r, str) else ''    # set empties the result; set the script: its compile errors
 
     @staticmethod
     def setprop_value(raw, of_object):

@@ -819,8 +819,7 @@ class StackHost(Host):
             setattr(o, p, value if isinstance(value, str) else str(value))
             return
         if p == 'script':
-            self.rt.set_script(o, str(value))
-            return
+            return self.rt.set_script(o, str(value))   # its compile errors: the result (empty when it compiles)
         if p in ('behavior', 'parentscript'):
             self.rt.set_behavior(o, value if isinstance(value, str) else to_text(value))
             return

@@ -291,7 +291,8 @@ class Gen:
             self.emit(ind, 'rt.set_global_prop(%s, %s)' % (_r(name), v))
         else:
             kc = 'None' if key is None else 'to_text(%s)' % self.ex(key)
-            self.emit(ind, 'rt.host.set_prop(%s, rt.prop_name(fr, %s), %s, %s)' % (self.desc(obj), _r(name), v, kc))
+            self.emit(ind, 'rt.result = rt.host.set_prop(%s, rt.prop_name(fr, %s), %s, %s) or \'\'' % (   # set empties
+                self.desc(obj), _r(name), v, kc))     # the result; set the script: its compile errors (x1-04)
 
     def s_return(self, s, ind):
         self.emit(ind, 'return %s' % self.ex(s[1]))

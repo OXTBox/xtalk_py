@@ -795,6 +795,11 @@ check('an option menu: set the text = line 1 is the label, set the menuHistory =
              'put "[" & the label of button "OptX" & "]" after r\nset the text of button "OptX" to "x" & cr & "y"\n'
              'return r & "[" & the label of button "OptX" & "]" & the menuHistory of button "OptX"'),
       '[][a][b][x]1')
+check('set the X of an object empties the result too; set the script: empty when it compiles (measured 27 Nov)',
+      rt.run('accept connections on port 8799 with message "x"\nput the result is empty into r\n'
+             'set the cXx of this card to 1\nput "," & (the result is empty) after r\n'
+             'accept connections on port 8799 with message "x"\nset the script of button "OptX" to "on mouseUp" & cr & "end mouseUp"\n'
+             'return r & "," & (the result is empty)'), 'false,true,true')
 check('accept connections: no sockets, the result says so; the screenLoc',
       rt.run('accept connections on port 8799 with message "x"\nreturn (the result is not empty) & "," & the screenLoc'),
       'true,768,432')

@@ -431,7 +431,8 @@ these follow the Dictionary and the owner's scripts, not a measurement. Measure 
   `with wildcard pattern "?B?"` and `with pattern "*b*"` match the whole line and follow the caseSensitive too
   (true: `"*b*"` keeps `abc`, not `ABD`). Before x1-04 Python read `regex` and `pattern` as variables (empty), so
   the bench's model list (`filter tFiles with regex pattern kModelTypes`) came out empty.
-- `set` (any property: `set the itemDel`, `set the defaultFolder`, `set the cXx of me`) empties the result;
+- `set` (any property: `set the itemDel`, `set the defaultFolder`, `set the cXx of me`) empties the result
+  (built for global and object properties; `set the script of X` gives its compile errors as the result);
   `put`, `get`, `add` keep it (a failed `open file` = "can't open that file" stays through them).
   `set the defaultFolder to "Q:/nope"` (no such folder): the result is "can't open directory".
 - `the screenLoc` = 768,432 and `the screenRect` = 0,0,1536,864 on his laptop (the middle of the screenRect).
