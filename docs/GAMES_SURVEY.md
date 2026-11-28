@@ -52,5 +52,5 @@ keeps the array (before, it arrived empty: the sequencer's clip settings).
 - The 2 errors are the known Simple_Test2 / demo game-script bug (btn "Next Preset").
 - Harvest survey (tools/survey_stacks.py): the same as before, click for click. No harvest in ~/projects/XTJSON has a
   script behavior: their "behavior" keys are listBehavior / backgroundBehavior / radioBehavior flags.
-- Not done: `it` after dispatch (handled / unhandled / passed, measured) is not set; `the long id` of a script-only
-  stack loaded from a file gives `stack "Name"` (LiveCode gives the file path).
+- Done 27 Nov (x1-05): `it` after dispatch (handled / unhandled / passed) is set; `the long id` of a script-only
+  stack loaded from a file now gives its path, as LiveCode does (LIVECODE_FACTS, 27 Nov).

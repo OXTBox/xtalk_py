@@ -525,23 +525,28 @@ class StackRuntime:
         return None
 
     def dispatch(self, o, msg, args):
-        saved = self.target
+        """dispatch msg to o: the message's value; self.dispatched = what `it` then holds (measured 27 Nov):
+        handled, unhandled (no handler on the path, behaviors included) or passed (the last handler passed it)"""
+        saved, saved_off = self.target, self.passed_off
+        self.passed_off = False
         try:
-            return self.message(o, msg, args)
+            r = self.message(o, msg, args)
+            self.dispatched = 'unhandled' if r is None else 'passed' if self.passed_off else 'handled'
+            return r
         finally:
-            self.target = saved
+            self.target, self.passed_off = saved, saved_off
 
     def send_text(self, o, text):
         """`send "hello 7" to o`: the text runs as a statement, starting at o"""
         c = self.ctx.get(id(o)) or ObjInterp(self, o)
-        saved = self.target
-        self.target = o
+        saved, saved_off = self.target, self.passed_off     # a send inside a dispatched handler: its own pass
+        self.target = o                                     # does not make that dispatch "passed"
         try:
             self.running.append(o)
             c.run(text)
         finally:
             self.running.pop()
-            self.target = saved
+            self.target, self.passed_off = saved, saved_off
 
     def after(self, ms, o, text):
         """send text to o in ms; returns the message id (`the result` after `send ... in`, measured)"""

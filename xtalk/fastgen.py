@@ -148,7 +148,7 @@ class FastGen(Gen):
             elif k == 'constant':                 # a constant line in a handler writes rt.S (as the interpreter)
                 hconst.add(nd[1].lower())
                 used.add(nd[1].lower())
-            elif k in ('dialog', 'create'):
+            elif k in ('dialog', 'create') or (k == 'cmd' and nd[1].lower() == 'dispatch'):
                 used.add('it')
         if (D | P) & G:
             raise NeedFrame('a name is both global and local')
@@ -655,6 +655,8 @@ class FastGen(Gen):
         own = getattr(self, 'c_' + name, None)
         if own is None:
             generic(ind)
+            if name.lower() == 'dispatch':     # dispatch puts handled / unhandled / passed into it
+                self.reload_it(ind)
             return
         self.emit(ind, 'if rt.has_handler(%s):' % _r(name))
         generic(ind + 1)
