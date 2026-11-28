@@ -56,3 +56,28 @@ when the port is taken), and `the screenLoc`.
 - Rendering parts owned by helper B (view.py: labels, menus, borders): changes kept small and named in the report.
 - Two engines in one window: the bench's own model view (xbFrame) and a game (xbGameTick) share the view image;
   only one runs at a time in the script, so it should hold.
+
+## Result (same evening)
+
+Everything in the bench runs hidden with 0 script errors (`tools/xt3d_bench_check.py`): the model list and the 5
+test models (skinned, animated: Play + frame slider), Spin/Grid/Tint/Solid/Wires, Face (547 face lines), Games
+(61 cards) and Editor (15 example cards) played in the view, Escape / Stop game, the console line (`put 6*7` -> 42,
+`Entity.` + Tab = the menu of the Entity calls), Run checks: 15 PASS, 0 FAIL, the same log LiveCode wrote on 11 Nov
+(plus the 3 models added to the folder since). What was missing in the Python runtime, all fixed in place:
+
+| Missing | Fix |
+|---|---|
+| `accept connections` | answers a result (no sockets); DevServer.Start then says it could not listen |
+| `the screenLoc` | 768,432 (measured) |
+| `filter ... with regex pattern` | built (measured: found anywhere in the line, follows the caseSensitive) |
+| `set` keeps the result | set empties it (measured); a missing defaultFolder = "can't open directory" |
+| buttons of a script-only stack had no labels | it gets the harvest's typeDefaults |
+| `C:/xt3d/...` paths in xt3d calls | mapped (generator: P / PW; reads where the file is, writes where the runtime writes) |
+| `xt3d_CloseWindow` on the stack's window | closed for the scripts until the next InitWindow/InitHidden |
+| `open file / write to file / close file` | built (measured); `read from file` not yet |
+| option menu label | follows set the text / the menuHistory (measured) |
+| `popup btn at x, y` | the point as two expressions |
+
+Not done: the Dev server (sockets: x1-06's question); raylib's own log lines do not reach C:/xt3d/raylib_log.txt
+(Python's raylib prints them to the terminal, so the log field under the view stays empty); the model view at a
+window scale above 1 is the 720x540 picture made bigger (games use the 2x frame and stay sharp).

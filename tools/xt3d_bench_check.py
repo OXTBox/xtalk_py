@@ -147,7 +147,11 @@ def main(a):
     print('script errors: %d; saved %s' % (len(rt.errors), snap))
     t = time.perf_counter()
     rt.close_stack() if hasattr(rt, 'close_stack') else None
-    print('closed in %.2f s; errors after closing: %d' % (time.perf_counter() - t, len(rt.errors)))
+    from xtalk import xt3d
+    print('closed in %.2f s; errors after closing: %d; engine edition still loaded: %s; xt3d window closed for the '
+          'scripts: %s; quit: %s' % (time.perf_counter() - t, len(rt.errors),
+                                    rt.harvest.stack('VibeEngineXt3d') is not None and rt.harvest.stack('VibeEngineXt3d') in rt.using,
+                                    xt3d.CLOSED[0], getattr(rt, 'quitting', False)))
     for e in rt.errors[:20]:
         print('script error:', *e)
     v.close()
