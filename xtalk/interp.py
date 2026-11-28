@@ -616,7 +616,17 @@ class Interp:
             return m(parts, fr)
         raw = name.lower() == 'dispatch'      # dispatch ... with an array: the array goes as it is
         vals = [(p[0], (self.arg(p[1], fr) if raw else to_text(self.arg(p[1], fr))) if p[0] == 'e' else p[1]) for p in parts]
-        self.result = to_text(self.host.command(name, vals) or '')
+        self.host_command(fr, name, vals)
+
+    def host_command(self, fr, name, parts):
+        """a command the host does (go, show, dispatch...): its value is the result; a command that sets `it`
+        (dispatch: handled / unhandled / passed, measured 27 Nov) leaves that in host.cmd_it"""
+        self.host.cmd_it = None
+        self.result = to_text(self.host.command(name, parts) or '')
+        v = getattr(self.host, 'cmd_it', None)
+        if v is not None:
+            self.host.cmd_it = None
+            self.put_var(fr, 'it', v)
 
     def check_byref(self, name, kinds):
         """a chunk given to an @ parameter is an error in LiveCode (measured, LIVECODE_FACTS)"""

@@ -366,6 +366,37 @@ Harvests: LIB_XTJSON's harvester writes `node["behavior"]` = `the behavior of X`
 harvests in ~/projects/XTJSON has one (26 Nov): their "behavior" keys are listBehavior / backgroundBehavior /
 radioBehavior / sharedBehavior / tabGroupBehavior flags, not script behaviors.
 
+## `it` after dispatch; the long id of a stack with a file (27 Nov, x1-05)
+
+Measured with `lcmcp --standalone run --server` (LiveCode 9.6.3 on Windows); test stacks made and deleted in the run.
+Button T: `foo` (handles), `bar` (passes), `baz` (passes; the card has baz), `ret` (return 42), function `fn` (return 7),
+`setit` (put 99 into it).
+
+| What | `it` / the result |
+|---|---|
+| `dispatch "foo"` | handled / empty |
+| `dispatch "bar"` (T passes, no one after) | passed |
+| `dispatch "baz"` (T passes, the card handles) | handled |
+| `dispatch "nope"` (no handler anywhere) | unhandled |
+| `dispatch "ret"` | handled / 42 |
+| `dispatch function "fn"` | handled / 7 |
+| `dispatch "fn"` (a function dispatched as a command) | unhandled (not built here: we run it, handled) |
+| `dispatch "setit"` (the handler puts 99 into its own it) | handled (the caller's it) |
+| `send "foo"` | it unchanged |
+| `dispatch "mouseUp"` to a button with no mouseUp anywhere | unhandled |
+
+| What | LiveCode |
+|---|---|
+| `the long id of stack tPath` (a script-only stack file) | `stack "C:/Users/.../Temp/lidSO.livecodescript"` (the filename) |
+| `the long id of stack "LidSO"` (by name), `the long name` | the same path form |
+| `the name` / `the short name` / `the abbreviated id` | `stack "LidSO"` / `LidSO` / `stack id 1001` |
+| `the long id of card 1` of that stack | `card id 0 of stack "<path>"` (card id 0: here it stays 1002) |
+| a new stack, not saved | `stack "LidNorm"` |
+| the same stack after `set the filename` + `save` | `stack "C:/.../lidN.livecode"`; a button on it: `button id 1003 of card id 1002 of stack "<path>"` |
+
+Built: script-only stacks loaded from a file (host.stack_ref). Not built: the same for the harvest's own stack when it has
+a file (real_app gives it one: every long id in Project Map would change); substacks of a stack with a file not measured.
+
 ## A library that is not in use; specialFolderPath("support"); caseSensitive and text operators (27 Nov, g1-06)
 
 Measured with `lcmcp --standalone` (LiveCode 9.6.3 on Windows):

@@ -12,6 +12,7 @@ class Host:
     def __init__(self):
         self.objs = {}            # descriptor (lower) -> {prop: text}
         self.log = []             # [(command, [values])] of commands the script gave the host
+        self.cmd_it = None        # a command's value for `it` (dispatch: handled / unhandled / passed)
         self.current = {'card': 'card "main"', 'stack': 'stack "main"', 'background': 'background "main"'}
         self.files = {}           # path -> text (a tiny in-memory disk; real file access when 'real_files')
         self.real_files = False

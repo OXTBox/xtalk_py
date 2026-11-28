@@ -190,6 +190,85 @@ def run(src, mode):
     return rt.call('t')
 
 
+# Cases that need a stack (objects to dispatch to, a stack file): function t is the card's script of the test
+# stack tests/stacks/mini; the button "T" gets the script DSP_T. A stack runs interpreted or translated (fast);
+# the plain translated mode is not a stack mode, so these run twice.
+DSP_T = '''on foo
+end foo
+on bar
+   pass bar
+end bar
+on baz
+   pass baz
+end baz
+on ret
+   return 42
+end ret
+function fn
+   return 7
+end fn
+on setit
+   put 99 into it
+end setit'''
+
+STACK_CASES = [
+    ('it after dispatch: handled / passed (the last handler passed) / unhandled; send leaves it; an engine message with no handler: unhandled (measured 27 Nov)', '''
+function t
+   put "x" into it
+   dispatch "foo" to button "T"
+   put "foo=" & it into tR
+   dispatch "bar" to button "T"
+   put " bar=" & it after tR
+   dispatch "baz" to button "T"
+   put " baz=" & it after tR
+   dispatch "nope" to button "T"
+   put " nope=" & it after tR
+   dispatch "ret" to button "T"
+   put " ret=" & it & "/" & the result after tR
+   dispatch function "fn" to button "T"
+   put " fnf=" & it & "/" & the result after tR
+   dispatch "setit" to button "T"
+   put " setit=" & it after tR
+   put "x" into it
+   send "foo" to button "T"
+   put " sendit=" & it after tR
+   dispatch "mouseDoubleUp" to button "T"
+   put " mouseDoubleUp=" & it after tR
+   return tR
+end t
+on baz
+end baz''', 'foo=handled bar=passed baz=handled nope=unhandled ret=handled/42 fnf=handled/7 setit=handled sendit=x '
+            'mouseDoubleUp=unhandled'),
+    ('the long id of a script-only stack loaded from a file is its path (its long name and card too; measured 27 Nov)', '''
+function t
+   global gSO
+   put the long id of stack gSO into tA
+   put (tA = "stack " & quote & the filename of stack "LidSO" & quote) into tR
+   put "," & (the long id of stack "LidSO" = tA) after tR
+   put "," & (the long name of stack "LidSO" = tA) after tR
+   put "," & the name of stack "LidSO" & "," & the short name of stack tA after tR
+   put "," & (the long id of card 1 of stack "LidSO" ends with " of " & tA) after tR
+   return tR
+end t''', 'true,true,true,stack "LidSO",LidSO,true'),
+]
+
+
+def run_stack(src, fast):
+    from xtalk.stack.runtime import StackRuntime
+    files = os.path.join(ROOT, 'run_files', 'test')
+    os.makedirs(files, exist_ok=True)
+    so = os.path.join(files, 'LidSO.livecodescript')
+    with open(so, 'w') as f:
+        f.write('script "LidSO"\non hi\nend hi\n')
+    r = StackRuntime(os.path.join(ROOT, 'tests/stacks/mini'), files_dir=files, fast=fast)
+    r.open()
+    r.G['gs'], r.G['gso'] = DSP_T, so
+    r.run('global gS\ncreate button "T"\nset the script of button "T" to gS')
+    r.G['gs'] = src
+    r.run('global gS\nset the script of this card to gS')
+    return r.eval('t()')
+
+
 bad, n = [], 0
 for label, src, want in CASES:
     for mode in ('interp', 'translated', 'fast'):
@@ -202,6 +281,17 @@ for label, src, want in CASES:
             bad.append((mode, label, want, got))
         elif '-v' in sys.argv:
             print('ok   %-10s %s' % (mode, label))
+for label, src, want in STACK_CASES:
+    for mode in ('interp', 'fast'):
+        n += 1
+        try:
+            got = str(run_stack(src, mode == 'fast'))
+        except XtError as e:
+            got = 'ERROR %s' % e
+        if got != want:
+            bad.append(('stack ' + mode, label, want, got))
+        elif '-v' in sys.argv:
+            print('ok   stack %-4s %s' % (mode, label))
 for mode, label, want, got in bad:
     print('FAIL %-10s %s\n     want %r\n     got  %r' % (mode, label, want, got))
 print('%d of %d measured cases match LiveCode 9.6.3' % (n - len(bad), n))

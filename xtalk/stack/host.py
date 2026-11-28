@@ -110,28 +110,38 @@ class StackHost(Host):
         self.folders = {}            # specialFolderPath name (lower) -> folder, set by the runtime
 
     # ------------------------------------------------------------ names
+    def stack_ref(self, st):
+        """how a long id / long name names a stack: `stack "Name"`; a script-only stack loaded from a file by
+        its path, as `the filename` gives it (measured 27 Nov: `stack "C:/.../lidSO.livecodescript"`, its cards
+        and controls too). LiveCode does the same for any main stack with a file (a saved stack); here only the
+        script-only ones, so the harvest's own stack keeps its name."""
+        fn = getattr(st, 'filename', '')
+        if fn and st is not self.rt.harvest.main and getattr(st, 'mainstack', None) is st:
+            return 'stack "%s"' % fn
+        return 'stack "%s"' % st.name
+
     def long_id(self, o):
         if o.type == 'stack':
-            return 'stack "%s"' % o.name
+            return self.stack_ref(o)
         if o.type == 'card':
-            return 'card id %d of stack "%s"' % (o.id, o.stack.name)
+            return 'card id %d of %s' % (o.id, self.stack_ref(o.stack))
         out = '%s id %d' % (o.type, o.id)
         p = o.parent
         while p is not None and p.type == 'group':
             out += ' of group id %d' % p.id
             p = p.parent
-        return out + ' of card id %d of stack "%s"' % (o.card.id if o.card else 0, o.stack.name)
+        return out + ' of card id %d of %s' % (o.card.id if o.card else 0, self.stack_ref(o.stack))
 
     def name_of(self, o, form=''):
         if form == 'short':
             return o.name if o.name else ('%s id %d' % (o.type, o.id))
         if o.type == 'stack':
-            return 'stack "%s"' % o.name
+            return self.stack_ref(o) if form == 'long' else 'stack "%s"' % o.name
         base = '%s "%s"' % (o.type, o.name) if o.name else '%s id %d' % (o.type, o.id)
         if form == 'long':
             if o.type == 'card':
-                return base + ' of stack "%s"' % o.stack.name
-            return base + ' of card id %d of stack "%s"' % (o.card.id if o.card else 0, o.stack.name)
+                return base + ' of %s' % self.stack_ref(o.stack)
+            return base + ' of card id %d of %s' % (o.card.id if o.card else 0, self.stack_ref(o.stack))
         return base
 
     @property
@@ -264,6 +274,11 @@ class StackHost(Host):
 
     def _find_stack(self, how, val):
         if how == 'name':
+            if '/' in val.replace('\\', '/'):      # a stack's long id by its file (a script-only stack): no new read
+                f = val.replace('\\', '/').lower()
+                for s in self.rt.harvest.stacks:
+                    if (getattr(s, 'filename', '') or '').replace('\\', '/').lower() == f:
+                        return s
             v = val.replace('\\', '/').split('/')[-1]
             for s in self.rt.harvest.stacks:
                 if s.name.lower() in (val.lower(), v.lower()) or os.path.basename(s.node.get('file', '')).lower() == v.lower():
@@ -1277,6 +1292,7 @@ class StackHost(Host):
             target = rt.running_obj() or rt.default_stack.current
         if name == 'dispatch':
             r = rt.dispatch(target, msg, args)
+            self.cmd_it = rt.dispatched        # it = handled / unhandled / passed (the interpreter puts it)
             return r if isinstance(r, str) else ''
         if delay is not None:
             return str(rt.after(delay, target, msg))

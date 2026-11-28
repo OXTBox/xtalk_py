@@ -144,7 +144,7 @@ class Runtime(Interp):
         it = iter(vals)
         raw = name.lower() in RAW_ARG_COMMANDS
         parts = [('e', next(it) if raw else to_text(next(it))) if w is None else ('w', w) for w in words]
-        self.result = to_text(self.host.command(name, parts) or '')
+        self.host_command(fr, name, parts)
         return None
 
     def convert_cmd(self, vals, words):
@@ -178,7 +178,7 @@ class Runtime(Interp):
         it = iter(vals)
         raw = name.lower() in RAW_ARG_COMMANDS
         parts = [('e', next(it) if raw else to_text(next(it))) if w is None else ('w', w) for w in words]
-        self.result = to_text(self.host.command(name, parts) or '')
+        self.host_command(fr, name, parts)
 
 
 # ------------------------------------------------------------------ the fast translator's helpers

@@ -722,6 +722,16 @@ def _bhv_checks(fast):
           'set the behavior of button "U" to the long id of stack "%s"\n'
           'set the behavior of button "U2" to the long id of stack "BhvSO"' % so)
     check(tag + 'a script-only stack: the behavior is stack "Name"', r.eval('the behavior of button "U"'), 'stack "BhvSO"')
+    check(tag + 'a script-only stack from a file: its long id is its path (measured 27 Nov)',
+          (r.eval('the long id of stack "BhvSO"'), r.eval('the short name of stack (the long id of stack "BhvSO")')),
+          ('stack "%s"' % r.eval('the filename of stack "BhvSO"'), 'BhvSO'))
+    script('this card', 'on itAfter\nglobal gR\ndispatch "Setup" to button "U2" with 1\nput it into gR\n'
+           'dispatch "zzNone" to button "U"\nput "," & it after gR\ndispatch "foo" to button "U"\nput "," & it after gR\n'
+           'end itAfter')
+    r.run('itAfter')
+    script('this card', 'on foo\nglobal gLog\nput "C," after gLog\nend foo')
+    check(tag + 'it after dispatch: handled / unhandled / passed (behavior passes, measured 27 Nov)',
+          r.G['gr'], 'handled,unhandled,passed')
     r.G['glog'] = ''
     r.run('dispatch "foo" to button "U"\ndispatch "Setup" to button "U2" with 7')
     check(tag + 'dispatch reaches a script-only stack behavior', r.G['glog'], 'SO:U,C,setup:7:U2,')
