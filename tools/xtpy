@@ -1,0 +1,3 @@
+#!/bin/bash
+# xtpy: the Python runtime's command line (tools/xtpy.py has the help). Runs with the .venv (raylib).
+cd "$(dirname "$0")/.." && exec .venv/bin/python -I tools/xtpy.py "$@"

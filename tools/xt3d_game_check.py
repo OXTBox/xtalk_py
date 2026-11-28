@@ -21,26 +21,8 @@ each second of frames, script errors, and saves a snapshot (default run_files/xt
 import json, os, shutil, sys, time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-BRIDGE = os.path.expanduser('~/projects/xt3D_Raylib_Livecode_Bridge')
-HOST = os.path.join(BRIDGE, 'testbench', 'xt3d_testBench_lib_mcp.livecodescript')
+from xtalk.session import make_stack, HOST, BRIDGE   # noqa: E402,F401  (bench_xt3d.py imports them from here)
 SCALE_KEY = 'xt3d game window'             # its line in run_files/window_scale.json (one scale for every game)
-
-
-def make_stack(folder, w, h):
-    if os.path.isdir(folder):
-        shutil.rmtree(folder)
-    os.makedirs(os.path.join(folder, 'scripts'))
-    shutil.copy(HOST, os.path.join(folder, 'scripts', 'host__stack.livecodescript'))
-    stack = {'type': 'stack', 'name': 'xt3dTestBenchLibMCP', 'id': 1001, 'role': 'main', 'rect': [0, 0, w, h],
-             'size': [w, h], 'effective': {'textFont': 'Segoe UI', 'textSize': 12},
-             'script': {'file': 'scripts/host__stack.livecodescript'},
-             'cards': [{'type': 'card', 'name': '', 'id': 1002, 'number': 1, 'controls': []}]}
-    json.dump(stack, open(os.path.join(folder, 'stack_host.json'), 'w'), indent=1)
-    json.dump({'format': 'livecode-harvest', 'formatVersion': 2, 'mainStack': 'xt3dTestBenchLibMCP',
-               'note': 'made by tools/xt3d_game_check.py: the xt3d testbench host (script-only) as a stack',
-               'stacks': [{'name': 'xt3dTestBenchLibMCP', 'role': 'main', 'file': 'stack_host.json', 'cards': 1,
-                           'controls': 0}], 'typeDefaults': {}, 'errors': []},
-              open(os.path.join(folder, 'manifest.json'), 'w'), indent=1)
 
 
 def main(a):
