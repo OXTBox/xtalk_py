@@ -2,8 +2,8 @@
 
 MERGED + PUSHED 27 Nov late on his "merge" (all tests pass on main; branches and worktree removed). lcmcp ping
 OK'd and answered first time; Spark try done (all four right); LIB_VectorMap: his word "can wait".
-Still open: registering xtpy for Claude Code (my `claude mcp add` was refused by the permission check: he runs
-`claude mcp add -s user xtpy -- python3 -I /home/igame3d/projects/xtalk_py/mcp/xtpy_server.py` himself).
+xtpy is registered for Claude Code at user scope (he ran `claude mcp add -s user xtpy ...` himself 27 Nov late):
+every new session has the xtpy_* tools (xtpy only, no LiveCode tools).
 Next in the tube: x1-09 shaders (step 2: measure effects in LiveCode, NO snapshots), then x1-16.
 HANDOFF_2026-11-27_NIGHT.md is history except its Open list, carried over below.
 
