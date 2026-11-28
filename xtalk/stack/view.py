@@ -27,9 +27,14 @@ ALIASES = {'': 'segoe ui', 'lucida grande': 'segoe ui', 'helvetica': 'arial', 'g
 CODEPOINTS = list(range(32, 127)) + list(range(160, 384)) + list(range(0x2010, 0x2040)) + [0x20AC, 0x2122, 0x2190,
               0x2191, 0x2192, 0x2193, 0x2022, 0x2026]
 NAMES = {k: v for k, v in COLOR_NAMES.items()}
-SCALE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                          'run_files', 'window_scale.json')
+RUN_FILES = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'run_files')
+WINDOWS_FILE = os.path.join(RUN_FILES, 'windows.json')     # per stack: scale, place, size (docs/WINDOW_RULES.md)
+SCALE_FILE = os.path.join(RUN_FILES, 'window_scale.json')  # the scales before 27 Nov (read, no longer written)
 SCALE_MIN, SCALE_MAX, SCALE_STEP = 0.5, 3.0, 0.05
+OPEN_AT = (200, 32)       # owner rule: a stack opens with its topLeft at 200,32 (screen units, his screenRect 1536x864)
+TASKBAR = 48              # screen units kept free at the bottom of the screen (the Windows taskbar)
+TITLE_BAR = 32            # pixels of window frame above the card (WSLg's title bar): kept on the screen
+GRIP = 14                 # the resize grip in the lower-right corner, in pixels
 
 
 def windows_scale():
@@ -50,13 +55,48 @@ def windows_scale():
     return windows_scale.v
 
 
-def remembered_scales():
+def _read_json(path):
     try:
         import json
-        with open(SCALE_FILE) as f:
-            return json.load(f)
+        with open(path) as f:
+            v = json.load(f)
+        return v if isinstance(v, dict) else {}
     except (OSError, ValueError):
         return {}
+
+
+def remembered_windows():
+    """run_files/windows.json: stack name (lower case) -> {"scale", "left", "top", "width", "height"}"""
+    return _read_json(WINDOWS_FILE)
+
+
+def remember_window(key, **values):
+    """keep these values for the stack's window (the others stay); XTALK_NO_REMEMBER=1: nothing is kept"""
+    if os.environ.get('XTALK_NO_REMEMBER'):
+        return
+    import json
+    saved = remembered_windows()
+    rec = saved.get(str(key).lower())
+    rec = dict(rec) if isinstance(rec, dict) else {}
+    rec.update(values)
+    saved[str(key).lower()] = rec
+    try:
+        os.makedirs(RUN_FILES, exist_ok=True)
+        tmp = WINDOWS_FILE + '.tmp'
+        with open(tmp, 'w') as f:
+            json.dump(saved, f, indent=1, sort_keys=True)
+        os.replace(tmp, WINDOWS_FILE)
+    except OSError:
+        pass
+
+
+def remembered_scales():
+    """stack name -> scale: windows.json, over the older window_scale.json"""
+    out = dict(_read_json(SCALE_FILE))
+    for k, rec in remembered_windows().items():
+        if isinstance(rec, dict) and 'scale' in rec:
+            out[k] = rec['scale']
+    return out
 
 
 def window_scale(stack_name):
@@ -76,15 +116,7 @@ def window_scale(stack_name):
 
 
 def remember_scale(stack_name, s):
-    import json
-    saved = remembered_scales()
-    saved[str(stack_name).lower()] = s
-    try:
-        os.makedirs(os.path.dirname(SCALE_FILE), exist_ok=True)
-        with open(SCALE_FILE, 'w') as f:
-            json.dump(saved, f, indent=1, sort_keys=True)
-    except OSError:
-        pass
+    remember_window(stack_name, scale=s)
 
 
 def colour(v, default=None):
@@ -107,9 +139,12 @@ def colour(v, default=None):
 
 
 class View:
-    def __init__(self, rt, hidden=False, pos=(200, 32), scale=1.0, show_after_open=False):
+    def __init__(self, rt, hidden=False, pos=OPEN_AT, scale=1.0, show_after_open=False, rules=None, key=None):
         """scale: our own scaleFactor (owner 26 Nov, x1-00: \"so I can read it\"). Everything is drawn that much
-        bigger with sharp text; the scripts never see it (rects, the mouseLoc, the screenRect stay in units)"""
+        bigger with sharp text; the scripts never see it (rects, the mouseLoc, the screenRect stay in units).
+        rules: the window rules of docs/WINDOW_RULES.md (place, fit, resize, closeStackRequest, remembered place
+        and size); on for a real window, off for a hidden one (checks keep their old, fixed window) unless asked.
+        key: the name its place and size are remembered under (default: the name of the stack shown first)"""
         self.rt = rt
         st = rt.default_stack
         w, h = st.size if st.size else (st.width, st.height)
@@ -120,12 +155,30 @@ class View:
         # show_after_open (owner 27 Nov: "poor application presentation"): the window stays hidden while the
         # stack's open messages run (the Library's Play makes the game's stack and sets its size then), and
         # appears once, at its final size and place; a dialog or menu during opening shows it at once
-        self.pos = pos
+        self.pos = tuple(pos)          # where it opens (screen units) when no place is remembered
         self.unshown = bool(show_after_open) and not hidden
+        self.rules = (not hidden) if rules is None else bool(rules)
+        self.remember = self.rules and not hidden
+        self.key = key
+        self.esc_frees = False         # play mode: Escape frees the mouse and keys (and again takes them back)
+        self.placed = False            # the rules placed it (at reveal, or at once for a window shown at once)
+        self.place = tuple(pos)        # its place now, screen units (the stack's topLeft)
+        self.place_px = None           # the same in pixels (floats: a dragged window's place does not drift)
+        self.reported, self.quiet = None, 0    # where the window system last said it is; frames to not listen
+        self.limits_px = None          # (min w, min h, max w, max h, resizable) as last given to the window
+        self.gripping = None           # dragging the lower-right grip: (mouse at the start, size at the start)
+        self.close_asked = self.close_done = 0   # close-box clicks seen / answered with closeStackRequest
+        self.force_close = False       # a second click while the first was not answered yet: it closes
+        flags = 0
         if hidden or self.unshown:
-            rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
+            flags |= rl.FLAG_WINDOW_HIDDEN
+        if self.rules and self.resizable():
+            flags |= rl.FLAG_WINDOW_RESIZABLE
+        if flags:
+            rl.set_config_flags(flags)
         rl.init_window(*self.scaled_size(), st.props.get('title') or st.name)
-        if not hidden and not self.unshown:   # 200,32 in units, as LiveCode places it on a scaled Windows screen
+        self.last_px = self.scaled_size()      # the size we last gave the window (a different one = the owner's drag)
+        if not hidden and not self.unshown and not self.rules:
             rl.set_window_position(int(pos[0] * self.scale), int(pos[1] * self.scale))
         rl.set_exit_key(0)
         rl.set_target_fps(60)
@@ -161,7 +214,6 @@ class View:
         self.settle = 0                # frames to wait after moving the pointer back (WSL moves it late)
         self.recentre = True           # soft grab: put the hidden pointer back in the middle each frame (off if WSL refuses)
         self.on_close = None           # play mode: called the moment the close box is clicked (it ends the program)
-        self.esc_frees = False         # play mode: Escape frees the mouse and keys (and again takes them back)
         self.freed = False
         if not hidden:                 # a hidden (test) window never moves the real mouse
             rt.window_pos = tuple(pos)
@@ -171,6 +223,8 @@ class View:
         imgui.backends.opengl3_init('#version 330')
         self.imgui_scale = 1.0
         self.scale_imgui()
+        if self.rules and not self.unshown:    # shown at once (a hidden check, the xt3d play window): placed now
+            self.place_window(show=False)
 
     # ------------------------------------------------------------ scale
     def scaled_size(self):
@@ -203,12 +257,238 @@ class View:
         self.scale = s
         for k in [k for k in self.fonts if len(k) == 3]:   # bigger letter sets made for the old scale
             rl.unload_font(self.fonts.pop(k))
-        rl.set_window_size(*self.scaled_size())
+        self.limits_px = None                  # the min and max sizes are in units: new pixels
+        self.apply_limits()
+        self.last_px = self.scaled_size()
+        rl.set_window_size(*self.last_px)
         self.scale_imgui()
         self.cache_dirty = True
         self.wake()
         if self.on_scale is not None:
             self.on_scale(s)
+
+    # ------------------------------------------------------------ the window rules (docs/WINDOW_RULES.md)
+    def stack_num(self, p, default):
+        try:
+            return int(float(self.prop(self.rt.default_stack, p)))
+        except (TypeError, ValueError):
+            return default
+
+    def resizable(self):
+        """the owner may resize it: the stack's resizable (LiveCode's default true); never a play window"""
+        return str(self.prop(self.rt.default_stack, 'resizable')).lower() != 'false' and not self.esc_frees
+
+    def min_max(self):
+        """the stack's minWidth, minHeight, maxWidth, maxHeight in units (LiveCode's defaults 32 and 65535)"""
+        return (max(1, self.stack_num('minwidth', 32)), max(1, self.stack_num('minheight', 32)),
+                self.stack_num('maxwidth', 65535), self.stack_num('maxheight', 65535))
+
+    def apply_limits(self):
+        """the window system gets the stack's min/max size (at the scale) and whether it may be resized;
+        given again only when they change (the Library sets resizable false in its openStack)"""
+        a, b, c, d = self.min_max()
+        s = self.scale
+        want = (int(math.ceil(a * s)), int(math.ceil(b * s)), int(c * s), int(d * s), self.resizable())
+        if want == self.limits_px:
+            return
+        self.limits_px = want
+        (rl.set_window_state if want[4] else rl.clear_window_state)(rl.FLAG_WINDOW_RESIZABLE)
+        rl.set_window_min_size(want[0], want[1])
+        rl.set_window_max_size(min(want[2], 16384), min(want[3], 16384))
+
+    def clamp_units(self, w, h):
+        a, b, c, d = self.min_max()
+        return max(a, min(c, int(w))), max(b, min(d, int(h)))
+
+    def screen_px(self):
+        """the monitor in pixels (1920x1080 here); a hidden check: the same, fixed"""
+        try:
+            m = rl.get_current_monitor()
+            w, h = rl.get_monitor_width(m), rl.get_monitor_height(m)
+            if w > 0 and h > 0:
+                return w, h
+        except Exception:
+            pass
+        return 1920, 1080
+
+    def resize_units(self, w, h, by_owner=False):
+        """the stack and the window to w x h units (top-left kept), resizeStack to its card. by_owner: he
+        dragged the window to that size (it is that size already, unless the min/max size held it)"""
+        st = self.rt.default_stack
+        w, h = self.clamp_units(w, h)
+        old = list(st.rect)
+        st.rect = [old[0], old[1], old[0] + w, old[1] + h]
+        self.base_size = (w, h)
+        px = self.scaled_size()
+        if px != self.last_px or not by_owner:
+            self.last_px = px
+            rl.set_window_size(*px)
+        self.cache_dirty = True
+        self.wake()
+        self.rt.host.stack_resized(st, old)
+
+    def fit(self, left, top):
+        """a place (screen units) where the whole window is on the screen, clear of the taskbar: moved left/up
+        first; a stack still too big that may be resized is made smaller (not under its minimum)"""
+        ws = windows_scale()
+        sw, sh = self.screen_px()
+        bottom = sh - TASKBAR * ws
+        w, h = self.scaled_size()
+        x, y = left * ws, top * ws
+        x = max(0, min(x, sw - w))
+        y = max(TITLE_BAR, min(y, bottom - h))
+        if self.resizable() and (x + w > sw or y + h > bottom):
+            nw = min(self.base_size[0], int((sw - x) / self.scale))
+            nh = min(self.base_size[1], int((bottom - y) / self.scale))
+            self.resize_units(nw, nh)
+        return x / ws, y / ws
+
+    def place_window(self, show=False):
+        """the rules' opening: its remembered place and size (else 200,32 and its own size), fitted to the
+        screen; show: it was hidden while the stack opened, it appears there now (show_after_open)"""
+        st = self.rt.default_stack
+        if self.key is None:
+            self.key = st.name
+        rec = remembered_windows().get(str(self.key).lower()) if self.remember else None
+        left, top = self.pos
+        if isinstance(rec, dict):
+            try:
+                left, top = float(rec['left']), float(rec['top'])
+            except (KeyError, TypeError, ValueError):
+                pass
+            try:
+                if self.resizable():
+                    w, h = int(rec['width']), int(rec['height'])
+                    if (w, h) != self.base_size:
+                        self.resize_units(w, h)
+            except (KeyError, TypeError, ValueError):
+                pass
+        self.apply_limits()
+        left, top = self.fit(left, top)
+        self.move_to(left, top)
+        self.placed = True
+        self.shown_stack = st
+        if not show:
+            return
+        x, y = int(self.place_px[0]), int(self.place_px[1])
+        rl.clear_window_state(rl.FLAG_WINDOW_HIDDEN)
+        # the window system places a window as it is shown (owner 27 Nov: it landed near 800,300): put it at
+        # its place again once it is on screen, until it is there (a few tries, ~0.2 s at most)
+        for _ in range(20):
+            rl.poll_input_events()
+            rl.set_window_position(x, y)
+            q = rl.get_window_position()
+            if abs(int(q.x) - x) <= 1 and abs(int(q.y) - y) <= 40:
+                break
+            time.sleep(0.01)
+        self.reported, self.quiet = None, 10
+        if os.environ.get('XTALK_DEBUG_PLACE'):
+            q = rl.get_window_position()
+            print('placed at', int(q.x), int(q.y), 'wanted', x, y, flush=True)
+
+    def move_to(self, left, top):
+        """the window to left,top (screen units); the stack's rect says so (scripts read where it is)"""
+        ws = windows_scale()
+        self.place_px = (left * ws, top * ws)
+        self.set_place(left, top)
+        rl.set_window_position(int(self.place_px[0]), int(self.place_px[1]))
+        self.reported, self.quiet = None, 10   # the window system moves it late: its next reports are ours
+
+    def set_place(self, left, top):
+        st = self.rt.default_stack
+        left, top = int(round(left)), int(round(top))
+        self.place = (left, top)
+        w, h = st.width, st.height
+        st.rect = [left, top, left + w, top + h]
+        self.rt.window_pos = self.place
+
+    def follow_window(self):
+        """each frame, a placed window: the owner moved it (its stack's topLeft follows) or resized it
+        (the stack's size follows, held to its min/max size, resizeStack); a script moved the stack (the
+        window follows); another stack shown in the window takes the window's place"""
+        st = self.rt.default_stack
+        if st is not getattr(self, 'shown_stack', None):
+            self.shown_stack = st
+            self.limits_px = None
+            self.set_place(*self.place)
+        elif (st.rect[0], st.rect[1]) != self.place:
+            self.move_to(st.rect[0], st.rect[1])
+        self.apply_limits()
+        q = rl.get_window_position()
+        q = (q.x, q.y)
+        if self.quiet > 0:
+            self.quiet -= 1
+            self.reported = q
+        elif self.reported is None:
+            self.reported = q
+        elif q != self.reported:
+            ws = windows_scale()
+            self.place_px = (self.place_px[0] + q[0] - self.reported[0], self.place_px[1] + q[1] - self.reported[1])
+            self.reported = q
+            self.set_place(self.place_px[0] / ws, self.place_px[1] / ws)
+        px = (rl.get_screen_width(), rl.get_screen_height())
+        if px != self.last_px and px[0] > 0 and px[1] > 0:
+            self.last_px = px
+            units = (int(round(px[0] / self.scale)), int(round(px[1] / self.scale)))
+            if units != self.base_size:
+                self.resize_units(*units, by_owner=True)
+
+    def grip_on(self):
+        return (self.rules and self.placed and not self.captured and not self.esc_frees and self.menu is None
+                and self.dialog is None and self.limits_px is not None and self.limits_px[4])
+
+    def in_grip(self, m):
+        w, h = rl.get_screen_width(), rl.get_screen_height()
+        return m.x >= w - GRIP and m.y >= h - GRIP
+
+    def grip(self):
+        """the lower-right corner: a drag there resizes the window (whatever the window system's frame does).
+        True while it has the mouse (the card gets no mouseDown for it)"""
+        m = rl.get_mouse_position()
+        if self.gripping is not None:
+            if not rl.is_mouse_button_down(0):
+                self.gripping = None
+                return True
+            (mx, my), (w0, h0) = self.gripping
+            w = int(round((w0 + m.x - mx) / self.scale))
+            h = int(round((h0 + m.y - my) / self.scale))
+            if self.clamp_units(w, h) != self.base_size:
+                self.resize_units(w, h)
+            return True
+        if rl.is_mouse_button_pressed(0) and self.grip_on() and self.in_grip(m):
+            self.gripping = ((m.x, m.y), self.last_px)
+            return True
+        return False
+
+    def draw_grip(self):
+        """three short lines in the lower-right corner, as Windows draws its size grip"""
+        w, h = rl.get_screen_width(), rl.get_screen_height()
+        col = rl.Color(128, 128, 128, 200)
+        for i in (4, 8, 12):
+            rl.draw_line_ex(rl.Vector2(w - i, h - 1), rl.Vector2(w - 1, h - i), 1.5, col)
+
+    def close_request(self):
+        """the close box: closeStackRequest to the shown stack's card (LIB_ALPHA rule 12b: its handler sets
+        destroyStack and closes the mainStack). Passed, or no handler: the stack closes. Not passed and not
+        closed by the handler: the window stays (as in LiveCode)"""
+        rt = self.rt
+        st = rt.default_stack
+        self.save_window()
+        if hasattr(rt, 'log_clicks'):
+            rt.log_clicks.append('close box')
+        took = rt.handled(st.current, 'closeStackRequest') if st.current is not None else False
+        if rt.closed or took:
+            return
+        rt.host.close_stack_obj(st)
+
+    def save_window(self):
+        """remember its place (and its size, for a stack that may be resized) for the next opening"""
+        if not (self.remember and self.placed):
+            return
+        rec = {'left': self.place[0], 'top': self.place[1]}
+        if self.resizable():
+            rec['width'], rec['height'] = self.base_size
+        remember_window(self.key, **rec)
 
     def mouse_units(self):
         """the real pointer in the window -> the card's units"""
@@ -387,6 +667,8 @@ class View:
             rl.rl_pop_matrix()
         if self.esc_frees:
             self.draw_escape_label()
+        elif self.grip_on():
+            self.draw_grip()
 
     def fronts_take(self, code):
         """play mode: Escape (or another key the View keeps) goes first to the front scripts only, as rawKeyDown
@@ -806,8 +1088,11 @@ class View:
             return
         if w > 0 and h > 0 and (w, h) != self.base_size:
             self.base_size = (w, h)
-            rl.set_window_size(*self.scaled_size())
+            self.last_px = self.scaled_size()
+            rl.set_window_size(*self.last_px)
             self.cache_dirty = True
+        if self.placed:
+            self.follow_window()
 
     def frame(self):
         rt = self.rt
@@ -878,6 +1163,8 @@ class View:
         rt.buttons_down = {b for b, k in (('2', 2), ('3', 1)) if rl.is_mouse_button_down(k)}   # mouse(3) = right
         if rl.is_mouse_button_pressed(1):
             self.look['right presses'] += 1
+        if not busy and not self.captured and self.grip():   # the lower-right corner: resizing, not a click
+            busy = True
         rt.mouse_move(x, y)
         if not busy:
             if rl.is_mouse_button_pressed(0):
@@ -987,21 +1274,12 @@ class View:
         self.follow_stack_size()
         st = self.rt.default_stack
         rl.set_window_title(str(st.props.get('title') or st.name))
+        if self.rules:
+            self.place_window(show=True)
+            return
         x, y = int(self.pos[0] * self.scale), int(self.pos[1] * self.scale)
         rl.set_window_position(x, y)
         rl.clear_window_state(rl.FLAG_WINDOW_HIDDEN)
-        # the window system places a window as it is shown (owner 27 Nov: it landed near 800,300): put it at
-        # its place again once it is on screen, until it is there (a few tries, ~0.2 s at most)
-        for _ in range(20):
-            rl.poll_input_events()
-            rl.set_window_position(x, y)
-            q = rl.get_window_position()
-            if abs(int(q.x) - x) <= 1 and abs(int(q.y) - y) <= 40:
-                break
-            time.sleep(0.01)
-        if os.environ.get('XTALK_DEBUG_PLACE'):
-            q = rl.get_window_position()
-            print('placed at', int(q.x), int(q.y), 'wanted', x, y, flush=True)
 
     def menu_frames(self, items, x, y):
         """a script shows a menu: draw until a pick or the menu closes (the handler waits)"""
@@ -1160,13 +1438,26 @@ class View:
 
     def after_frame(self):
         """after every drawn frame (the main loop, waits, menus, dialogs): a close-box click in play mode ends
-        the program at once, whatever the scripts are doing (the owner, 25 Nov: the close box is absolute)"""
-        self.should_close()
+        the program at once, whatever the scripts are doing (the owner, 25 Nov: the close box is absolute).
+        With the window rules a click is counted here, once a frame (raylib says it for one frame only), and
+        answered with closeStackRequest by the main loop (run) once the scripts are back there; a second
+        click before that closes for sure (a script that never gets back)"""
+        if self.on_close is not None or not self.rules:
+            self.should_close()
+            return
+        if rl.window_should_close():
+            if self.close_asked > self.close_done:
+                self.force_close = True
+            self.close_asked += 1
 
     def should_close(self):
-        """the close box was clicked; in play mode (on_close) the program ends here and never returns"""
+        """the close box was clicked; in play mode (on_close) the program ends here and never returns.
+        With the window rules: only when the window must end now (closed by a script, or a second click)"""
+        if self.on_close is None and self.rules:
+            return self.force_close or self.rt.closed
         c = rl.window_should_close()
         if c and self.on_close is not None:
+            self.save_window()
             cb, self.on_close = self.on_close, None
             cb()
         return c
@@ -1229,6 +1520,11 @@ class View:
         last_active, fps = time.perf_counter(), 60
         while not self.should_close() and not self.rt.closed:
             self.frame()
+            if self.close_asked > self.close_done:    # the close box (window rules): closeStackRequest
+                self.close_done = self.close_asked
+                self.close_request()
+                if self.rt.closed:
+                    break
             now = time.perf_counter()
             if self.active():
                 last_active = now
@@ -1244,6 +1540,7 @@ class View:
             if sleep != self.sleeping:
                 self.sleeping = sleep
                 (rl.enable_event_waiting if sleep else rl.disable_event_waiting)()
+        self.save_window()
         self.rt.close_stack()
         self.close()
 
