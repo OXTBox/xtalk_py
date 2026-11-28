@@ -455,3 +455,20 @@ these follow the Dictionary and the owner's scripts, not a measurement. Measure 
 | set its script to good text | the result = empty |
 | `show stack` then `go stack` | no open messages (it was already open); the defaultStack becomes it after go |
 | `close stack` | closeCard, closeStack (to the card); the stack is still there (destroyStack false) |
+
+## Stack window limits and resizeStack (measured 27 Nov, 9.6.3 standalone, `create invisible stack`; x1-08)
+
+| asked | answer |
+|---|---|
+| a new stack's minWidth, minHeight, maxWidth, maxHeight, resizable | 32, 32, 65535, 65535, true |
+| `set the width of stack` (rect 100,100,500,500 -> width 200) | 200,100,400,500: the centre is kept, as for controls; height the same |
+| set the minWidth to 300, then the width to 200 | width 200: minWidth does not hold a script's size (the window system holds the owner's drag) |
+| set the width to 200, then the minWidth to 300 | width stays 200 |
+| set the maxHeight to 250, then the height to 400 | 250: maxHeight does clip a script's size (maxHeight 1000, height 1200 -> 1000) |
+| resizable false, then set the width | the width changes (resizable is only about the owner's drag) |
+| resizeStack after `set the rect/width/height of stack` | sent at once, every time the size changes, params newW,newH,oldW,oldH (default 256x256 -> rect 100,100,500,500: `400,400,256,256`; width 200: `200,400,400,400`; height 300: `200,300,200,400`) |
+| resizeStack after `set the loc of stack` | none (only the size counts) |
+
+Not measured (no window on the server): closeStackRequest on a close-box click. Used as LiveCode documents it: to the
+stack's current card; passed (or no handler) = the stack closes; not passed = it stays open (LIB_ALPHA rule 12b
+handlers set destroyStack and close the mainStack themselves).

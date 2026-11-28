@@ -837,6 +837,8 @@ class StackHost(Host):
                 o.unturned = None              # moved/resized while not turned: the next turn starts from here
             elif o.type == 'image' and getattr(o, 'unturned', None):
                 self.move_turned(o, old)
+            elif o.type == 'stack':            # a new size: resizeStack new w,h,old w,h to its card, at once
+                self.stack_resized(o, old)     # (measured 27 Nov: width/height/rect, not loc; docs/WINDOW_RULES.md)
             return
         if p in ('points', 'relativepoints'):
             self.set_points(o, value, p == 'relativepoints')
@@ -1155,22 +1157,7 @@ class StackHost(Host):
             o = self.resolve(es[0], must=False) if es else rt.default_stack
             if o is None:                      # a stack that is not here (close stack "Message box", an IDE
                 return ''                      # window): nothing to close, the game goes on
-            if o.type == 'stack' and o is not rt.first_stack:
-                rt.leave_stack(o, closing=True)    # a substack closes: back to the stack shown before it
-                self.destroyed(o)
-                return ''
-            if o.type == 'stack' and o is not rt.default_stack and any(
-                    id(x) in rt.opened for x in [rt.default_stack] if x is not o):
-                # the first stack closes while another one is shown (the Library's second copy closes itself
-                # once the game's window is up): it closes, the window goes on with the shown stack
-                rt.leave_stack(o, closing=True)
-                rt.shown_before = [x for x in rt.shown_before if x is not o]
-                rt.first_stack = rt.default_stack
-                self.destroyed(o)
-                return ''
-            rt.close_stack()
-            rt.closed = True               # close stack / close this stack: the window ends
-            return ''
+            return self.close_stack_obj(o)
         if name == 'wait':
             rt.wait(self.wait_ms(parts))
             return ''
@@ -1210,6 +1197,36 @@ class StackHost(Host):
             rt.quitting = True
             return ''
         raise XtError("can't find handler %s" % name)
+
+    def stack_resized(self, st, old):
+        """the stack's size changed (a script, or the owner dragging the window: View.user_resize):
+        resizeStack newWidth, newHeight, oldWidth, oldHeight to its current card"""
+        ow, oh = old[2] - old[0], old[3] - old[1]
+        nw, nh = st.width, st.height
+        if (nw, nh) == (ow, oh) or st.current is None:
+            return
+        self.rt.changed = True
+        self.rt.dispatch(st.current, 'resizeStack', [str(nw), str(nh), str(ow), str(oh)])
+
+    def close_stack_obj(self, o):
+        """close stack X; also the close box once closeStackRequest was passed (View.close_request)"""
+        rt = self.rt
+        if o.type == 'stack' and o is not rt.first_stack:
+            rt.leave_stack(o, closing=True)    # a substack closes: back to the stack shown before it
+            self.destroyed(o)
+            return ''
+        if o.type == 'stack' and o is not rt.default_stack and any(
+                id(x) in rt.opened for x in [rt.default_stack] if x is not o):
+            # the first stack closes while another one is shown (the Library's second copy closes itself
+            # once the game's window is up): it closes, the window goes on with the shown stack
+            rt.leave_stack(o, closing=True)
+            rt.shown_before = [x for x in rt.shown_before if x is not o]
+            rt.first_stack = rt.default_stack
+            self.destroyed(o)
+            return ''
+        rt.close_stack()
+        rt.closed = True               # close stack / close this stack: the window ends
+        return ''
 
     def destroyed(self, st):
         """a closed stack with destroyStack true (and not the harvest's own): gone from memory"""
