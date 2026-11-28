@@ -7,7 +7,7 @@ and what a stack writes stays in xtalk_py/run_files/xtpy/ (never the owner's fil
 `tools/xtpy.py TARGET serve` process (raylib has one window a process). Standard library only (the server runs
 on plain python3); the workers run with xtalk_py's .venv.
 
-Tools: xtpy_open, xtpy_eval, xtpy_run, xtpy_click, xtpy_type, xtpy_key, xtpy_frames, xtpy_snap, xtpy_step,
+Tools: xtpy_primer (read first), xtpy_open, xtpy_eval, xtpy_run, xtpy_click, xtpy_type, xtpy_key, xtpy_frames, xtpy_snap, xtpy_step,
 xtpy_close, xtpy_list, xtpy_games, xtpy_game (one game played N frames: stats, errors, a picture), xtpy_diff.
 """
 import base64, json, os, selectors, subprocess, sys, tempfile, time
@@ -121,6 +121,10 @@ def t_list(args):
                      for k, v in _sessions.items())
 
 
+def t_primer(args):
+    return open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'xtpy_primer.md'), encoding='utf-8').read()
+
+
 def t_games(args):
     names = sorted(f[len('Vibecode3D_Play_'):-len('.livecodescript')] for f in os.listdir(GAMES)
                    if f.startswith('Vibecode3D_Play_') and f.endswith('.livecodescript'))
@@ -219,6 +223,8 @@ def schema(props=None, required=None):
 
 
 TOOLS = [
+    ('xtpy_primer', t_primer, 'Read this first: how to open, play and test xTalk stacks and games with the xtpy '
+     'tools, with example expressions (xTalk is not JavaScript or Python).', {'type': 'object', 'properties': {}}),
     ('xtpy_games', t_games, 'List the Vibecode3D games xtpy can open (names for xtpy_open / xtpy_game).',
      {'type': 'object', 'properties': {}}),
     ('xtpy_open', t_open, 'Open a stack or game in the Python xTalk runtime, hidden (nothing on screen), and keep it '

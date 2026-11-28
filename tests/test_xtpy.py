@@ -91,7 +91,7 @@ if have_raylib or os.path.isfile(VENV):
                            input=''.join(json.dumps(m) + '\n' for m in msgs), capture_output=True, text=True, timeout=300)
         r = {m['id']: m.get('result', {}) for m in map(json.loads, p.stdout.splitlines())}
         names = [t['name'] for t in r[2].get('tools', [])]
-        check('mcp: the pack\'s tools are listed', all(n in names for n in ('xtpy_open', 'xtpy_eval', 'xtpy_game')), True)
+        check('mcp: the pack\'s tools are listed', all(n in names for n in ('xtpy_primer', 'xtpy_open', 'xtpy_eval', 'xtpy_game')), True)
         txt = lambda i: r[i]['content'][0].get('text', '')  # noqa: E731
         check('mcp: open, eval, run + eval a global', (txt(3)[:9], txt(4), txt(6)), ('session 1', '42', '5'))
         check('mcp: snap is a PNG picture', (r[7]['content'][0]['type'], base64.b64decode(r[7]['content'][0]['data'])[:4]),

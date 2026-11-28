@@ -78,3 +78,7 @@ them (he can say otherwise before x1-14 is merged).
   frames are the loading screen). NOT yet registered for Claude Code: registering points at this file, so after
   the merge (`claude mcp add -s user xtpy -- python3 -I ~/projects/LIB_MCP/python/lib_mcp/mcp_server.py --tools
   ~/projects/xtalk_py/mcp/xtpy_tools.py`; user scope = every session in ~/projects, his question 3).
+- x1-15 READY, not run: LM Studio was not running (27 Nov night; starting it is his). `mcp/xtpy_primer.md` (the
+  page Spark reads first, also the tool xtpy_primer) + `tools/spark_try_xtpy.sh [MODEL]`: four asks (list games,
+  drive SquadBuggy, type in Thrmnlra's note box, a diff), log in run_files/spark_try_xtpy.log. Then: note what a
+  small model gets wrong, fix the primer. ask_local passes text only (pictures are dropped for text models).
