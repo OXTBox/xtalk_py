@@ -1,6 +1,10 @@
 # Handoff 27 Nov late: START HERE (MCP Python run)
 
-This file lives on branch `mcp-pack` (worktree ~/projects/xtalk_py_wt/mcp-pack) until the merge.
+MERGED + PUSHED 27 Nov late on his "merge" (all tests pass on main; branches and worktree removed). lcmcp ping
+OK'd and answered first time; Spark try done (all four right); LIB_VectorMap: his word "can wait".
+Still open: registering xtpy for Claude Code (my `claude mcp add` was refused by the permission check: he runs
+`claude mcp add -s user xtpy -- python3 -I /home/igame3d/projects/xtalk_py/mcp/xtpy_server.py` himself).
+Next in the tube: x1-09 shaders (step 2: measure effects in LiveCode, NO snapshots), then x1-16.
 HANDOFF_2026-11-27_NIGHT.md is history except its Open list, carried over below.
 
 ## His word 27 Nov late (all done)
@@ -17,7 +21,7 @@ What each gives: docs/MCP_PYTHON_PLAN.md, "His answers" at its end. Full test li
 (new: tests/test_xtpy.py, 25). Survey on mcp-pack (27 Nov late): 59/61, the same two as before (Simple_Test2, demo: missing btn).
 After the merge: register `mcp/xtpy_server.py` (xtpy tools ONLY) for Claude Code at user scope (command in the plan).
 
-His tries (worktree ~/projects/xtalk_py_wt/mcp-pack):
+His tries (now on main, ~/projects/xtalk_py):
 - `tools/xtpy Thrmnlra 'frames 40' 'type \`hello' 'eval the text of field "GameNote"' 'snap /tmp/x.png'`
 - `tools/xtpy SquadBuggy 'frames 400' 'hold d' 'frames 120' 'release d' 'stats'`
 - `tools/xtpy diff --no-lc '7 mod -3'`
