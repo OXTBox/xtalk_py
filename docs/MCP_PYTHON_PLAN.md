@@ -85,3 +85,12 @@ them (he can say otherwise before x1-14 is merged).
   drive SquadBuggy, type in Thrmnlra's note box, a diff), log in run_files/spark_try_xtpy.log. Then: note what a
   small model gets wrong, fix the primer. Pictures are left out for a text model. xtpy_diff in the pack leaves LiveCode out until LIB_MCP's
   hidden-restart fix; sessions start no programs (shell/launch noted only); a step past 180 s stops its stack.
+- x1-15 RUN 27 Nov late (his OK; LM Studio started faceless with `lms`, see below): Spark (spark-x2.6-4b) did all
+  four asks right first time: 61 games; SquadBuggy load 400 frames, hold d 120, let go, stats (it used xtpy_step
+  stats: fine); Thrmnlra note box "hello" (it evaluated `field "GameNote"`, valid xTalk); diff 7 mod -3 = 1. It
+  skipped xtpy_primer on the first ask only (a list needed none). Nothing to fix in the primer yet.
+  Log: run_files/spark_try_xtpy.log.
+- LM Studio with no window: `/mnt/c/Users/Private/.cache/lm-studio/bin/lms.exe status` (also `server start`,
+  `load MODEL`, `ls`) runs its server in the background; the API is then at 127.0.0.1:1234 (curl.exe).
+- lcmcp answered the first ping 27 Nov late (his OK): `xtpy diff` LiveCode column tried, `7 mod -3` and an item
+  chunk AGREE.
