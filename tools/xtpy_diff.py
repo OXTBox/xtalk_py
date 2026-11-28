@@ -9,7 +9,7 @@
 Says AGREE when every answer is the same, else which ones differ from LiveCode. An error is ERR (as in
 tests/golden.json). LiveCode is asked ONCE through lcmcp's standalone (no retry: a failed start can open a
 command prompt on the owner's screen); if it does not answer, its column says "not asked" and why.
-Exit status: 0 agree, 1 differ, 2 LiveCode not asked.
+Exit status: 0 agree, 1 differ, 2 LiveCode asked but did not answer (with --no-lc: the Python answers decide).
 """
 import os, subprocess, sys, time
 
@@ -93,7 +93,10 @@ def diff(code, ask_lc=True):
     rows.append(('LiveCode', lc if lc is not None else 'not asked: %s' % why))
     if lc is None:
         same = len(set(r[1] for r in rows[:3])) == 1
-        return rows, kind, ('the Python answers %s; LiveCode not asked' % ('agree' if same else 'DIFFER')), 2
+        verdict = 'the Python answers %s; LiveCode not asked' % ('agree' if same else 'DIFFER')
+        if not ask_lc:                               # left out on purpose: the status is the Python verdict
+            return rows, kind, verdict, 0 if same else 1
+        return rows, kind, verdict, 2
     off = [n for n, v in rows[:3] if v != lc]
     if not off:
         return rows, kind, 'AGREE', 0

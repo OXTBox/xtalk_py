@@ -252,9 +252,9 @@ standalone per library group.
   the window's place. Our window: rawKeyDown is sent but does not yet stop keyDown when not passed; a hidden
   (test) window never moves the mouse.
   27 Nov night (x1-11): a taken (not passed) rawKeyDown now stops keyDown for letters/digits/space/` in the View
-  and in `type_char`. OPEN, to measure in LiveCode: does a taken rawKeyDown 65288/65293/65289 also stop
-  backspaceKey / returnInField / tabKey? The View still sends them (it only drops characters); `type_char` (hidden
-  tests) does not. Whichever LiveCode does, make both agree.
+  and in `type_char`. OPEN, to measure in LiveCode: does a taken rawKeyDown 65288/65293/65289/arrows also stop
+  backspaceKey / returnInField / tabKey / arrowKey? The View still sends them (it only drops characters); `type_char` and xtpy's
+  `key left` (hidden tests) do not. Whichever LiveCode does, make both agree.
 - nine-ball's Instructions field (the real stack, a scratch copy): fixedLineHeight true, effective textSize 12,
   textHeight 16, so its lines are 16 apart (we drew 18 before; the text runs are size 11).
 - **Dictionary (OXT-Beyond, 25 Nov)** settles the old "NOT checked" note: with navigationArrows true and no text

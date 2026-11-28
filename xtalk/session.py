@@ -55,6 +55,7 @@ def is_game(target):
 
 
 KEY_CHARS = {'space': ' ', 'return': '\n', 'enter': '\n', 'backspace': '\b', 'tab': '\t'}
+ARROWS = {65361: 'left', 65362: 'up', 65363: 'right', 65364: 'down'}
 KEY_CODES = {'escape': 65307, 'left': 65361, 'up': 65362, 'right': 65363, 'down': 65364, 'shift': 65505,
              'control': 65507, 'alt': 65513}
 
@@ -102,6 +103,8 @@ class Session:
                     raise ValueError('not a game in LIB_GAMES/Vibecode3D_Games nor a harvest folder: %s' % target)
             self.rt = StackRuntime(path, files_dir=files)
         self.rt.log_clicks = []
+        self.rt.start_programs = False               # shell() and launch start nothing (a script could write a
+                                                     # .py into its folder and start it): noted only
         self.view = None
         if window:
             try:
@@ -162,8 +165,8 @@ class Session:
                 rt.test_keys = list(rt.test_keys) + [code]
                 if len(ch) == 1:
                     rt.type_char(ch)             # rawKeyDown, then keyDown (or Backspace...) unless it was taken
-                else:
-                    rt.raw_key(code)
+                elif not rt.raw_key(code) and code in ARROWS:
+                    rt.special_key(ARROWS[code])  # arrowKey (a field's caret; else the card, navigationArrows)
                 self.frames(1)
                 rt.test_keys = [k for k in rt.test_keys if k != code]
                 self.frames(1)
