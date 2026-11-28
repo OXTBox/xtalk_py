@@ -116,6 +116,12 @@ rt.run('select after text of field "T"')
 rt.key('!')
 rt.run('select char 1 to 2 of field "T"')
 check('select: after text, then a chunk (the selectedText)', (rt.get('field "T"', 'text'), rt.eval('the selection')), ('ab\nzc!', 'ab'))
+rt.run('select after text of field "T"')
+for c in 'qx\bw':
+    rt.type_char(c)                       # x1-11: rawKeyDown + keyDown like a window; x taken; \b = Backspace
+check('type_char: typed like a window (keyDown takes x, \\b backspaces)', rt.get('field "T"', 'text'), 'ab\nzc!w')
+rt.type_char('\b')
+rt.run('select char 1 to 2 of field "T"')
 rt.G['glog'] = ''
 rt.click('40,30')                         # elsewhere: the field had changed: closeField
 check('typing: leaving a changed field sends closeField', (rt.G['glog'].split(';')[0], rt.eval('the focusedObject')), ('close', ''))

@@ -1200,7 +1200,24 @@ class StackRuntime:
                 and self.editable(f):
             self.type_into(f, ch)
 
-    SPECIAL = {'backspace': ('backspaceKey', []), 'delete': ('deleteKey', []), 'return': ('returnInField', []),
+    RAW_CHARS = set('abcdefghijklmnopqrstuvwxyz0123456789 `')   # the keys the View sends rawKeyDown for
+    TYPE_SPECIAL = {'\b': (65288, 'backspace'), '\n': (65293, 'return'), '\t': (65289, 'tab')}
+
+    def type_char(self, ch):
+        """one key typed the way the View's window does it (x1-11, for hidden checks): rawKeyDown with the key's
+        code (letters lower case, as the View's KEYCODES), then, unless a handler took it, keyDown with the
+        character, which types it into the focused field. \\b = Backspace, \\n = Return, \\t = Tab: their
+        rawKeyDown, then backspaceKey / returnInField / tabKey and the field's own action (special_key)."""
+        if ch in self.TYPE_SPECIAL:
+            code, name = self.TYPE_SPECIAL[ch]
+            if not self.raw_key(code):
+                self.special_key(name)
+            return
+        if ch.lower() in self.RAW_CHARS and self.raw_key(ord(ch.lower())):
+            return                               # its rawKeyDown was taken: LiveCode sends no keyDown
+        self.key(ch)
+
+    SPECIAL = {'backspace':('backspaceKey', []), 'delete': ('deleteKey', []), 'return': ('returnInField', []),
                'enter': ('enterInField', []), 'left': ('arrowKey', ['left']), 'right': ('arrowKey', ['right']),
                'up': ('arrowKey', ['up']), 'down': ('arrowKey', ['down']), 'tab': ('tabKey', []),
                'home': (None, []), 'end': (None, [])}
