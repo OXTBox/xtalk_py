@@ -2,6 +2,8 @@
 """xtpy - a command line like lcmcp, for the Python runtime (x1-12). A stack or game opened hidden, steps run in order.
 
     tools/xtpy TARGET [do] 'STEP' 'STEP' ...     the answers printed, one block a step
+    tools/xtpy diff '<xTalk>'                    a snippet in the interpreter, translated, fast mode and LiveCode
+                                                 side by side (tools/xtpy_diff.py: --no-lc, --fact)
     tools/xtpy TARGET serve                      one step a line on stdin, one JSON answer a line on stdout
                                                  ({"ok": true, "answer": "..."}); "close" or end of input stops
                                                  (the x1-14 MCP pack runs one of these a stack)
@@ -26,6 +28,10 @@ sys.path.insert(0, ROOT)
 def main(a):
     if not a or a[0] in ('-h', '--help'):
         sys.exit(__doc__)
+    if a[0] == 'diff':
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import xtpy_diff
+        return xtpy_diff.main(a[1:])
     # answers go to the real stdout; everything else printed (raylib's INFO lines, the stacks' own puts,
     # the C library's lines too) goes to stderr, so the answers can be read by a program (serve, x1-14)
     out = os.fdopen(os.dup(1), 'w', buffering=1)

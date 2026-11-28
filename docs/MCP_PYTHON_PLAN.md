@@ -66,3 +66,7 @@ them (he can say otherwise before x1-14 is merged).
   (raylib has one window a process): many at once = many processes, each its own run_files/xtpy/<pid> folder,
   where the stack's writes go (checked: a note saved in Thrmnlra's box lands there, GAME_NOTES.txt unchanged).
   tests/test_xtpy.py (14, two at once included). make_stack moved from xt3d_game_check into xtalk/session.py.
+- x1-13 BUILT on branch `xtpy-diff` (made from `xtpy`): `tools/xtpy diff '<xTalk>'` (tools/xtpy_diff.py): interpreter,
+  translated, fast mode, LiveCode; AGREE / DIFFER; `--fact` drafts the LIVECODE_FACTS line; `--no-lc`.
+  LiveCode is asked once, never retried (exit 2 = not asked). The LiveCode column is NOT yet tried: it waits for
+  his OK to ping lcmcp (a failed start opens a command prompt on his screen).
