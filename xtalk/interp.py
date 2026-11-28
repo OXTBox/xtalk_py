@@ -2,7 +2,7 @@
 import os, copy
 import math, random, time, base64, re
 from . import chunks as ch
-from .values import XtError, XtArray, CASE, array_cmp, to_num, fmt_num, numstr, plain, to_text, to_bool, is_numeric_text, compare, NUMBER_FORMAT
+from .values import XtError, XtArray, CASE, array_cmp, to_num, fmt_num, numstr, plain, to_text, to_bool, is_numeric_text, compare, fold, NUMBER_FORMAT
 from .parser import parse_script, parse_expr, parse_statements, OBJTYPES
 from .host import Host, wildcard
 
@@ -152,7 +152,8 @@ class Interp:
         self.host = Host()
         self.props = {'itemdelimiter': ',', 'linedelimiter': '\n', 'numberformat': '0.######',
                       'casesensitive': 'false'}
-        self.output = []                # what `put x` with no target printed
+        CASE[0] = False                 # shared by every runtime: a new one starts at LiveCode's default (a test's
+        self.output = []                # leftover true broke the next cases' compares, 27 Nov)                # what `put x` with no target printed
         self.result = ''
         self.depth = 0
         self.refs = {}
@@ -1100,13 +1101,13 @@ class Interp:
             c = array_cmp(l, r) if isinstance(l, dict) or isinstance(r, dict) else compare(to_text(l), to_text(r))
             return 'true' if {'=': c == 0, '<>': c != 0, '<': c < 0, '>': c > 0, '<=': c <= 0, '>=': c >= 0}[op] else 'false'
         if op == 'contains':
-            return 'true' if to_text(r).lower() in to_text(l).lower() else 'false'
+            return 'true' if fold(to_text(r)) in fold(to_text(l)) else 'false'
         if op == 'begins':
-            return 'true' if to_text(l).lower().startswith(to_text(r).lower()) else 'false'
+            return 'true' if fold(to_text(l)).startswith(fold(to_text(r))) else 'false'
         if op == 'ends':
-            return 'true' if to_text(l).lower().endswith(to_text(r).lower()) else 'false'
+            return 'true' if fold(to_text(l)).endswith(fold(to_text(r))) else 'false'
         if op == 'in':
-            return 'true' if to_text(l).lower() in to_text(r).lower() else 'false'
+            return 'true' if fold(to_text(l)) in fold(to_text(r)) else 'false'
         if op.startswith('among'):
             kind = {'among': 'item', 'among_lines': 'line', 'among_words': 'word', 'among_chars': 'char'}[op]
             items = [to_text(r)[a:b] for a, b in ch.spans(to_text(r), kind, **self.delims())]
@@ -1236,7 +1237,7 @@ def f_max(it, fr, *a):
 
 def f_offset(it, fr, needle, hay, skip='0'):
     s = int(_n(skip))
-    i = _t(hay).lower().find(_t(needle).lower(), s)
+    i = fold(_t(hay)).find(fold(_t(needle)), s)
     return str(i + 1 if i >= 0 else 0)
 
 def _offset_chunk(kind):
@@ -1244,7 +1245,7 @@ def _offset_chunk(kind):
         text, nd = _t(hay), _t(needle)
         sp = ch.spans(text, kind, **it.delims())
         for idx, (a, b) in enumerate(sp):
-            if idx >= int(_n(skip)) and text[a:b].lower() == nd.lower():
+            if idx >= int(_n(skip)) and fold(text[a:b]) == fold(nd):
                 return str(idx + 1)
         return '0'
     return f

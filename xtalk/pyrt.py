@@ -189,7 +189,7 @@ import copy
 import math
 import math as _m
 import re as _re
-from .values import NumStr, text_num, num_cmp, fmt_num, compare as _compare, array_cmp
+from .values import NumStr, text_num, num_cmp, fmt_num, compare as _compare, array_cmp, CASE as _CASE
 from .interp import rnd_half_away   # noqa: F401
 
 
@@ -461,6 +461,8 @@ def among_items(rt, l, r, kind='item'):
     x = _num_or_none(l)
     if x is not None:
         return any(num_cmp(x, y) == 0 for y in nums)    # (a number's text is never like a non-number's)
+    if _CASE[0]:                                       # the caseSensitive true: "a" is not among "A,B" (27 Nov)
+        return T(l) in items
     return T(l).lower() in texts
 
 

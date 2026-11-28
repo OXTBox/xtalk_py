@@ -17,6 +17,20 @@ from xtalk.pyrt import Runtime                                # noqa: E402
 from xtalk.transpile import translate_script                  # noqa: E402
 
 CASES = [
+    ('the caseSensitive true: text operators count case (g1-08, measured 27 Nov); false again in a called function', '''
+function t
+   put ("x" is in "X") & ("AbC" begins with "a") & ("AbC" ends with "c") & ("a" = "A") into tR
+   put "," & ("a" is among the items of "A,B") & "," & offset("b", "ABC") & "," & ("ABC" contains "b") after tR
+   set the caseSensitive to true
+   put "|" & ("x" is in "X") & ("AbC" begins with "a") & ("AbC" ends with "c") & ("a" = "A") after tR
+   put "," & ("a" is among the items of "A,B") & "," & offset("b", "ABC") & "," & ("ABC" contains "b") after tR
+   put "," & ("A" is among the items of "A,B") & ("Ab" is in "xAby") & offset("B", "ABC") after tR
+   put "|" & tCalled() after tR
+   return tR
+end t
+function tCalled
+   return ("a" = "A") & ("x" is in "X")
+end tCalled''', 'truetruetruetrue,true,2,true|falsefalsefalsefalse,false,0,false,truetrue2|truetrue'),
     ('a missing function (a library not in use) is caught, and the error names it', '''
 function t
    try

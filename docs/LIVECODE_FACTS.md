@@ -380,6 +380,9 @@ Measured with `lcmcp --standalone` (LiveCode 9.6.3 on Windows):
 | `specialFolderPath("support")` | `C:/Users/<name>/AppData/Roaming` (documents, home, desktop: `C:/Users/<name>/...`) |
 | caseSensitive true: `"x" is in "X"`, `"AbC" begins with "a"`, `ends with "c"`, `"a" = "A"`, `"a" is among the items of "A,B"`, `offset("b","ABC")` | false, false, false, false, false, 0 (all case-sensitive) |
 
+Ours since 27 Nov (g1-08): `values.fold` / `compare` and pyrt `among_items` follow the caseSensitive in all three
+modes (tests/test_measured.py); a new runtime or stack starts it at false, an object's context made mid-handler keeps it.
+
 So `unknown property "the users.driver"` in the Python play logs was only Python's wording for
 `Users.Driver()` with LIB_USERS not in use: no `the` form is involved. In LiveCode the same call fails the same
 way, because neither the xt3d test bench (xt3d_testBench_lib_mcp) nor LIB_DEV's game_player starts using

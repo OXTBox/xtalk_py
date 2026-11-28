@@ -19,7 +19,7 @@ import heapq, os, re, time
 from ..pyrt import Runtime
 from ..transpile import translate_script
 from ..interp import Frame, Thrown, ExitRepeat, NextRepeat, Break
-from ..values import XtError
+from ..values import XtError, CASE
 from .model import Harvest
 from .host import StackHost
 from . import styled
@@ -60,7 +60,9 @@ class ObjInterp(Runtime):
     """the script context of one object"""
 
     def __init__(self, rt, obj, script_of=None):
-        super().__init__()
+        keep = CASE[0]                     # made while a handler runs (create, a new card): its caseSensitive
+        super().__init__()                 # stays (a new Interp alone starts at false)
+        CASE[0] = keep
         self.rt, self.obj = rt, obj
         self.script_of = script_of         # a behavior's context: the button / stack whose script this is
         self.G = rt.G
@@ -204,6 +206,7 @@ class StackRuntime:
         self.default_stack = self.harvest.main
         self.G = {}
         self.props = {'itemdelimiter': ',', 'linedelimiter': '\n', 'numberformat': '0.######', 'casesensitive': 'false'}
+        CASE[0] = False                 # a new stack starts at LiveCode's default
         self.host = StackHost(self)
         files = files_dir or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                                           'run_files')

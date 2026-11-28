@@ -13,6 +13,12 @@ _MISS = object()
 CASE = [False]                         # the caseSensitive (the Interp keeps it in step; per handler)
 
 
+def fold(s):
+    """text as the caseSensitive compares it: lower case while it is false (the default), as it is when true
+    (measured 27 Nov in LiveCode: is in, contains, begins with, ends with, =, among, offset all follow it)"""
+    return s if CASE[0] else s.lower()
+
+
 class XtArray(dict):
     """an xTalk array: a key finds its element whatever its case while the caseSensitive is false (measured
     25 Nov: a["x"] finds the element put as a["X"]; putting a["name"] after a["Name"] changes that element and
@@ -205,11 +211,12 @@ def array_cmp(a, b):
 
 
 def compare(a, b):
-    """-1/0/1 the LiveCode way: numbers as numbers (full value) when both are, else text ignoring case"""
+    """-1/0/1 the LiveCode way: numbers as numbers (full value) when both are, else text ignoring case
+    (unless the caseSensitive is true: measured 27 Nov, "a" = "A" is then false)"""
     x = text_num(a)
     if x is not None:
         y = text_num(b)
         if y is not None:
             return num_cmp(x, y)
-    x, y = a.lower(), b.lower()
+    x, y = (a, b) if CASE[0] else (a.lower(), b.lower())
     return (x > y) - (x < y)
