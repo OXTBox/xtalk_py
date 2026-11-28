@@ -13,11 +13,14 @@ STEPS, done in order (each followed by --frames frames, default 30):
     pick:NAME:LINE      click line LINE (a number or the text) of list field NAME (fileList:3, fileList:SquadBuggy)
     game:NAME           xbPlayGame NAME (as picking it from the Games list)
     key:CODE            rawKeyDown CODE (65307 = Escape)
+    type:TEXT           a click in the console line (under the view), then TEXT typed
+    special:NAME        return, tab, up, down, backspace... to the focused field (else the card)
     answer:TEXT         the reply to the next answer folder / answer file dialog
     frames:N            N more frames
     snap:FILE           a picture of the window now
 
 The checks write nothing of his: real_folders, so files are read from where they are, writes go to run_files.
+--real: as his window runs it (real_app: shell() through cmd.exe, his real files written), still hidden.
 """
 import os, sys, time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -54,11 +57,13 @@ def main(a):
         if x in ('--frames', '--snap', '--eval'):
             skip = True
             continue
+        if x == '--real':
+            continue
         steps.append(x)
     from xtalk.interp import Interp
     Interp.CATCH_LOG = []
     t0 = time.perf_counter()
-    rt, v = open_bench()
+    rt, v = open_bench(real_app='--real' in a)
     rt.open()
     for _ in range(frames):
         v.frame()
@@ -88,6 +93,16 @@ def main(a):
             rt.message(bench.children[0], 'xbPlayGame', [arg])
         elif kind == 'key':
             rt.raw_key(int(arg))
+        elif kind == 'type':                   # a click in the console line, then the text typed into it
+            o = rt.host.resolve('field "conIn" of card 1 of stack "xt3dTestBenchLibMCP"')
+            r = o.rect
+            down = rt.mouse_down(r[0] + 5, (r[1] + r[3]) // 2)
+            rt.mouse_up(r[0] + 5, (r[1] + r[3]) // 2, down_on=down)
+            for c in arg:
+                if not rt.raw_key(ord(c)):
+                    rt.key(c)
+        elif kind == 'special':                # special:return, special:tab ...
+            rt.special_key(arg)
         elif kind == 'answer':
             rt.dialog_answers.append(arg)
             n = 0
@@ -120,6 +135,8 @@ def main(a):
     log = rt.host.resolve('field "log" of card 1 of stack "xt3dTestBenchLibMCP"', must=False)
     if log is not None and log.text.strip():
         print('log field:', log.text[-300:].replace('\n', ' | '))
+    for m in rt.menus[-5:]:
+        print('menu shown: %s: %s' % (m[0], ', '.join(m[1][:12])))
     from collections import Counter
     for t, k in Counter(Interp.CATCH_LOG).most_common(12):
         print('caught by a try (%dx): %s' % (k, t[:400]))

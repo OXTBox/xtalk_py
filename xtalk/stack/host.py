@@ -1209,7 +1209,10 @@ class StackHost(Host):
         if name == 'popup':
             if es:
                 o = self.resolve(es[0])
-                x, y = ints(es[1], 2) if len(es) > 1 else rt.mouse
+                if len(es) > 2:                # popup btn at tX, tY: the point as two expressions (lib_console's Tab)
+                    x, y = ints(es[1] + ',' + es[2], 2)
+                else:
+                    x, y = ints(es[1], 2) if len(es) > 1 else rt.mouse
                 rt.show_menu(o, x, y)
             return ''
         if name == 'grab':
