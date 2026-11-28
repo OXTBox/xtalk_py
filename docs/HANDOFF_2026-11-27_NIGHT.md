@@ -41,3 +41,21 @@ test_window_rules (48) and test_effects (24): add both to the full list (CLAUDE.
 - Board comment c1795473221928 (p1-03 "fixed by Bill"): ask whether to close.
 - s1-01 steps 1-2 (lead, LiveCode + OXT bridge) not started: needs lcmcp back.
 - GPU default through the launchers: still not played by him.
+
+## Last thing 27 Nov night (after the merge), then he rebooted
+
+- raylib clone surveyed and MOVED: `~/projects/LIB_BIN/raylib/6.5-dev-master` (6.5-dev, 227 examples; MANIFEST row).
+  LIB_SHADERS main: `reference/raylib/` = raylib's 63 glsl330 shaders (zlib) + README mapping the 36 shader examples
+  to our needs (postprocessing bloom/blur first, outline, rounded_rectangle, mask). Bridge plan path fixed (branch
+  raylib-examples). Owner's intent: demonstrate the WHOLE Examples folder -> tube x1-16 (Examples browser, both engines).
+- The reboot ends the stuck lcmcp standalone (8767) and any stray command prompts: after it, ONE `lcmcp --standalone
+  ping` should start a fresh copy. If it hangs again, stop and report (each retry opens a prompt on his screen).
+
+## First things next session
+
+1. Read his answers / game notes / review feedback (LIB_LLMIN/LIB_GAMES/GAME_NOTES.txt, for_review.py feedback).
+2. His tries (all on main now): open_library.sh (window rules), open_xt3d.sh (bench), open_stack.sh NeonArcade (glows),
+   play_xt3d.sh SquadBuggy (GPU default).
+3. Waiting on his word: MCP plan's 3 questions (x1-11..x1-15), LIB_MCP hidden-restart fix, p1-03 board comment,
+   LIB_SHADERS to GitHub or not, x1-16 start.
+4. When lcmcp answers: x1-09 step 2 (measure effects, NO snapshots), then s1-01 steps 1-2.
