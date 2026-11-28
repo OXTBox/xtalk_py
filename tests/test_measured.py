@@ -209,7 +209,10 @@ function fn
 end fn
 on setit
    put 99 into it
-end setit'''
+end setit
+on sendp
+   send "bar" to me
+end sendp'''
 
 STACK_CASES = [
     ('it after dispatch: handled / passed (the last handler passed) / unhandled; send leaves it; an engine message with no handler: unhandled (measured 27 Nov)', '''
@@ -229,6 +232,8 @@ function t
    put " fnf=" & it & "/" & the result after tR
    dispatch "setit" to button "T"
    put " setit=" & it after tR
+   dispatch "sendp" to button "T"
+   put " sendp=" & it after tR
    put "x" into it
    send "foo" to button "T"
    put " sendit=" & it after tR
@@ -237,7 +242,7 @@ function t
    return tR
 end t
 on baz
-end baz''', 'foo=handled bar=passed baz=handled nope=unhandled ret=handled/42 fnf=handled/7 setit=handled sendit=x '
+end baz''', 'foo=handled bar=passed baz=handled nope=unhandled ret=handled/42 fnf=handled/7 setit=handled sendp=handled sendit=x '
             'mouseDoubleUp=unhandled'),
     ('the long id of a script-only stack loaded from a file is its path (its long name and card too; measured 27 Nov)', '''
 function t

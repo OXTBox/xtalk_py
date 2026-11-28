@@ -539,14 +539,14 @@ class StackRuntime:
     def send_text(self, o, text):
         """`send "hello 7" to o`: the text runs as a statement, starting at o"""
         c = self.ctx.get(id(o)) or ObjInterp(self, o)
-        saved = self.target
-        self.target = o
+        saved, saved_off = self.target, self.passed_off     # a send inside a dispatched handler: its own pass
+        self.target = o                                     # does not make that dispatch "passed"
         try:
             self.running.append(o)
             c.run(text)
         finally:
             self.running.pop()
-            self.target = saved
+            self.target, self.passed_off = saved, saved_off
 
     def after(self, ms, o, text):
         """send text to o in ms; returns the message id (`the result` after `send ... in`, measured)"""

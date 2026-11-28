@@ -383,6 +383,8 @@ Button T: `foo` (handles), `bar` (passes), `baz` (passes; the card has baz), `re
 | `dispatch "fn"` (a function dispatched as a command) | unhandled (not built here: we run it, handled) |
 | `dispatch "setit"` (the handler puts 99 into its own it) | handled (the caller's it) |
 | `send "foo"` | it unchanged |
+| `dispatch "sendp"` (sendp does `send "bar" to me`; bar passes off the end) | handled |
+| a handler calling `bar` by name, bar passing off the end | error: can't find handler |
 | `dispatch "mouseUp"` to a button with no mouseUp anywhere | unhandled |
 
 | What | LiveCode |
